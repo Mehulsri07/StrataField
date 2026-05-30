@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Styles ──────────────────────────────────────────────────────────── */
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Custom scrollbar (dark theme) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(139, 148, 158, 0.25);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 148, 158, 0.4);
+  }
+
+  /* Selection color */
+  ::selection {
+    background: rgba(232, 123, 53, 0.3);
+    color: #E6EDF3;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid #E87B35;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Remove default focus for non-keyboard users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+/* ─── Component Utilities ──────────────────────────────────────────────────── */
+
+@layer components {
+  /* Glass panel effect */
+  .sf-panel {
+    @apply bg-sf-surface border border-sf-border rounded-lg;
+  }
+
+  .sf-panel-elevated {
+    @apply bg-sf-surface-2 border border-sf-border shadow-sf;
+  }
+
+  /* Input fields */
+  .sf-input {
+    @apply w-full px-3 py-2 bg-sf-base border border-sf-border rounded-md
+           text-txt-primary text-sm placeholder-txt-muted
+           transition-colors duration-150
+           hover:border-sf-border-2
+           focus:border-accent focus:ring-1 focus:ring-accent/30;
+  }
+
+  /* Buttons */
+  .sf-btn {
+    @apply inline-flex items-center justify-center gap-2
+           px-4 py-2 rounded-md text-sm font-medium
+           transition-all duration-150 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .sf-btn-primary {
+    @apply sf-btn bg-accent text-white
+           hover:bg-accent-hover active:scale-[0.98]
+           shadow-sf hover:shadow-sf-glow;
+  }
+
+  .sf-btn-secondary {
+    @apply sf-btn bg-sf-surface-2 text-txt-primary border border-sf-border
+           hover:bg-sf-surface-3 hover:border-sf-border-2 active:scale-[0.98];
+  }
+
+  .sf-btn-ghost {
+    @apply sf-btn bg-transparent text-txt-secondary
+           hover:bg-sf-surface-2 hover:text-txt-primary;
+  }
+
+  .sf-btn-danger {
+    @apply sf-btn bg-danger/10 text-danger border border-danger/20
+           hover:bg-danger/20 active:scale-[0.98];
+  }
+
+  /* Labels */
+  .sf-label {
+    @apply block text-sm font-medium text-txt-secondary mb-1;
+  }
+
+  /* Sidebar navigation item */
+  .sf-nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
+           text-txt-secondary cursor-pointer transition-all duration-150
+           hover:bg-sf-surface-2 hover:text-txt-primary;
+  }
+
+  .sf-nav-item-active {
+    @apply sf-nav-item bg-accent/10 text-accent-text border-l-2 border-accent;
+  }
+
+  /* Card */
+  .sf-card {
+    @apply bg-sf-surface border border-sf-border rounded-lg p-4
+           transition-all duration-200
+           hover:border-sf-border-2 hover:shadow-sf;
+  }
+
+  /* Badge */
+  .sf-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full
+           text-2xs font-medium;
+  }
+
+  .sf-badge-accent {
+    @apply sf-badge bg-accent/15 text-accent-text;
+  }
+
+  .sf-badge-success {
+    @apply sf-badge bg-success/15 text-success;
+  }
+
+  .sf-badge-warning {
+    @apply sf-badge bg-warning/15 text-warning;
+  }
+}
+
+/* ─── Light Theme Overrides ────────────────────────────────────────────────── */
+
+html:not(.dark) {
+  --sf-void: #f0f2f5;
+  --sf-base: #ffffff;
+}
+
+html:not(.dark) body {
+  background-color: #ffffff;
+  color: #1F2328;
+}
+
+html:not(.dark) .sf-panel {
+  background-color: #F6F8FA;
+  border-color: #D0D7DE;
+}
+
+html:not(.dark) .sf-input {
+  background-color: #FFFFFF;
+  border-color: #D0D7DE;
+  color: #1F2328;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: rgba(31, 35, 40, 0.15);
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(31, 35, 40, 0.25);
+}
+
+html:not(.dark) ::selection {
+  background: rgba(232, 123, 53, 0.2);
+  color: #1F2328;
+}
+
+/* ─── Animations ───────────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.sf-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 148, 158, 0.1) 25%,
+    rgba(139, 148, 158, 0.2) 50%,
+    rgba(139, 148, 158, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
