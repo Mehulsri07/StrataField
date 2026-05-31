@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import { borewellRepository } from '../database/borewellRepository';
 import { strataRepository } from '../database/strataRepository';
 import { pipeRepository } from '../database/pipeRepository';
+import { mergeStrataLayers, mergePipeSegments } from '../../shared/profileUtils';
 
 
 // Helper to parse hex color into pdf-lib rgb values
@@ -83,8 +84,11 @@ export const pdfExporter = {
           continue;
         }
 
-        const strata = strataRepository.getByBorewellId(id);
-        const pipes = pipeRepository.getByBorewellId(id);
+        const rawStrata = strataRepository.getByBorewellId(id);
+        const rawPipes = pipeRepository.getByBorewellId(id);
+
+        const strata = mergeStrataLayers(rawStrata);
+        const pipes = mergePipeSegments(rawPipes);
 
         // A4 page size: 595.27 x 841.89 points
         const page = pdfDoc.addPage([595.27, 841.89]);
@@ -284,15 +288,43 @@ export const pdfExporter = {
           });
 
           // Label inside layer (only if height is big enough)
-          if (lH >= 14) {
-            const labelStr = `${layer.material} (${layer.startDepth}-${layer.endDepth} ft)`;
-            const textW = helveticaBold.widthOfTextAtSize(labelStr, 7.5);
+          if (lH >= 24) {
+            const labelStr = layer.material.toUpperCase();
+            const rangeStr = `${layer.startDepth} - ${layer.endDepth} ft`;
+            const thicknessStr = `Thickness: ${layer.endDepth - layer.startDepth} ft`;
+
+            const textW1 = helveticaBold.widthOfTextAtSize(labelStr, 9.5);
+            const textW2 = helvetica.widthOfTextAtSize(rangeStr, 8);
+            const textW3 = helvetica.widthOfTextAtSize(thicknessStr, 8);
             
-            // Draw text outline shadow
+            page.drawText(labelStr, {
+              x: strataX + (strataW - textW1) / 2,
+              y: yEnd + lH / 2 + 7,
+              size: 9.5,
+              font: helveticaBold,
+              color: rgb(1, 1, 1),
+            });
+            page.drawText(rangeStr, {
+              x: strataX + (strataW - textW2) / 2,
+              y: yEnd + lH / 2 - 2,
+              size: 8,
+              font: helvetica,
+              color: rgb(0.95, 0.95, 0.95),
+            });
+            page.drawText(thicknessStr, {
+              x: strataX + (strataW - textW3) / 2,
+              y: yEnd + lH / 2 - 11,
+              size: 8,
+              font: helvetica,
+              color: rgb(0.9, 0.9, 0.9),
+            });
+          } else if (lH >= 14) {
+            const labelStr = `${layer.material} (${layer.startDepth}-${layer.endDepth} ft)`;
+            const textW = helveticaBold.widthOfTextAtSize(labelStr, 9.5);
             page.drawText(labelStr, {
               x: strataX + (strataW - textW) / 2,
-              y: yEnd + lH / 2 - 3,
-              size: 7.5,
+              y: yEnd + lH / 2 - 3.5,
+              size: 9.5,
               font: helveticaBold,
               color: rgb(1, 1, 1),
             });
@@ -357,13 +389,43 @@ export const pdfExporter = {
           });
 
           // Text label
-          if (pH >= 14) {
+          if (pH >= 26) {
+            const labelStr = isSlotted ? 'SLOTTED PIPE' : 'PLAIN PIPE';
+            const rangeStr = `${segment.startDepth} - ${segment.endDepth} ft`;
+            const lengthStr = `Length: ${segment.endDepth - segment.startDepth} ft`;
+
+            const textW1 = helveticaBold.widthOfTextAtSize(labelStr, 9);
+            const textW2 = helvetica.widthOfTextAtSize(rangeStr, 7.5);
+            const textW3 = helvetica.widthOfTextAtSize(lengthStr, 7.5);
+
+            page.drawText(labelStr, {
+              x: pipeX + (pipeW - textW1) / 2,
+              y: yEnd + pH / 2 + 7,
+              size: 9,
+              font: helveticaBold,
+              color: isSlotted ? rgb(1, 1, 1) : rgb(0.2, 0.2, 0.2),
+            });
+            page.drawText(rangeStr, {
+              x: pipeX + (pipeW - textW2) / 2,
+              y: yEnd + pH / 2 - 2,
+              size: 7.5,
+              font: helvetica,
+              color: isSlotted ? rgb(0.9, 0.9, 0.9) : rgb(0.3, 0.3, 0.3),
+            });
+            page.drawText(lengthStr, {
+              x: pipeX + (pipeW - textW3) / 2,
+              y: yEnd + pH / 2 - 11,
+              size: 7.5,
+              font: helvetica,
+              color: isSlotted ? rgb(0.9, 0.9, 0.9) : rgb(0.3, 0.3, 0.3),
+            });
+          } else if (pH >= 14) {
             const labelStr = isSlotted ? 'SLOTTED' : 'PLAIN';
-            const textW = helveticaBold.widthOfTextAtSize(labelStr, 7);
+            const textW = helveticaBold.widthOfTextAtSize(labelStr, 9);
             page.drawText(labelStr, {
               x: pipeX + (pipeW - textW) / 2,
-              y: yEnd + pH / 2 - 2.5,
-              size: 7,
+              y: yEnd + pH / 2 - 3,
+              size: 9,
               font: helveticaBold,
               color: isSlotted ? rgb(1, 1, 1) : rgb(0.2, 0.2, 0.2),
             });

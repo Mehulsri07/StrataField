@@ -1,6 +1,7 @@
 import { useUIStore } from '@/stores/uiStore';
 import type { Borewell, StrataLayer, PipeSegment } from '@/shared/types';
 import { getMaterialPatternStyle } from '@/components/ui/BorewellProfileDrawing';
+import { mergeStrataLayers, mergePipeSegments } from '@/shared/profileUtils';
 
 export function usePngExport(
   borewell: Borewell,
@@ -12,6 +13,9 @@ export function usePngExport(
 
   const exportPNG = async () => {
     try {
+      const mergedLayers = mergeStrataLayers(layers);
+      const mergedPipes = mergePipeSegments(pipes);
+
       const totalD = borewell.totalDepth || 250;
       const exportScale = 4.5; // High resolution 4.5px/ft
       const headerH = 220;
@@ -124,7 +128,7 @@ export function usePngExport(
 
         // Label
         ctx.fillStyle = '#000000';
-        ctx.font = isMajor ? 'bold 9px monospace' : '7.5px monospace';
+        ctx.font = isMajor ? 'bold 11px monospace' : '9px monospace';
         ctx.textAlign = 'right';
         ctx.fillText(`${depthVal} ft`, rulerX + 42, ty + 3);
 
@@ -143,7 +147,7 @@ export function usePngExport(
       ctx.strokeRect(strataX, drawY, strataW, drawingH);
 
       // Render Strata Layers on Canvas
-      layers.forEach((layer) => {
+      mergedLayers.forEach((layer) => {
         const ly = drawY + layer.startDepth * exportScale;
         const lh = (layer.endDepth - layer.startDepth) * exportScale;
         if (lh <= 0) return;
@@ -219,26 +223,52 @@ export function usePngExport(
         ctx.beginPath(); ctx.moveTo(strataX, ly + lh); ctx.lineTo(strataX + strataW, ly + lh); ctx.stroke();
 
         // Label Badge
-        if (lh >= 36) {
+        if (lh >= 48) {
           const labelText = layer.material.toUpperCase();
           const depthText = `${layer.startDepth} - ${layer.endDepth} ft`;
-          ctx.font = 'bold 9px monospace';
-          const badgeW = Math.max(ctx.measureText(labelText).width, ctx.measureText(depthText).width) + 16;
+          const thicknessText = `Thickness: ${layer.endDepth - layer.startDepth} ft`;
+          ctx.font = 'bold 11px monospace';
+          const badgeW = Math.max(
+            ctx.measureText(labelText).width, 
+            ctx.measureText(depthText).width,
+            ctx.measureText(thicknessText).width
+          ) + 20;
 
           ctx.fillStyle = 'rgba(255,255,255,0.9)';
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1;
           const bx = strataX + (strataW - badgeW) / 2;
-          const by = ly + lh / 2 - 12;
-          ctx.fillRect(bx, by, badgeW, 24);
-          ctx.strokeRect(bx, by, badgeW, 24);
+          const by = ly + lh / 2 - 23;
+          ctx.fillRect(bx, by, badgeW, 46);
+          ctx.strokeRect(bx, by, badgeW, 46);
 
           ctx.fillStyle = '#000000';
           ctx.textAlign = 'center';
-          ctx.font = 'bold 8px monospace';
-          ctx.fillText(labelText, strataX + strataW / 2, by + 10);
-          ctx.font = '7px monospace';
-          ctx.fillText(depthText, strataX + strataW / 2, by + 20);
+          ctx.font = 'bold 11px monospace';
+          ctx.fillText(labelText, strataX + strataW / 2, by + 13);
+          ctx.font = '9.5px monospace';
+          ctx.fillText(depthText, strataX + strataW / 2, by + 25);
+          ctx.fillText(thicknessText, strataX + strataW / 2, by + 37);
+        } else if (lh >= 36) {
+          const labelText = layer.material.toUpperCase();
+          const depthText = `${layer.startDepth} - ${layer.endDepth} ft`;
+          ctx.font = 'bold 11px monospace';
+          const badgeW = Math.max(ctx.measureText(labelText).width, ctx.measureText(depthText).width) + 20;
+
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1;
+          const bx = strataX + (strataW - badgeW) / 2;
+          const by = ly + lh / 2 - 16;
+          ctx.fillRect(bx, by, badgeW, 32);
+          ctx.strokeRect(bx, by, badgeW, 32);
+
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.font = 'bold 11px monospace';
+          ctx.fillText(labelText, strataX + strataW / 2, by + 13);
+          ctx.font = '9.5px monospace';
+          ctx.fillText(depthText, strataX + strataW / 2, by + 25);
         } else {
           // Left leader callout
           const midY = ly + lh / 2;
@@ -246,9 +276,9 @@ export function usePngExport(
           ctx.lineWidth = 0.5;
           ctx.beginPath(); ctx.moveTo(strataX, midY); ctx.lineTo(strataX - 16, midY); ctx.stroke();
           ctx.fillStyle = '#000000';
-          ctx.font = 'bold 7px monospace';
+          ctx.font = 'bold 9px monospace';
           ctx.textAlign = 'right';
-          ctx.fillText(`${layer.material} (${layer.startDepth}-${layer.endDepth} ft)`, strataX - 20, midY + 2.5);
+          ctx.fillText(`${layer.material} (${layer.startDepth}-${layer.endDepth} ft)`, strataX - 20, midY + 3);
         }
       });
 
@@ -257,7 +287,7 @@ export function usePngExport(
       ctx.strokeRect(pipeX, drawY, pipeW, drawingH);
 
       // Render Casing segments
-      pipes.forEach((pipe) => {
+      mergedPipes.forEach((pipe) => {
         const py = drawY + pipe.startDepth * exportScale;
         const ph = (pipe.endDepth - pipe.startDepth) * exportScale;
         if (ph <= 0) return;
@@ -291,17 +321,17 @@ export function usePngExport(
 
         // Label
         if (ph >= 42) {
-          const textType = isSlotted ? 'SLOTTED CASING' : 'PLAIN CASING';
+          const textType = isSlotted ? 'SLOTTED PIPE' : 'PLAIN PIPE';
           const textRange = `${pipe.startDepth} - ${pipe.endDepth} ft`;
-          const textLength = `L = ${pipe.endDepth - pipe.startDepth} ft`;
+          const textLength = `Length: ${pipe.endDepth - pipe.startDepth} ft`;
 
           ctx.fillStyle = isSlotted && !isPrintPreview ? '#ffffff' : '#000000';
-          ctx.font = 'bold 8px monospace';
+          ctx.font = 'bold 11px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText(textType, pipeX + pipeW / 2, py + ph / 2 - 8);
-          ctx.font = '7.5px monospace';
+          ctx.fillText(textType, pipeX + pipeW / 2, py + ph / 2 - 11);
+          ctx.font = '9.5px monospace';
           ctx.fillText(textRange, pipeX + pipeW / 2, py + ph / 2 + 2);
-          ctx.fillText(textLength, pipeX + pipeW / 2, py + ph / 2 + 12);
+          ctx.fillText(textLength, pipeX + pipeW / 2, py + ph / 2 + 13);
         } else {
           // Right leader callout
           const midY = py + ph / 2;
@@ -309,12 +339,12 @@ export function usePngExport(
           ctx.lineWidth = 0.5;
           ctx.beginPath(); ctx.moveTo(pipeX + pipeW - 4, midY); ctx.lineTo(pipeX + pipeW + 24, midY); ctx.stroke();
           ctx.fillStyle = '#000000';
-          ctx.font = 'bold 7px monospace';
+          ctx.font = 'bold 9px monospace';
           ctx.textAlign = 'left';
           ctx.fillText(
             `${isSlotted ? 'SLOTTED' : 'PLAIN'}: ${pipe.startDepth}-${pipe.endDepth} ft (L=${pipe.endDepth - pipe.startDepth} ft)`,
             pipeX + pipeW + 28,
-            midY + 2.5
+            midY + 3
           );
         }
       });
@@ -329,19 +359,19 @@ export function usePngExport(
         ctx.setLineDash([]);
 
         const labelText = `STATIC WATER LEVEL = ${borewell.waterLevel} ft`;
-        ctx.font = 'bold 8.5px monospace';
-        const labelW = ctx.measureText(labelText).width + 12;
+        ctx.font = 'bold 11px monospace';
+        const labelW = ctx.measureText(labelText).width + 16;
 
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#00AEEF';
         ctx.lineWidth = 1;
         const bx = strataX + (pipeX + pipeW - strataX - labelW) / 2;
-        ctx.fillRect(bx, wly - 8, labelW, 16);
-        ctx.strokeRect(bx, wly - 8, labelW, 16);
+        ctx.fillRect(bx, wly - 10, labelW, 20);
+        ctx.strokeRect(bx, wly - 10, labelW, 20);
 
         ctx.fillStyle = '#00AEEF';
         ctx.textAlign = 'center';
-        ctx.fillText(labelText, strataX + (pipeX + pipeW - strataX) / 2, wly + 3.5);
+        ctx.fillText(labelText, strataX + (pipeX + pipeW - strataX) / 2, wly + 4);
       }
 
       // Remarks Block at bottom
