@@ -14,6 +14,7 @@ import { AdditionalInfoSection } from '@/components/forms/AdditionalInfoSection'
 import { Save, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { parse as parseExif } from 'exifr';
 import type { Borewell } from '@/shared/types';
+import { SCAN_KEYWORDS } from '@/shared/constants';
 
 export function NewBorewellPage() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export function NewBorewellPage() {
   const updateBorewell = useBorewellStore((s) => s.updateBorewell);
   const addToast = useUIStore((s) => s.addToast);
 
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [duplicateModal, setDuplicateModal] = useState<{
     isOpen: boolean;
@@ -144,6 +146,175 @@ export function NewBorewellPage() {
     }
   };
 
+  const scanMetadataFromExcel = (cells: Record<string, { v: any; w: string }>) => {
+    const newFormData = { ...formData };
+    
+    const colLetterToNum = (val: string): number => {
+      let num = 0;
+      for (let i = 0; i < val.length; i++) {
+        num = num * 26 + (val.charCodeAt(i) - 64);
+      }
+      return num - 1;
+    };
+
+    const numToColLetter = (num: number): string => {
+      let temp = '';
+      let idx = num;
+      while (idx >= 0) {
+        temp = String.fromCharCode((idx % 26) + 65) + temp;
+        idx = Math.floor(idx / 26) - 1;
+      }
+      return temp;
+    };
+
+    const assignedFields: Record<string, boolean> = {};
+
+    Object.entries(cells).forEach(([key, cellObj]) => {
+      const cellText = cellObj.w.toLowerCase().trim();
+      const match = key.match(/^([A-Z]+)([0-9]+)$/);
+      if (!match) return;
+
+      const col = match[1];
+      const row = parseInt(match[2], 10);
+
+      Object.entries(SCAN_KEYWORDS).forEach(([field, keywords]) => {
+        if (assignedFields[field]) return;
+
+        const isMatch = keywords.some(kw => 
+          cellText === kw || 
+          cellText.startsWith(kw + ':') || 
+          cellText.startsWith(kw + ' :') ||
+          cellText.startsWith(kw + '-') ||
+          cellText.startsWith(kw + ' -')
+        );
+
+        if (isMatch) {
+          const rightColNum = colLetterToNum(col) + 1;
+          const rightCellKey = `${numToColLetter(rightColNum)}${row}`;
+          const belowCellKey = `${col}${row + 1}`;
+
+          let targetValue = '';
+          if (cells[rightCellKey] && String(cells[rightCellKey].v || '').trim() !== '') {
+            targetValue = String(cells[rightCellKey].v);
+          } else if (cells[belowCellKey] && String(cells[belowCellKey].v || '').trim() !== '') {
+            targetValue = String(cells[belowCellKey].v);
+          }
+
+          if (targetValue) {
+            if (field === 'borewellId') newFormData.borewellId = targetValue;
+            else if (field === 'project') newFormData.project = targetValue;
+            else if (field === 'ownerName') newFormData.ownerName = targetValue;
+            else if (field === 'city') newFormData.city = targetValue;
+            else if (field === 'address') newFormData.address = targetValue;
+            else if (field === 'latitude') newFormData.latitude = targetValue;
+            else if (field === 'longitude') newFormData.longitude = targetValue;
+            else if (field === 'totalDepth') newFormData.totalDepth = targetValue;
+            else if (field === 'waterLevel') newFormData.waterLevel = targetValue;
+            else if (field === 'remarks') newFormData.remarks = targetValue;
+            else if (field === 'date') {
+              if (targetValue && !isNaN(Date.parse(targetValue))) {
+                newFormData.date = new Date(targetValue).toISOString().split('T')[0];
+              } else {
+                newFormData.date = targetValue;
+              }
+            }
+            assignedFields[field] = true;
+          }
+        }
+      });
+    });
+
+    // Extract borehole / pipe casing diameters
+    Object.entries(cells).forEach(([key, cellObj]) => {
+      const cellText = cellObj.w.toLowerCase().trim();
+      const match = key.match(/^([A-Z]+)([0-9]+)$/);
+      if (!match) return;
+
+      const col = match[1];
+      const row = parseInt(match[2], 10);
+
+      const isBoreDia = cellText.includes('bore dia') || cellText.includes('borehole dia') || cellText.includes('bore diameter');
+      const isPipeDia = cellText.includes('pipe dia') || cellText.includes('casing dia') || cellText.includes('casing diameter') || cellText.includes('pipe diameter');
+
+      if (isBoreDia || isPipeDia) {
+        const rightColNum = colLetterToNum(col) + 1;
+        const rightCellKey = `${numToColLetter(rightColNum)}${row}`;
+        const belowCellKey = `${col}${row + 1}`;
+
+        let targetValue = '';
+        if (cells[rightCellKey] && String(cells[rightCellKey].v || '').trim() !== '') {
+          targetValue = String(cells[rightCellKey].v);
+        } else if (cells[belowCellKey] && String(cells[belowCellKey].v || '').trim() !== '') {
+          targetValue = String(cells[belowCellKey].v);
+        }
+
+        if (targetValue) {
+          const valNum = parseFloat(targetValue);
+          if (!isNaN(valNum)) {
+            if (isBoreDia) newFormData.boreDia = valNum;
+            if (isPipeDia) newFormData.pipeDia = valNum;
+          }
+        }
+      }
+    });
+
+    setFormData(newFormData);
+
+    const newErrors = { ...errors };
+    Object.keys(newFormData).forEach((key) => {
+      const err = validateField(key, (newFormData as any)[key]);
+      newErrors[key] = err;
+    });
+    setErrors(newErrors);
+  };
+
+  const handleFileAttachClick = async () => {
+    try {
+      const res = await window.api.dialog.openFile({
+        title: 'Select Reference Document',
+        properties: ['openFile'],
+        filters: [{ name: 'Reference Documents', extensions: ['xlsx', 'xls', 'pdf'] }]
+      });
+
+      if (res.canceled || res.filePaths.length === 0) return;
+      const filePath = res.filePaths[0];
+      const fileName = filePath.split(/[\\/]/).pop() || 'document';
+      const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+
+      const customFile = {
+        name: fileName,
+        path: filePath,
+        size: 0
+      };
+
+      setAttachedFile(customFile as any);
+
+      if (isExcel) {
+        try {
+          addToast({ message: 'Parsing attached Excel sheet...', type: 'info' });
+          const result = await window.api.db.parseExcel(filePath);
+          if (result && result.cells) {
+            scanMetadataFromExcel(result.cells);
+            addToast({ message: 'Auto-filled form fields from Excel data!', type: 'success' });
+          }
+        } catch (err: any) {
+          console.error('Failed to parse Excel reference:', err);
+          addToast({ message: `Reference attachment loaded, but failed to auto-fill fields: ${err?.message || String(err)}`, type: 'warning' });
+        }
+      } else {
+        addToast({ message: `Attached reference document: ${fileName}`, type: 'success' });
+      }
+    } catch (err) {
+      console.error('Failed to trigger open file dialog:', err);
+      addToast({ message: 'Failed to open file selector dialog.', type: 'error' });
+    }
+  };
+
+  const handleFileRemove = () => {
+    setAttachedFile(null);
+    addToast({ message: 'Removed attached reference document.', type: 'info' });
+  };
+
   const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -232,9 +403,18 @@ export function NewBorewellPage() {
       if (duplicate) {
         setDuplicateModal({ isOpen: true, existingRecord: duplicate });
       } else {
-        await addBorewell(buildBorewellRecord());
+        const newRecord = buildBorewellRecord();
+        await addBorewell(newRecord);
+        if (attachedFile) {
+          const isExcel = attachedFile.name.endsWith('.xlsx') || attachedFile.name.endsWith('.xls');
+          const fileData = {
+            excelPath: isExcel ? (attachedFile as any).path : null,
+            pdfPath: !isExcel ? (attachedFile as any).path : null
+          };
+          await window.api.db.saveFiles(newRecord.id, fileData);
+        }
         addToast({ message: 'Borewell record saved successfully!', type: 'success' });
-        navigate('/');
+        navigate('/borewells');
       }
     } catch (err: any) {
       console.error(err);
@@ -251,13 +431,29 @@ export function NewBorewellPage() {
       if (action === 'overwrite') {
         const updates = buildBorewellRecord(existing.id);
         await updateBorewell(existing.id, updates);
+        if (attachedFile) {
+          const isExcel = attachedFile.name.endsWith('.xlsx') || attachedFile.name.endsWith('.xls');
+          const fileData = {
+            excelPath: isExcel ? (attachedFile as any).path : null,
+            pdfPath: !isExcel ? (attachedFile as any).path : null
+          };
+          await window.api.db.saveFiles(existing.id, fileData);
+        }
         addToast({ message: 'Existing record overwritten successfully!', type: 'success' });
       } else {
         const copy = buildBorewellRecord(undefined, true);
         await addBorewell(copy);
+        if (attachedFile) {
+          const isExcel = attachedFile.name.endsWith('.xlsx') || attachedFile.name.endsWith('.xls');
+          const fileData = {
+            excelPath: isExcel ? (attachedFile as any).path : null,
+            pdfPath: !isExcel ? (attachedFile as any).path : null
+          };
+          await window.api.db.saveFiles(copy.id, fileData);
+        }
         addToast({ message: 'Saved as a new record copy.', type: 'success' });
       }
-      navigate('/');
+      navigate('/borewells');
     } catch (err: any) {
       console.error(err);
       addToast({ message: err.message || 'Failed to resolve duplicate.', type: 'error' });
@@ -293,7 +489,16 @@ export function NewBorewellPage() {
           />
           <LocationSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
           <BorewellInfoSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
-          <AdditionalInfoSection formData={formData} onChange={handleChange} onPhotoAdd={handlePhotoAdd} errors={errors} touched={touched} />
+          <AdditionalInfoSection
+            formData={formData}
+            onChange={handleChange}
+            onPhotoAdd={handlePhotoAdd}
+            onFileAttachClick={handleFileAttachClick}
+            onFileRemove={handleFileRemove}
+            attachedFile={attachedFile}
+            errors={errors}
+            touched={touched}
+          />
         </div>
 
         {/* Submit Bar */}

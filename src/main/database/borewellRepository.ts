@@ -217,9 +217,10 @@ export const borewellRepository = {
             area LIKE ? OR
             city LIKE ? OR
             project LIKE ? OR
-            remarks LIKE ?
+            remarks LIKE ? OR
+            id IN (SELECT DISTINCT borewell_id FROM strata_layers WHERE material LIKE ?)
           )`;
-          params.push(queryVal, queryVal, queryVal, queryVal, queryVal, queryVal);
+          params.push(queryVal, queryVal, queryVal, queryVal, queryVal, queryVal, queryVal);
         } else {
           const snakeField = filters.field.replace(/([A-Z])/g, '_$1').toLowerCase();
           sql += ` AND ${snakeField} LIKE ?`;

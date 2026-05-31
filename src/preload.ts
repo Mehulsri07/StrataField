@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('api', {
 
     getFiles: (borewellId: string) => ipcRenderer.invoke(IPC_CHANNELS.FILE_GET, borewellId),
     saveFiles: (borewellId: string, files: any) => ipcRenderer.invoke(IPC_CHANNELS.FILE_SAVE, borewellId, files),
+    openPath: (filePath: string) => ipcRenderer.invoke('file:openPath', filePath),
     parseExcel: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_PARSE, filePath),
     importSave: (data: { borewell: any; strata: any[]; pipes: any[] }) => ipcRenderer.invoke('import:save', data),
   },

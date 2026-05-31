@@ -1,15 +1,17 @@
-import { FileText, Camera, Paperclip } from 'lucide-react';
+import { FileText, Camera, Paperclip, X } from 'lucide-react';
 
 interface AdditionalInfoProps {
   formData: any;
   onChange: (e: any) => void;
   onPhotoAdd?: (e: any) => void;
-  onFileAttach?: (e: any) => void;
+  onFileAttachClick?: () => void;
+  onFileRemove?: () => void;
+  attachedFile?: any;
   errors?: any;
   touched?: any;
 }
 
-export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAttach }: AdditionalInfoProps) {
+export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAttachClick, onFileRemove, attachedFile }: AdditionalInfoProps) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-accent uppercase tracking-wider border-b border-sf-border pb-1.5">
@@ -51,19 +53,41 @@ export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAt
         {/* File Attach Box */}
         <div className="flex flex-col gap-2">
           <span className="sf-label flex items-center gap-1.5">
-            <Paperclip size={14} className="text-txt-secondary" /> Design Documents & Reports
+            <Paperclip size={14} className="text-txt-secondary" /> Reference Documents
           </span>
-          <label className="border border-dashed border-sf-border hover:border-info hover:bg-info/5 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
-            <Paperclip size={22} className="text-txt-muted" />
-            <span className="text-xs text-txt-secondary font-semibold">Attach PDF / Excel Sheet</span>
-            <span className="text-[10px] text-txt-muted font-medium">For project records reference</span>
-            <input
-              type="file"
-              accept=".xlsx,.xls,.pdf"
-              onChange={onFileAttach}
-              className="hidden"
-            />
-          </label>
+          {attachedFile ? (
+            <div className="border border-sf-border bg-sf-surface rounded-xl p-6 flex items-center justify-between gap-3 animate-fade-in h-[106px]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-info/10 text-info flex items-center justify-center flex-shrink-0">
+                  <FileText size={20} />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs font-bold text-txt-primary truncate block max-w-[150px] md:max-w-[200px]" title={attachedFile.name}>
+                    {attachedFile.name}
+                  </span>
+                  <span className="text-[10px] text-txt-muted font-medium block">
+                    {attachedFile.size ? `${(attachedFile.size / 1024).toFixed(1)} KB | ` : ''}Reference Attached
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onFileRemove}
+                className="p-1.5 hover:bg-sf-surface-2 text-txt-muted hover:text-danger rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={onFileAttachClick}
+              className="border border-dashed border-sf-border hover:border-info hover:bg-info/5 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all h-[106px]"
+            >
+              <Paperclip size={22} className="text-txt-muted" />
+              <span className="text-xs text-txt-secondary font-semibold">Attach PDF / Excel Sheet</span>
+              <span className="text-[10px] text-txt-muted font-medium">For project records reference</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

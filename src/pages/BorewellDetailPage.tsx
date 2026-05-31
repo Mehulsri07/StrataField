@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
 import { 
   ArrowLeft, Edit3, Trash2, AlertTriangle, 
-  FileText, FileSpreadsheet, Image as ImageIcon, Eye, EyeOff 
+  FileText, FileSpreadsheet, Image as ImageIcon, Eye, EyeOff, ExternalLink
 } from 'lucide-react';
 import type { StrataLayer, PipeSegment } from '@shared/types';
 import { validateStrata, validatePipeSegments } from '@/shared/validation';
@@ -14,6 +14,7 @@ import { usePngExport } from '@/hooks/usePngExport';
 export function BorewellDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const borewells = useBorewellStore((s) => s.borewells);
   const deleteBorewell = useBorewellStore((s) => s.deleteBorewell);
   const strataStore = useBorewellStore((s) => s.strataLayers);
@@ -53,6 +54,25 @@ export function BorewellDetailPage() {
     }
     loadData();
   }, [id, fetchStrata, fetchPipes]);
+
+  // Auto-edit metadata if navigated from Borewells page with edit state
+  useEffect(() => {
+    if (location.state?.editMetadata && isLoaded && borewell) {
+      handleEditMetadata();
+    }
+  }, [location.state, isLoaded, borewell]);
+
+  const [attachedFile, setAttachedFile] = useState<any | null>(null);
+
+  useEffect(() => {
+    async function loadAttachedFiles() {
+      if (id) {
+        const fileRecord = await window.api.db.getFiles(id);
+        setAttachedFile(fileRecord);
+      }
+    }
+    loadAttachedFiles();
+  }, [id]);
 
   // States for inline title block editing
   const [isEditingMetadata, setIsEditingMetadata] = useState(false);
@@ -208,6 +228,20 @@ export function BorewellDetailPage() {
 
       const saveRes = await window.api.export.pdf([borewell.id], dialogRes.filePath);
       if (saveRes.success) {
+        try {
+          const raw = localStorage.getItem('recent_exports') || '[]';
+          const exportsList = JSON.parse(raw);
+          const newEntry = {
+            filename: dialogRes.filePath.split(/[\\/]/).pop() || dialogRes.filePath,
+            recordCount: 1,
+            format: 'pdf',
+            date: new Date().toISOString(),
+          };
+          localStorage.setItem('recent_exports', JSON.stringify([newEntry, ...exportsList].slice(0, 10)));
+        } catch (err) {
+          console.error('Failed to log export:', err);
+        }
+
         addToast({ message: 'Borewell PDF report generated successfully.', type: 'success' });
       } else {
         addToast({ message: `Failed to generate PDF: ${saveRes.error}`, type: 'error' });
@@ -230,6 +264,20 @@ export function BorewellDetailPage() {
 
       const saveRes = await window.api.export.excel([borewell.id], dialogRes.filePath);
       if (saveRes.success) {
+        try {
+          const raw = localStorage.getItem('recent_exports') || '[]';
+          const exportsList = JSON.parse(raw);
+          const newEntry = {
+            filename: dialogRes.filePath.split(/[\\/]/).pop() || dialogRes.filePath,
+            recordCount: 1,
+            format: 'excel',
+            date: new Date().toISOString(),
+          };
+          localStorage.setItem('recent_exports', JSON.stringify([newEntry, ...exportsList].slice(0, 10)));
+        } catch (err) {
+          console.error('Failed to log export:', err);
+        }
+
         addToast({ message: 'Strata Excel workbook compiled successfully.', type: 'success' });
       } else {
         addToast({ message: `Failed to compile Excel: ${saveRes.error}`, type: 'error' });
@@ -246,7 +294,7 @@ export function BorewellDetailPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/borewells')}
             className="p-2 hover:bg-sf-surface-2 border border-sf-border text-txt-secondary hover:text-txt-primary rounded-lg transition-all cursor-pointer"
           >
             <ArrowLeft size={16} />
@@ -720,6 +768,67 @@ export function BorewellDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Reference Documents & Attachments Panel */}
+        {attachedFile && (attachedFile.excelPath || attachedFile.pdfPath) && (
+          <div className="sf-panel p-5 font-mono text-xs select-none animate-fade-in">
+            <h2 className="text-xs font-bold text-txt-primary pb-2 border-b border-sf-border uppercase tracking-wider mb-3">
+              Reference Documents & Attachments
+            </h2>
+            <div className="flex flex-wrap gap-4">
+              {attachedFile.excelPath && (
+                <div className="flex items-center justify-between gap-4 p-3 bg-sf-surface border border-sf-border rounded-xl min-w-[280px]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded bg-success/10 text-success">
+                      <FileSpreadsheet size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-xs text-txt-primary block truncate max-w-[180px]" title={attachedFile.excelPath}>
+                        {attachedFile.excelPath.split(/[\\/]/).pop()}
+                      </span>
+                      <span className="text-[10px] text-txt-muted block">Attached Excel Reference</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const res = await window.api.db.openPath(attachedFile.excelPath);
+                      if (res) addToast({ message: `Error opening document: ${res}`, type: 'error' });
+                    }}
+                    className="sf-btn-secondary py-1.5 px-3 flex items-center gap-1 text-[10px] cursor-pointer"
+                  >
+                    <span>Open File</span>
+                    <ExternalLink size={10} />
+                  </button>
+                </div>
+              )}
+              {attachedFile.pdfPath && (
+                <div className="flex items-center justify-between gap-4 p-3 bg-sf-surface border border-sf-border rounded-xl min-w-[280px]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded bg-danger/10 text-danger">
+                      <FileText size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-xs text-txt-primary block truncate max-w-[180px]" title={attachedFile.pdfPath}>
+                        {attachedFile.pdfPath.split(/[\\/]/).pop()}
+                      </span>
+                      <span className="text-[10px] text-txt-muted block">Attached PDF Reference</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const res = await window.api.db.openPath(attachedFile.pdfPath);
+                      if (res) addToast({ message: `Error opening document: ${res}`, type: 'error' });
+                    }}
+                    className="sf-btn-secondary py-1.5 px-3 flex items-center gap-1 text-[10px] cursor-pointer"
+                  >
+                    <span>Open File</span>
+                    <ExternalLink size={10} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

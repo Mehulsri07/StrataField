@@ -3,7 +3,7 @@
  * Provides quick actions, theme toggle, and search.
  */
 
-import { Sun, Moon, Plus, FileUp, Search } from 'lucide-react';
+import { Sun, Moon, Plus, Search } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUIStore } from '@/stores/uiStore';
 import { useBorewellStore } from '@/stores/borewellStore';
@@ -21,7 +21,7 @@ export function Topbar() {
     const path = location.pathname;
     if (path === '/') return 'Dashboard';
     if (path === '/new') return 'New Borewell';
-    if (path === '/search') return 'Search Records';
+    if (path === '/borewells') return 'Borewells';
     if (path === '/map') return 'Map View';
     if (path === '/import') return 'Import Excel';
     if (path === '/export') return 'Export Reports';
@@ -35,8 +35,8 @@ export function Topbar() {
     const value = e.target.value;
     setSearchFilters({ query: value });
     searchBorewells(value);
-    if (location.pathname !== '/search') {
-      navigate('/search');
+    if (location.pathname !== '/borewells') {
+      navigate('/borewells');
     }
   };
 
@@ -75,14 +75,6 @@ export function Topbar() {
           <span>New Borewell</span>
         </button>
 
-        <button
-          onClick={() => navigate('/import')}
-          title="Import Excel Template"
-          className="flex items-center gap-1.5 px-3 py-1 bg-sf-surface-2 border border-sf-border hover:bg-sf-surface-3 text-txt-secondary hover:text-txt-primary text-xs font-medium rounded transition-all cursor-pointer"
-        >
-          <FileUp size={14} />
-          <span>Import</span>
-        </button>
 
         <div className="h-4 w-px bg-sf-border mx-1" />
 

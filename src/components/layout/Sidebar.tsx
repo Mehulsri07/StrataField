@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
-  FolderGit,
 } from 'lucide-react';
 
 interface NavItem {
@@ -52,29 +51,21 @@ export function Sidebar() {
       isActive: (p) => p === '/new',
     },
     {
-      path: '/search',
-      label: 'Search Records',
+      path: '/borewells',
+      label: 'Borewells',
       icon: <Search size={18} />,
       section: 'main',
-      isActive: (p, s) => p === '/search' && !s?.focusProject,
+      isActive: (p) => p === '/borewells',
     },
     {
       path: '/map',
-      label: 'Map View',
+      label: 'Map',
       icon: <Map size={18} />,
       section: 'main',
       isActive: (p) => p === '/map',
     },
 
-    // Data & Project Section
-    {
-      path: '/search',
-      label: 'Projects',
-      icon: <FolderGit size={18} />,
-      section: 'data',
-      state: { focusProject: true },
-      isActive: (p, s) => p === '/search' && !!s?.focusProject,
-    },
+
     {
       path: '/settings',
       label: 'Materials',

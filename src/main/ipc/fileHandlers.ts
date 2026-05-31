@@ -2,7 +2,7 @@
  * IPC handlers for photos, attachments, and native file dialogs.
  */
 
-import { dialog, BrowserWindow } from 'electron';
+import { dialog, BrowserWindow, shell } from 'electron';
 import { safeHandle } from './safeHandle';
 import { photoRepository } from '../database/photoRepository';
 import { fileRepository } from '../database/fileRepository';
@@ -30,6 +30,10 @@ export function registerFileHandlers(): void {
 
   safeHandle(IPC_CHANNELS.FILE_SAVE, (_event, borewellId: string, files: any) => {
     return fileRepository.save(borewellId, files);
+  });
+
+  safeHandle('file:openPath', (_event, filePath: string) => {
+    return shell.openPath(filePath);
   });
 
   // Native Electron Dialog handlers

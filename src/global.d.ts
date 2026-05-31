@@ -33,6 +33,7 @@ export interface WindowApi {
     deletePhoto: (id: string) => Promise<void>;
     getFiles: (borewellId: string) => Promise<any>;
     saveFiles: (borewellId: string, files: any) => Promise<void>;
+    openPath: (filePath: string) => Promise<string>;
     parseExcel: (filePath: string) => Promise<{ cells: Record<string, { v: any; w: string }>; rows: any[][] }>;
     importSave: (data: { borewell: any; strata: any[]; pipes: any[] }) => Promise<{ success: boolean }>;
   };

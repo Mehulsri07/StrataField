@@ -10,7 +10,7 @@ import { StatusBar } from './components/layout/StatusBar';
 import { useUIStore } from './stores/uiStore';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewBorewellPage } from './pages/NewBorewellPage';
-import { SearchPage } from './pages/SearchPage';
+import { BorewellsPage } from './pages/BorewellsPage';
 import { MapPage } from './pages/MapPage';
 import { ImportPage } from './pages/ImportPage';
 import { ExportPage } from './pages/ExportPage';
@@ -44,7 +44,7 @@ function KeyboardShortcutsManager() {
             break;
           case 'f':
             e.preventDefault();
-            navigate('/search');
+            navigate('/borewells');
             break;
           case 'h':
             e.preventDefault();
@@ -105,7 +105,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/new" element={<NewBorewellPage />} />
-              <Route path="/search" element={<SearchPage />} />
+              <Route path="/borewells" element={<BorewellsPage />} />
               <Route path="/map" element={<MapPage />} />
               <Route path="/import" element={<ImportPage />} />
               <Route path="/export" element={<ExportPage />} />

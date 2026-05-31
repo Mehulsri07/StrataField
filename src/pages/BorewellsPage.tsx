@@ -1,6 +1,6 @@
 /**
- * SearchPage — Redesigned Search and Filter Center.
- * High-performance search, filter chips, saved quick-searches, and collapsible logs details.
+ * BorewellsPage — Redesigned Borewells Hub.
+ * Search, filter, view, edit, and delete borewell records in one consolidated page.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -9,13 +9,14 @@ import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
 import { 
   Search, SlidersHorizontal, MapPin, Calendar, FileText, ArrowRight, Eye, 
-  Trash2, Layers, FolderGit, X, Star, ChevronDown, ChevronUp
+  Trash2, Layers, FolderGit, X, Star, ChevronDown, ChevronUp, Edit3
 } from 'lucide-react';
 import type { SearchField } from '@shared/types';
 
-export function SearchPage() {
+export function BorewellsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const borewells = useBorewellStore((s) => s.borewells);
   const searchResults = useBorewellStore((s) => s.searchResults);
   const searchFilters = useBorewellStore((s) => s.searchFilters);
   const setSearchFilters = useBorewellStore((s) => s.setSearchFilters);
@@ -25,7 +26,11 @@ export function SearchPage() {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const projectInputRef = useRef<HTMLInputElement>(null);
+
+  // Dynamic projects list extracted from active records
+  const uniqueProjects = Array.from(
+    new Set(borewells.map((b) => b.project || 'Default Project'))
+  ).filter(Boolean).sort();
 
   // Quick Saved Search Templates
   const SAVED_SEARCHES = [
@@ -35,15 +40,13 @@ export function SearchPage() {
     { label: 'Recent Active Site', query: '', filters: { field: 'all' as SearchField, project: 'Default Project', city: '', material: '', dateFrom: '', dateTo: '' } }
   ];
 
-  // Sync state navigation
+  // Sync state navigation (e.g. if loaded from dashboard with predefined project/query)
   useEffect(() => {
-    if (location.state?.focusProject) {
+    if (location.state?.focusProject || location.state?.projectFilter) {
+      const proj = location.state?.projectFilter || '';
       setShowFilters(true);
-      setSearchFilters({ field: 'project' });
+      setSearchFilters({ project: proj, field: 'all' as SearchField });
       searchBorewells(searchFilters.query);
-      setTimeout(() => {
-        projectInputRef.current?.focus();
-      }, 150);
     }
   }, [location.state]);
 
@@ -92,8 +95,8 @@ export function SearchPage() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Title */}
       <div>
-        <h1 className="text-xl font-bold text-txt-primary">Search Borewell Records</h1>
-        <p className="text-2xs text-txt-muted">Real-time matching, advanced spatial filters, and strata profile exports.</p>
+        <h1 className="text-xl font-bold text-txt-primary">Borewell Records</h1>
+        <p className="text-2xs text-txt-muted">Search, filter, view, edit, or delete borewell installations and strata logs.</p>
       </div>
 
       {/* Saved Searches / Shortcuts */}
@@ -123,7 +126,7 @@ export function SearchPage() {
             </div>
             <input
               type="text"
-              placeholder="Type to search by owner name, record ID, or location..."
+              placeholder="Search by ID, owner, city, project, remarks, or soil materials..."
               value={searchFilters.query}
               onChange={handleQueryChange}
               className="w-full pl-11 pr-4 py-3 bg-sf-surface border border-sf-border rounded-xl text-sm text-txt-primary placeholder-txt-muted transition-all focus:border-accent focus:ring-2 focus:ring-accent-muted outline-none shadow-sm"
@@ -161,17 +164,21 @@ export function SearchPage() {
           <div className="sf-panel p-5 grid grid-cols-1 md:grid-cols-5 gap-4 animate-slide-down text-xs">
             <div>
               <label className="sf-label">Filter by Project</label>
-              <input
-                type="text"
-                ref={projectInputRef}
-                placeholder="e.g. Metro Site A"
+              <select
                 value={searchFilters.project || ''}
-                className="sf-input mt-1.5"
+                className="sf-input mt-1.5 cursor-pointer font-semibold"
                 onChange={(e) => {
                   setSearchFilters({ project: e.target.value });
                   searchBorewells(searchFilters.query);
                 }}
-              />
+              >
+                <option value="">All Projects</option>
+                {uniqueProjects.map((project) => (
+                  <option key={project} value={project}>
+                    {project}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="sf-label">Filter by City</label>
@@ -330,16 +337,31 @@ export function SearchPage() {
                     </div>
 
                     <div className="flex items-center gap-1">
+                      {/* View Action */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/borewell/${b.id}`);
                         }}
-                        title="View Full Record"
+                        title="View Details & Profile"
                         className="p-2 text-txt-secondary hover:text-accent hover:bg-sf-surface-2 rounded-lg transition-all cursor-pointer"
                       >
                         <Eye size={15} />
                       </button>
+
+                      {/* Edit Action */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/borewell/${b.id}`, { state: { editMetadata: true } });
+                        }}
+                        title="Edit Metadata"
+                        className="p-2 text-txt-secondary hover:text-accent hover:bg-sf-surface-2 rounded-lg transition-all cursor-pointer"
+                      >
+                        <Edit3 size={15} />
+                      </button>
+
+                      {/* Delete Action */}
                       <button
                         onClick={(e) => handleDelete(b.id, e)}
                         title="Delete Record"
@@ -403,4 +425,5 @@ export function SearchPage() {
     </div>
   );
 }
-export default SearchPage;
+
+export default BorewellsPage;

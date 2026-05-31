@@ -109,6 +109,20 @@ export function ExportPage() {
       const result = await exportFunc(selectedIds, dialogRes.filePath);
 
       if (result.success) {
+        try {
+          const raw = localStorage.getItem('recent_exports') || '[]';
+          const exportsList = JSON.parse(raw);
+          const newEntry = {
+            filename: dialogRes.filePath.split(/[\\/]/).pop() || dialogRes.filePath,
+            recordCount: selectedIds.length,
+            format: format,
+            date: new Date().toISOString(),
+          };
+          localStorage.setItem('recent_exports', JSON.stringify([newEntry, ...exportsList].slice(0, 10)));
+        } catch (err) {
+          console.error('Failed to log export:', err);
+        }
+
         addToast({
           message: `Successfully exported ${selectedIds.length} record(s) as ${format.toUpperCase()}`,
           type: 'success',
