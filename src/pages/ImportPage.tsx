@@ -14,6 +14,7 @@ import {
 import type { Borewell, StrataLayer, PipeSegment } from '@/shared/types';
 import { validateBorewell, validateStrata, validatePipeSegments } from '@/shared/validation';
 import { SCAN_KEYWORDS, DEFAULT_PROJECT } from '@/shared/constants';
+import { BorewellProfileDrawing } from '@/components/ui/BorewellProfileDrawing';
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'complete';
 
@@ -86,6 +87,11 @@ export function ImportPage() {
   const [isDuplicate, setIsDuplicate] = useState<Borewell | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+
+  // States for interactive selection & hover highlights of parsed preview strata/pipes
+  const [previewHoverStrata, setPreviewHoverStrata] = useState<string | null>(null);
+  const [previewHoverPipe, setPreviewHoverPipe] = useState<string | null>(null);
+  const [previewSelectedEntity, setPreviewSelectedEntity] = useState<{ type: 'strata' | 'pipe'; id: string } | null>(null);
 
   useEffect(() => {
     fetchMaterials();
@@ -836,77 +842,105 @@ export function ImportPage() {
             )}
 
             {/* Record details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* metadata specs card */}
-              <div className="md:col-span-1 sf-panel bg-sf-surface-2 border border-sf-border p-4 space-y-3">
-                <h4 className="font-bold text-txt-primary border-b border-sf-border pb-1">Borewell Header Metadata</h4>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-3xs text-txt-muted block uppercase tracking-wider">Owner Name</span>
-                    <span className="text-xs font-semibold text-txt-primary">{parsedBorewell.ownerName}</span>
-                  </div>
-                  <div>
-                    <span className="text-3xs text-txt-muted block uppercase tracking-wider">Record ID</span>
-                    <span className="text-xs font-bold text-txt-primary">{parsedBorewell.borewellId}</span>
-                  </div>
-                  <div>
-                    <span className="text-3xs text-txt-muted block uppercase tracking-wider">Project Name</span>
-                    <span className="text-xs font-bold text-txt-primary">{parsedBorewell.project}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: metadata & strata table */}
+              <div className="lg:col-span-7 space-y-4">
+                {/* metadata specs card */}
+                <div className="sf-panel bg-sf-surface-2 border border-sf-border p-4 space-y-3">
+                  <h4 className="font-bold text-txt-primary border-b border-sf-border pb-1">Borewell Header Metadata</h4>
+                  <div className="space-y-2">
                     <div>
-                      <span className="text-3xs text-txt-muted block uppercase tracking-wider">City</span>
-                      <span className="text-2xs text-txt-primary">{parsedBorewell.city}</span>
+                      <span className="text-3xs text-txt-muted block uppercase tracking-wider">Owner Name</span>
+                      <span className="text-xs font-semibold text-txt-primary">{parsedBorewell.ownerName}</span>
                     </div>
                     <div>
-                      <span className="text-3xs text-txt-muted block uppercase tracking-wider">Total Depth</span>
-                      <span className="text-2xs text-accent font-bold">{parsedBorewell.totalDepth ? `${parsedBorewell.totalDepth} ft` : 'N/A'}</span>
+                      <span className="text-3xs text-txt-muted block uppercase tracking-wider">Record ID</span>
+                      <span className="text-xs font-bold text-txt-primary">{parsedBorewell.borewellId}</span>
+                    </div>
+                    <div>
+                      <span className="text-3xs text-txt-muted block uppercase tracking-wider">Project Name</span>
+                      <span className="text-xs font-bold text-txt-primary">{parsedBorewell.project}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-3xs text-txt-muted block uppercase tracking-wider">City</span>
+                        <span className="text-2xs text-txt-primary">{parsedBorewell.city}</span>
+                      </div>
+                      <div>
+                        <span className="text-3xs text-txt-muted block uppercase tracking-wider">Total Depth</span>
+                        <span className="text-2xs text-accent font-bold">{parsedBorewell.totalDepth ? `${parsedBorewell.totalDepth} ft` : 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-sf-border text-4xs">
+                      <div>Lat: {parsedBorewell.latitude || 'N/A'}</div>
+                      <div>Lng: {parsedBorewell.longitude || 'N/A'}</div>
                     </div>
                   </div>
-                  <div className="flex justify-between pt-1 border-t border-sf-border text-4xs">
-                    <div>Lat: {parsedBorewell.latitude || 'N/A'}</div>
-                    <div>Lng: {parsedBorewell.longitude || 'N/A'}</div>
+                </div>
+
+                {/* parsed strata table preview list */}
+                <div className="sf-panel bg-sf-surface-2 border border-sf-border p-4 space-y-3">
+                  <h4 className="font-bold text-txt-primary border-b border-sf-border pb-1">Parsed Strata Layers Sequence</h4>
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-sf-border/30 text-txt-muted font-bold text-3xs uppercase tracking-wider">
+                          <th className="py-1">Start (ft)</th>
+                          <th>End (ft)</th>
+                          <th>Material</th>
+                          <th>Remarks</th>
+                          <th>Pipe Casing</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-sf-border/20">
+                        {parsedStrata.map((s, idx) => {
+                          const pipe = parsedPipes.find(p => p.startDepth === s.startDepth && p.endDepth === s.endDepth);
+                          return (
+                            <tr key={idx}>
+                              <td className="py-1 font-mono text-3xs text-txt-primary">{s.startDepth} ft</td>
+                              <td className="font-mono text-3xs text-txt-primary">{s.endDepth} ft</td>
+                              <td className="font-semibold text-txt-primary">{s.material}</td>
+                              <td className="text-txt-secondary leading-none">{s.remarks || '—'}</td>
+                              <td>
+                                {pipe ? (
+                                  <span className={`text-4xs font-bold px-1.5 py-0.5 rounded-full ${
+                                    pipe.pipeType === 'slotted' ? 'bg-steel text-white' : 'bg-sf-surface-3 text-txt-secondary'
+                                  }`}>
+                                    {pipe.pipeType}
+                                  </span>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
 
-              {/* parsed strata table preview list */}
-              <div className="md:col-span-2 sf-panel bg-sf-surface-2 border border-sf-border p-4 space-y-3">
-                <h4 className="font-bold text-txt-primary border-b border-sf-border pb-1">Parsed Strata Layers Sequence</h4>
-                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-sf-border/30 text-txt-muted font-bold text-3xs uppercase tracking-wider">
-                        <th className="py-1">Start (ft)</th>
-                        <th>End (ft)</th>
-                        <th>Material</th>
-                        <th>Remarks</th>
-                        <th>Pipe Casing</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-sf-border/20">
-                      {parsedStrata.map((s, idx) => {
-                        const pipe = parsedPipes.find(p => p.startDepth === s.startDepth && p.endDepth === s.endDepth);
-                        return (
-                          <tr key={idx}>
-                            <td className="py-1 font-mono text-3xs text-txt-primary">{s.startDepth} ft</td>
-                            <td className="font-mono text-3xs text-txt-primary">{s.endDepth} ft</td>
-                            <td className="font-semibold text-txt-primary">{s.material}</td>
-                            <td className="text-txt-secondary leading-none">{s.remarks || '—'}</td>
-                            <td>
-                              {pipe ? (
-                                <span className={`text-4xs font-bold px-1.5 py-0.5 rounded-full ${
-                                  pipe.pipeType === 'slotted' ? 'bg-steel text-white' : 'bg-sf-surface-3 text-txt-secondary'
-                                }`}>
-                                  {pipe.pipeType}
-                                </span>
-                              ) : '—'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              {/* Right Column: Visual Strata & Casing preview chart */}
+              <div className="lg:col-span-5 space-y-3 lg:sticky lg:top-4">
+                <div className="sf-panel bg-sf-surface-2 border border-sf-border p-4 space-y-3">
+                  <h4 className="font-bold text-txt-primary border-b border-sf-border pb-1">Geological Strata & Casing Preview</h4>
+                  <div className="border border-sf-border bg-sf-base rounded-xl overflow-auto p-4 flex justify-center" style={{ height: '420px' }}>
+                    <BorewellProfileDrawing
+                      borewell={{
+                        totalDepth: parsedBorewell.totalDepth || 250,
+                        pipeDia: parsedBorewell.pipeDia || 6,
+                        waterLevel: parsedBorewell.waterLevel,
+                      }}
+                      layers={parsedStrata}
+                      pipes={parsedPipes}
+                      scaleFactor={1.5}
+                      hoveredStrataId={previewHoverStrata}
+                      setHoveredStrataId={setPreviewHoverStrata}
+                      hoveredPipeId={previewHoverPipe}
+                      setHoveredPipeId={setPreviewHoverPipe}
+                      selectedEntity={previewSelectedEntity}
+                      setSelectedEntity={setPreviewSelectedEntity}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

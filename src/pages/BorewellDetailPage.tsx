@@ -4,7 +4,7 @@ import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
 import { 
   ArrowLeft, Edit3, Trash2, AlertTriangle, 
-  FileText, FileSpreadsheet, Image as ImageIcon, Eye, EyeOff, ExternalLink
+  FileText, FileSpreadsheet, Image as ImageIcon, ExternalLink
 } from 'lucide-react';
 import type { StrataLayer, PipeSegment } from '@shared/types';
 import { validateStrata, validatePipeSegments } from '@/shared/validation';
@@ -30,7 +30,7 @@ export function BorewellDetailPage() {
 
   // States for toolbar controls
   const [zoom, setZoom] = useState<'fit' | '50' | '100' | '200' | '1in_20ft' | '1in_40ft'>('fit');
-  const [isPrintPreview, setIsPrintPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<'engineering' | 'raw'>('engineering');
 
   // States for interactive selection & hover highlights
   const [hoveredStrataId, setHoveredStrataId] = useState<string | null>(null);
@@ -176,8 +176,7 @@ export function BorewellDetailPage() {
   const { exportPNG: drawAndExportPNG } = usePngExport(
     borewell || ({} as any),
     layers,
-    pipes,
-    isPrintPreview
+    pipes
   );
 
   if (!borewell) {
@@ -611,18 +610,31 @@ export function BorewellDetailPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Print Preview Toggle */}
-            <button
-              onClick={() => setIsPrintPreview(!isPrintPreview)}
-              className={`sf-btn-secondary py-1.5 px-3 flex items-center gap-1.5 ${
-                isPrintPreview ? 'bg-accent/10 border-accent text-accent-text' : ''
-              }`}
-            >
-              {isPrintPreview ? <EyeOff size={13} /> : <Eye size={13} />}
-              <span className="font-mono text-3xs font-bold uppercase">
-                {isPrintPreview ? 'Exit Preview' : 'Print Preview'}
-              </span>
-            </button>
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-sf-surface border border-sf-border p-1 rounded-lg backdrop-blur-xs select-none">
+              <button
+                type="button"
+                onClick={() => setViewMode('engineering')}
+                className={`px-2.5 py-1 text-[9px] font-mono font-bold rounded cursor-pointer transition-all ${
+                  viewMode === 'engineering'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-txt-secondary hover:text-txt-primary'
+                }`}
+              >
+                Engineering View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('raw')}
+                className={`px-2.5 py-1 text-[9px] font-mono font-bold rounded cursor-pointer transition-all ${
+                  viewMode === 'raw'
+                    ? 'bg-accent text-white shadow-sm'
+                    : 'text-txt-secondary hover:text-txt-primary'
+                }`}
+              >
+                Raw Import View
+              </button>
+            </div>
 
             {/* Export Dropdown Group */}
             <div className="flex items-center gap-1 border-l border-sf-border pl-3">
@@ -660,13 +672,13 @@ export function BorewellDetailPage() {
             layers={layers}
             pipes={pipes}
             scaleFactor={scaleFactor}
-            isPrintPreview={isPrintPreview}
             hoveredStrataId={hoveredStrataId}
             setHoveredStrataId={setHoveredStrataId}
             hoveredPipeId={hoveredPipeId}
             setHoveredPipeId={setHoveredPipeId}
             selectedEntity={selectedEntity}
             setSelectedEntity={setSelectedEntity}
+            viewMode={viewMode}
           />
         </div>
 

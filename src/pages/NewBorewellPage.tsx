@@ -11,10 +11,11 @@ import { AddressSection } from '@/components/forms/AddressSection';
 import { LocationSection } from '@/components/forms/LocationSection';
 import { BorewellInfoSection } from '@/components/forms/BorewellInfoSection';
 import { AdditionalInfoSection } from '@/components/forms/AdditionalInfoSection';
-import { Save, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Save, ArrowLeft, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { parse as parseExif } from 'exifr';
 import type { Borewell } from '@/shared/types';
 import { SCAN_KEYWORDS } from '@/shared/constants';
+import { BorewellProfileDrawing } from '@/components/ui/BorewellProfileDrawing';
 
 export function NewBorewellPage() {
   const navigate = useNavigate();
@@ -51,6 +52,11 @@ export function NewBorewellPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // States for interactive selection & hover highlights of parsed preview strata/pipes
+  const [previewHoverStrata, setPreviewHoverStrata] = useState<string | null>(null);
+  const [previewHoverPipe, setPreviewHoverPipe] = useState<string | null>(null);
+  const [previewSelectedEntity, setPreviewSelectedEntity] = useState<{ type: 'strata' | 'pipe'; id: string } | null>(null);
 
   const validateField = (name: string, value: any): string => {
     switch (name) {
@@ -685,7 +691,7 @@ export function NewBorewellPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -700,51 +706,91 @@ export function NewBorewellPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="sf-panel p-6 space-y-6 shadow-sf">
-          <BasicInfoSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
-          <AddressSection
-            formData={formData}
-            onChange={handleChange}
-            onGeocode={handleGeocode}
-            geocoding={geocoding}
-            errors={errors}
-            touched={touched}
-          />
-          <LocationSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
-          <BorewellInfoSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
-          <AdditionalInfoSection
-            formData={formData}
-            onChange={handleChange}
-            onPhotoAdd={handlePhotoAdd}
-            onFileAttachClick={handleFileAttachClick}
-            onFileRemove={handleFileRemove}
-            attachedFile={attachedFile}
-            errors={errors}
-            touched={touched}
-            parsedStrataCount={parsedStrata.length}
-            parsedPipesCount={parsedPipes.length}
-          />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Form inputs */}
+        <form onSubmit={handleSubmit} className="lg:col-span-7 space-y-6">
+          <div className="sf-panel p-6 space-y-6 shadow-sf">
+            <BasicInfoSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
+            <AddressSection
+              formData={formData}
+              onChange={handleChange}
+              onGeocode={handleGeocode}
+              geocoding={geocoding}
+              errors={errors}
+              touched={touched}
+            />
+            <LocationSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
+            <BorewellInfoSection formData={formData} onChange={handleChange} errors={errors} touched={touched} />
+            <AdditionalInfoSection
+              formData={formData}
+              onChange={handleChange}
+              onPhotoAdd={handlePhotoAdd}
+              onFileAttachClick={handleFileAttachClick}
+              onFileRemove={handleFileRemove}
+              attachedFile={attachedFile}
+              errors={errors}
+              touched={touched}
+              parsedStrataCount={parsedStrata.length}
+              parsedPipesCount={parsedPipes.length}
+            />
+          </div>
 
-        {/* Submit Bar */}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="sf-btn-secondary"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="sf-btn-primary"
-          >
-            <Save size={16} />
-            <span>Save Record</span>
-          </button>
+          {/* Submit Bar */}
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="sf-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="sf-btn-primary"
+            >
+              <Save size={16} />
+              <span>Save Record</span>
+            </button>
+          </div>
+        </form>
+
+        {/* Right Column: Live geological preview */}
+        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-6">
+          <div className="sf-panel p-4 bg-sf-surface border border-sf-border shadow-sf space-y-3">
+            <h3 className="text-xs font-bold text-txt-primary uppercase tracking-wider border-b border-sf-border pb-2">
+              Parsed Geological Profile Preview
+            </h3>
+            {parsedStrata.length > 0 || parsedPipes.length > 0 ? (
+              <div className="border border-sf-border bg-sf-base rounded-xl overflow-auto p-4 flex justify-center" style={{ height: '550px' }}>
+                <BorewellProfileDrawing
+                  borewell={{
+                    totalDepth: Number(formData.totalDepth) || 250,
+                    pipeDia: Number(formData.pipeDia) || 6,
+                    waterLevel: formData.waterLevel !== '' ? Number(formData.waterLevel) : null,
+                  }}
+                  layers={parsedStrata}
+                  pipes={parsedPipes}
+                  scaleFactor={1.5}
+                  hoveredStrataId={previewHoverStrata}
+                  setHoveredStrataId={setPreviewHoverStrata}
+                  hoveredPipeId={previewHoverPipe}
+                  setHoveredPipeId={setPreviewHoverPipe}
+                  selectedEntity={previewSelectedEntity}
+                  setSelectedEntity={setPreviewSelectedEntity}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center border border-dashed border-sf-border rounded-xl p-8 text-center text-txt-muted min-h-[300px]">
+                <FileSpreadsheet size={32} className="text-txt-muted opacity-40 mb-3" />
+                <span className="text-2xs font-bold uppercase tracking-wider block mb-1">No Profile Loaded</span>
+                <p className="text-3xs text-txt-muted max-w-[200px] leading-relaxed">
+                  Attach an Excel template spreadsheet under "Additional Details" to parse and preview the CAD chart instantly.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </form>
+      </div>
 
       {/* Duplicate Modal Dialog */}
       {duplicateModal && (

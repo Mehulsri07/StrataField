@@ -6,10 +6,10 @@ import { mergeStrataLayers, mergePipeSegments } from '@/shared/profileUtils';
 export function usePngExport(
   borewell: Borewell,
   layers: StrataLayer[],
-  pipes: PipeSegment[],
-  isPrintPreview: boolean
+  pipes: PipeSegment[]
 ) {
   const addToast = useUIStore((s) => s.addToast);
+  const isPrintPreview = false;
 
   const exportPNG = async () => {
     try {

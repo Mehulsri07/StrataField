@@ -453,7 +453,6 @@ export function StrataEditorPage() {
               layers={layers}
               pipes={pipes}
               scaleFactor={Math.max(2, Math.min(8, 600 / totalDepth))}
-              isPrintPreview={false}
               hoveredStrataId={hoveredStrataId}
               setHoveredStrataId={setHoveredStrataId}
               hoveredPipeId={hoveredPipeId}

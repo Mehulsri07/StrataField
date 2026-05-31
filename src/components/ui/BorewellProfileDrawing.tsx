@@ -83,7 +83,6 @@ interface BorewellProfileDrawingProps {
   layers: StrataLayer[];
   pipes: PipeSegment[];
   scaleFactor: number;
-  isPrintPreview: boolean;
   hoveredStrataId: string | null;
   setHoveredStrataId: (id: string | null) => void;
   hoveredPipeId: string | null;
@@ -92,6 +91,7 @@ interface BorewellProfileDrawingProps {
   setSelectedEntity: (entity: { type: 'strata' | 'pipe'; id: string } | null) => void;
   readOnly?: boolean;
   onMoveLayer?: (index: number, direction: 'up' | 'down') => void;
+  viewMode?: 'engineering' | 'raw';
 }
 
 export const BorewellProfileDrawing: React.FC<BorewellProfileDrawingProps> = ({
@@ -99,7 +99,6 @@ export const BorewellProfileDrawing: React.FC<BorewellProfileDrawingProps> = ({
   layers,
   pipes,
   scaleFactor,
-  isPrintPreview,
   hoveredStrataId,
   setHoveredStrataId,
   hoveredPipeId,
@@ -108,8 +107,11 @@ export const BorewellProfileDrawing: React.FC<BorewellProfileDrawingProps> = ({
   setSelectedEntity,
   readOnly = false,
   onMoveLayer,
+  viewMode: propViewMode,
 }) => {
-  const [viewMode, setViewMode] = useState<'engineering' | 'raw'>('engineering');
+  const isPrintPreview = false;
+  const [localViewMode] = useState<'engineering' | 'raw'>('engineering');
+  const viewMode = propViewMode !== undefined ? propViewMode : localViewMode;
 
   const totalDepth = borewell.totalDepth || 250;
   const drawingHeight = totalDepth * scaleFactor;
@@ -248,33 +250,7 @@ export const BorewellProfileDrawing: React.FC<BorewellProfileDrawingProps> = ({
       }`}
       style={{ height: `${drawingHeight}px`, minWidth: '700px', width: '100%' }}
     >
-      {/* Floating View Mode Switcher (Hidden in print preview) */}
-      {!isPrintPreview && (
-        <div className="absolute top-3 right-3 z-40 flex items-center gap-1 bg-sf-surface/90 border border-sf-border p-1 rounded-lg backdrop-blur-xs select-none">
-          <button
-            type="button"
-            onClick={() => setViewMode('engineering')}
-            className={`px-2.5 py-1 text-[9px] font-mono font-bold rounded cursor-pointer transition-all ${
-              viewMode === 'engineering'
-                ? 'bg-accent text-white shadow-sm'
-                : 'text-txt-secondary hover:text-txt-primary'
-            }`}
-          >
-            Engineering View
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('raw')}
-            className={`px-2.5 py-1 text-[9px] font-mono font-bold rounded cursor-pointer transition-all ${
-              viewMode === 'raw'
-                ? 'bg-accent text-white shadow-sm'
-                : 'text-txt-secondary hover:text-txt-primary'
-            }`}
-          >
-            Raw Import View
-          </button>
-        </div>
-      )}
+
 
       {/* 1. DEPTH SCALE RULER (Sticky Left): 10% */}
       <div
@@ -535,80 +511,11 @@ export const BorewellProfileDrawing: React.FC<BorewellProfileDrawingProps> = ({
         })}
       </div>
 
-      {/* 5. LEADER LINE ANNOTATIONS LAYER: 10% */}
+      {/* 5. LEADER LINE ANNOTATIONS LAYER: 10% (Emptied out as requested) */}
       <div
         className="relative flex-shrink-0 pointer-events-none z-20"
         style={{ height: '100%', width: '10%', flex: '0 0 10%' }}
-      >
-        {displayedPipes.map((pipe) => {
-          const height = (pipe.endDepth - pipe.startDepth) * scaleFactor;
-          const isSlotted = pipe.pipeType === 'slotted';
-          const isTooSmallForLabel = height < 42;
-
-          if (!isTooSmallForLabel) return null;
-
-          const midY = (pipe.startDepth + (pipe.endDepth - pipe.startDepth) / 2) * scaleFactor;
-          return (
-            <div
-              key={pipe.id}
-              className="absolute left-0 right-0 flex items-center"
-              style={{ top: `${midY}px`, transform: 'translateY(-50%)' }}
-            >
-              {/* Horizontal pointer line */}
-              <div
-                className={`w-6 h-px border-t ${
-                  isPrintPreview ? 'border-black' : 'border-sf-border border-dashed'
-                }`}
-              />
-              
-              {/* Text Bubble Callout */}
-              <div
-                className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold border leading-none whitespace-nowrap ${
-                  isPrintPreview
-                    ? 'bg-white border-black text-black'
-                    : isSlotted
-                    ? 'bg-accent-muted/20 border-accent/30 text-accent-text'
-                    : 'bg-sf-surface border-sf-border text-txt-secondary'
-                }`}
-              >
-                {isSlotted ? 'SLOTTED' : 'PLAIN'}: {pipe.startDepth}-{pipe.endDepth} ft
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Strata small annotations */}
-        {displayedLayers.map((layer) => {
-          const height = (layer.endDepth - layer.startDepth) * scaleFactor;
-          const isTooSmallForLabel = height < 36;
-          if (!isTooSmallForLabel) return null;
-
-          const midY = (layer.startDepth + (layer.endDepth - layer.startDepth) / 2) * scaleFactor;
-
-          return (
-            <div
-              key={layer.id}
-              className="absolute flex items-center z-10"
-              style={{ top: `${midY}px`, right: '100%', transform: 'translateY(-50%)' }}
-            >
-              <div
-                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border leading-none whitespace-nowrap ${
-                  isPrintPreview
-                    ? 'bg-white border-black text-black'
-                    : 'bg-sf-surface border-sf-border text-txt-secondary'
-                }`}
-              >
-                {layer.material}: {layer.startDepth}-{layer.endDepth} ft
-              </div>
-              <div
-                className={`w-24 h-px border-t ${
-                  isPrintPreview ? 'border-black' : 'border-sf-border border-dashed'
-                }`}
-              />
-            </div>
-          );
-        })}
-      </div>
+      />
 
       {/* 6. STATIC WATER LEVEL MARKER (across both strata and pipe columns, 80% starting at 10% left) */}
       {borewell.waterLevel !== null && borewell.waterLevel !== undefined && (
