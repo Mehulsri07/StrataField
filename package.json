@@ -1,8 +1,8 @@
 {
   "name": "stratafield",
-  "productName": "stratafield",
+  "productName": "StrataField",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Borewell Logging & Geological Strata Designer — Offline Desktop Application",
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
