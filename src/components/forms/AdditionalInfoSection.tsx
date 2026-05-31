@@ -9,9 +9,11 @@ interface AdditionalInfoProps {
   attachedFile?: any;
   errors?: any;
   touched?: any;
+  parsedStrataCount?: number;
+  parsedPipesCount?: number;
 }
 
-export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAttachClick, onFileRemove, attachedFile }: AdditionalInfoProps) {
+export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAttachClick, onFileRemove, attachedFile, parsedStrataCount, parsedPipesCount }: AdditionalInfoProps) {
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-accent uppercase tracking-wider border-b border-sf-border pb-1.5">
@@ -68,6 +70,11 @@ export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAt
                   <span className="text-[10px] text-txt-muted font-medium block">
                     {attachedFile.size ? `${(attachedFile.size / 1024).toFixed(1)} KB | ` : ''}Reference Attached
                   </span>
+                  {parsedStrataCount !== undefined && parsedStrataCount > 0 && (
+                    <span className="text-[10px] text-accent font-medium block mt-0.5 animate-fadeIn">
+                      Geological profile parsed ({parsedStrataCount} strata layers, {parsedPipesCount || 0} pipe segments)
+                    </span>
+                  )}
                 </div>
               </div>
               <button

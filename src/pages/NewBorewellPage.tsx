@@ -23,6 +23,8 @@ export function NewBorewellPage() {
   const addToast = useUIStore((s) => s.addToast);
 
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [parsedStrata, setParsedStrata] = useState<any[]>([]);
+  const [parsedPipes, setParsedPipes] = useState<any[]>([]);
   const [geocoding, setGeocoding] = useState(false);
   const [duplicateModal, setDuplicateModal] = useState<{
     isOpen: boolean;
@@ -146,117 +148,305 @@ export function NewBorewellPage() {
     }
   };
 
-  const scanMetadataFromExcel = (cells: Record<string, { v: any; w: string }>) => {
+  const parseTableFromExcel = (rows: any[][], materialsList: any[]) => {
+    const strata: any[] = [];
+    const pipes: any[] = [];
+    
+    let currentStartDepth = 0;
+    let startRowIndex = -1;
+    
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i] || [];
+      const endVal = parseFloat(row[1]);
+      const materialVal = String(row[3] || '').trim();
+      if (!isNaN(endVal) && endVal > 0 && materialVal !== '') {
+        startRowIndex = i;
+        break;
+      }
+    }
+    
+    if (startRowIndex === -1) {
+      return { strata, pipes };
+    }
+    
+    for (let i = startRowIndex; i < rows.length; i++) {
+      const row = rows[i] || [];
+      const endVal = parseFloat(row[1]);
+      const materialVal = String(row[3] || '').trim();
+      
+      if (isNaN(endVal) || materialVal === '') {
+        continue;
+      }
+      
+      if (endVal <= currentStartDepth) {
+        continue;
+      }
+      
+      let resolvedMaterial = materialVal;
+      let color = '#8D6E63';
+      let pattern = 'solid';
+      
+      const found = materialsList.find(m => m.name.toLowerCase() === materialVal.toLowerCase());
+      if (found) {
+        resolvedMaterial = found.name;
+        color = found.color;
+        pattern = found.pattern;
+      } else {
+        if (materialVal.toLowerCase().includes('sand')) {
+          color = '#E0C097';
+          pattern = 'dots';
+        } else if (materialVal.toLowerCase().includes('rock') || materialVal.toLowerCase().includes('stone')) {
+          color = '#616161';
+          pattern = 'diagonal';
+        } else if (materialVal.toLowerCase().includes('gravel')) {
+          color = '#9E9E9E';
+          pattern = 'circles';
+        }
+      }
+      
+      strata.push({
+        id: crypto.randomUUID(),
+        borewellId: '',
+        startDepth: currentStartDepth,
+        endDepth: endVal,
+        material: resolvedMaterial,
+        color,
+        pattern,
+        remarks: ''
+      });
+      
+      const col4Val = String(row[4] || '').trim();
+      const col5Val = String(row[5] || '').trim();
+      const pipeStr = (col4Val || col5Val).toLowerCase();
+      
+      if (pipeStr !== '') {
+        let pipeType: 'plain' | 'slotted' | null = null;
+        if (pipeStr.includes('plain') || pipeStr.includes('pipe') || pipeStr.includes('casing')) {
+          pipeType = 'plain';
+        }
+        if (pipeStr.includes('screen') || pipeStr.includes('slot') || pipeStr.includes('ribbed') || pipeStr.includes('filter')) {
+          pipeType = 'slotted';
+        }
+        
+        if (pipeType) {
+          pipes.push({
+            id: crypto.randomUUID(),
+            borewellId: '',
+            startDepth: currentStartDepth,
+            endDepth: endVal,
+            pipeType
+          });
+        }
+      }
+      
+      currentStartDepth = endVal;
+    }
+    
+    return { strata, pipes };
+  };
+
+  const scanMetadataFromExcel = (cells: Record<string, { v: any; w: string }>, parsedStrataLayers?: any[]) => {
     const newFormData = { ...formData };
     
-    const colLetterToNum = (val: string): number => {
-      let num = 0;
-      for (let i = 0; i < val.length; i++) {
-        num = num * 26 + (val.charCodeAt(i) - 64);
+    const parseCustomDate = (dateStr: string): string | null => {
+      const clean = dateStr.trim();
+      const match = clean.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+      if (match) {
+        let day = parseInt(match[1], 10);
+        let month = parseInt(match[2], 10);
+        let year = parseInt(match[3], 10);
+        if (year < 100) year += 2000;
+        if (month > 12 && day <= 12) {
+          const temp = day;
+          day = month;
+          month = temp;
+        }
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
       }
-      return num - 1;
+      const matchIso = clean.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$/);
+      if (matchIso) {
+        const year = parseInt(matchIso[1], 10);
+        const month = parseInt(matchIso[2], 10);
+        const day = parseInt(matchIso[3], 10);
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+      const parsed = Date.parse(clean);
+      if (!isNaN(parsed)) {
+        return new Date(parsed).toISOString().split('T')[0];
+      }
+      return null;
     };
 
-    const numToColLetter = (num: number): string => {
-      let temp = '';
-      let idx = num;
-      while (idx >= 0) {
-        temp = String.fromCharCode((idx % 26) + 65) + temp;
-        idx = Math.floor(idx / 26) - 1;
-      }
-      return temp;
-    };
-
-    const assignedFields: Record<string, boolean> = {};
-
+    // Extract values from cells by scanning for keyword/regex patterns
     Object.entries(cells).forEach(([key, cellObj]) => {
-      const cellText = cellObj.w.toLowerCase().trim();
+      if (!cellObj || !cellObj.w) return;
+      const cellText = cellObj.w.trim();
+
+      // 1. Water Level
+      const wlMatch = cellText.match(/(?:water\s*level|swl)\s*(?:depth)?\s*[:=]\s*([0-9.]+)/i);
+      if (wlMatch) {
+        newFormData.waterLevel = wlMatch[1];
+      }
+
+      // 2. Bore Dia & Total Depth
+      const bdMatch = cellText.match(/bore\s*(?:dia|diameter)\s*[:=]\s*([0-9.]+)/i);
+      if (bdMatch) {
+        newFormData.boreDia = bdMatch[1];
+        
+        const tdMatch = cellText.match(/\/[-/\s]*([0-9.]+)\s*(?:ft|feet|m|meter)/i);
+        if (tdMatch) {
+          newFormData.totalDepth = tdMatch[1];
+        }
+      }
+
+      // 3. Pipe Casing Diameter
+      const pdMatch = cellText.match(/(?:tube\s*well|pipe\s*dia|casing\s*dia|casing\s*diameter|pipe\s*diameter)\s*[:=]\s*([0-9.]+)/i);
+      if (pdMatch) {
+        newFormData.pipeDia = pdMatch[1];
+      }
+
+      // 4. Date
+      const dateMatch = cellText.match(/date\s*[:=]\s*([0-9\-/.]+)/i);
+      if (dateMatch) {
+        const parsedDate = parseCustomDate(dateMatch[1]);
+        if (parsedDate) {
+          newFormData.date = parsedDate;
+        }
+      }
+    });
+
+    // 5. Look for Site Name, Address, and City
+    Object.entries(cells).forEach(([key, cellObj]) => {
+      if (!cellObj || !cellObj.w) return;
+      const cellTextLower = cellObj.w.toLowerCase().trim();
       const match = key.match(/^([A-Z]+)([0-9]+)$/);
       if (!match) return;
 
       const col = match[1];
       const row = parseInt(match[2], 10);
 
-      Object.entries(SCAN_KEYWORDS).forEach(([field, keywords]) => {
-        if (assignedFields[field]) return;
+      if (cellTextLower === 'site:' || cellTextLower === 'site') {
+        const siteNameCell = cells[`${col}${row + 1}`];
+        const addressCell = cells[`${col}${row + 2}`];
+        const cityCell = cells[`${col}${row + 3}`];
 
-        const isMatch = keywords.some(kw => 
-          cellText === kw || 
-          cellText.startsWith(kw + ':') || 
-          cellText.startsWith(kw + ' :') ||
-          cellText.startsWith(kw + '-') ||
-          cellText.startsWith(kw + ' -')
-        );
-
-        if (isMatch) {
-          const rightColNum = colLetterToNum(col) + 1;
-          const rightCellKey = `${numToColLetter(rightColNum)}${row}`;
-          const belowCellKey = `${col}${row + 1}`;
-
-          let targetValue = '';
-          if (cells[rightCellKey] && String(cells[rightCellKey].v || '').trim() !== '') {
-            targetValue = String(cells[rightCellKey].v);
-          } else if (cells[belowCellKey] && String(cells[belowCellKey].v || '').trim() !== '') {
-            targetValue = String(cells[belowCellKey].v);
+        if (siteNameCell && siteNameCell.w.trim() !== '') {
+          const ownerNameVal = siteNameCell.w.trim();
+          newFormData.ownerName = ownerNameVal;
+          
+          if (!newFormData.borewellId || newFormData.borewellId.trim() === '') {
+            newFormData.borewellId = ownerNameVal;
           }
+          if (!newFormData.project || newFormData.project.trim() === '' || newFormData.project === 'Default Project') {
+            newFormData.project = ownerNameVal;
+          }
+        }
 
-          if (targetValue) {
-            if (field === 'borewellId') newFormData.borewellId = targetValue;
-            else if (field === 'project') newFormData.project = targetValue;
-            else if (field === 'ownerName') newFormData.ownerName = targetValue;
-            else if (field === 'city') newFormData.city = targetValue;
-            else if (field === 'address') newFormData.address = targetValue;
-            else if (field === 'latitude') newFormData.latitude = targetValue;
-            else if (field === 'longitude') newFormData.longitude = targetValue;
-            else if (field === 'totalDepth') newFormData.totalDepth = targetValue;
-            else if (field === 'waterLevel') newFormData.waterLevel = targetValue;
-            else if (field === 'remarks') newFormData.remarks = targetValue;
-            else if (field === 'date') {
-              if (targetValue && !isNaN(Date.parse(targetValue))) {
-                newFormData.date = new Date(targetValue).toISOString().split('T')[0];
-              } else {
-                newFormData.date = targetValue;
-              }
+        if (addressCell && addressCell.w.trim() !== '') {
+          newFormData.area = addressCell.w.trim();
+        }
+
+        if (cityCell && cityCell.w.trim() !== '') {
+          newFormData.city = cityCell.w.trim().replace(/\.$/, '');
+        }
+
+        if (newFormData.area && newFormData.city) {
+          newFormData.address = `${newFormData.area}, ${newFormData.city}`;
+        } else if (newFormData.area) {
+          newFormData.address = newFormData.area;
+        } else if (newFormData.city) {
+          newFormData.address = newFormData.city;
+        }
+      }
+    });
+
+    // Fallback keyword scanning
+    if (!newFormData.ownerName || !newFormData.city) {
+      const colLetterToNum = (val: string): number => {
+        let num = 0;
+        for (let i = 0; i < val.length; i++) {
+          num = num * 26 + (val.charCodeAt(i) - 64);
+        }
+        return num - 1;
+      };
+
+      const numToColLetter = (num: number): string => {
+        let temp = '';
+        let idx = num;
+        while (idx >= 0) {
+          temp = String.fromCharCode((idx % 26) + 65) + temp;
+          idx = Math.floor(idx / 26) - 1;
+        }
+        return temp;
+      };
+
+      const assignedFields: Record<string, boolean> = {};
+
+      Object.entries(cells).forEach(([key, cellObj]) => {
+        const cellText = cellObj.w.toLowerCase().trim();
+        const match = key.match(/^([A-Z]+)([0-9]+)$/);
+        if (!match) return;
+
+        const col = match[1];
+        const row = parseInt(match[2], 10);
+
+        Object.entries(SCAN_KEYWORDS).forEach(([field, keywords]) => {
+          if (assignedFields[field]) return;
+
+          const isMatch = keywords.some(kw => 
+            cellText === kw || 
+            cellText.startsWith(kw + ':') || 
+            cellText.startsWith(kw + ' :') ||
+            cellText.startsWith(kw + '-') ||
+            cellText.startsWith(kw + ' -')
+          );
+
+          if (isMatch) {
+            const rightColNum = colLetterToNum(col) + 1;
+            const rightCellKey = `${numToColLetter(rightColNum)}${row}`;
+            const belowCellKey = `${col}${row + 1}`;
+
+            let targetValue = '';
+            if (cells[rightCellKey] && String(cells[rightCellKey].v || '').trim() !== '') {
+              targetValue = String(cells[rightCellKey].v);
+            } else if (cells[belowCellKey] && String(cells[belowCellKey].v || '').trim() !== '') {
+              targetValue = String(cells[belowCellKey].v);
             }
-            assignedFields[field] = true;
+
+            if (targetValue) {
+              if (field === 'borewellId' && !newFormData.borewellId) newFormData.borewellId = targetValue;
+              else if (field === 'project' && (!newFormData.project || newFormData.project === 'Default Project')) newFormData.project = targetValue;
+              else if (field === 'ownerName' && !newFormData.ownerName) newFormData.ownerName = targetValue;
+              else if (field === 'city' && !newFormData.city) newFormData.city = targetValue;
+              else if (field === 'address' && !newFormData.address) newFormData.address = targetValue;
+              else if (field === 'latitude' && !newFormData.latitude) newFormData.latitude = targetValue;
+              else if (field === 'longitude' && !newFormData.longitude) newFormData.longitude = targetValue;
+              else if (field === 'totalDepth' && !newFormData.totalDepth) newFormData.totalDepth = targetValue;
+              else if (field === 'waterLevel' && !newFormData.waterLevel) newFormData.waterLevel = targetValue;
+              else if (field === 'remarks' && !newFormData.remarks) newFormData.remarks = targetValue;
+              else if (field === 'date' && !newFormData.date) {
+                const parsedDate = parseCustomDate(targetValue);
+                if (parsedDate) {
+                  newFormData.date = parsedDate;
+                } else {
+                  newFormData.date = targetValue;
+                }
+              }
+              assignedFields[field] = true;
+            }
           }
-        }
+        });
       });
-    });
+    }
 
-    // Extract borehole / pipe casing diameters
-    Object.entries(cells).forEach(([key, cellObj]) => {
-      const cellText = cellObj.w.toLowerCase().trim();
-      const match = key.match(/^([A-Z]+)([0-9]+)$/);
-      if (!match) return;
-
-      const col = match[1];
-      const row = parseInt(match[2], 10);
-
-      const isBoreDia = cellText.includes('bore dia') || cellText.includes('borehole dia') || cellText.includes('bore diameter');
-      const isPipeDia = cellText.includes('pipe dia') || cellText.includes('casing dia') || cellText.includes('casing diameter') || cellText.includes('pipe diameter');
-
-      if (isBoreDia || isPipeDia) {
-        const rightColNum = colLetterToNum(col) + 1;
-        const rightCellKey = `${numToColLetter(rightColNum)}${row}`;
-        const belowCellKey = `${col}${row + 1}`;
-
-        let targetValue = '';
-        if (cells[rightCellKey] && String(cells[rightCellKey].v || '').trim() !== '') {
-          targetValue = String(cells[rightCellKey].v);
-        } else if (cells[belowCellKey] && String(cells[belowCellKey].v || '').trim() !== '') {
-          targetValue = String(cells[belowCellKey].v);
-        }
-
-        if (targetValue) {
-          const valNum = parseFloat(targetValue);
-          if (!isNaN(valNum)) {
-            if (isBoreDia) newFormData.boreDia = valNum;
-            if (isPipeDia) newFormData.pipeDia = valNum;
-          }
-        }
+    if (parsedStrataLayers && parsedStrataLayers.length > 0) {
+      const maxEndDepth = Math.max(...parsedStrataLayers.map(l => l.endDepth));
+      if (maxEndDepth > 0 && (!newFormData.totalDepth || parseFloat(String(newFormData.totalDepth)) === 0 || String(newFormData.totalDepth).trim() === '')) {
+        newFormData.totalDepth = maxEndDepth;
       }
-    });
+    }
 
     setFormData(newFormData);
 
@@ -294,8 +484,12 @@ export function NewBorewellPage() {
           addToast({ message: 'Parsing attached Excel sheet...', type: 'info' });
           const result = await window.api.db.parseExcel(filePath);
           if (result && result.cells) {
-            scanMetadataFromExcel(result.cells);
-            addToast({ message: 'Auto-filled form fields from Excel data!', type: 'success' });
+            const materialsList = useBorewellStore.getState().materials;
+            const { strata, pipes } = parseTableFromExcel(result.rows || [], materialsList);
+            setParsedStrata(strata);
+            setParsedPipes(pipes);
+            scanMetadataFromExcel(result.cells, strata);
+            addToast({ message: 'Auto-filled form fields and parsed strata/casing profiles!', type: 'success' });
           }
         } catch (err: any) {
           console.error('Failed to parse Excel reference:', err);
@@ -312,6 +506,8 @@ export function NewBorewellPage() {
 
   const handleFileRemove = () => {
     setAttachedFile(null);
+    setParsedStrata([]);
+    setParsedPipes([]);
     addToast({ message: 'Removed attached reference document.', type: 'info' });
   };
 
@@ -405,6 +601,14 @@ export function NewBorewellPage() {
       } else {
         const newRecord = buildBorewellRecord();
         await addBorewell(newRecord);
+        if (parsedStrata.length > 0) {
+          const strataToSave = parsedStrata.map(s => ({ ...s, borewellId: newRecord.id }));
+          await window.api.db.saveStrata(newRecord.id, strataToSave);
+        }
+        if (parsedPipes.length > 0) {
+          const pipesToSave = parsedPipes.map(p => ({ ...p, borewellId: newRecord.id }));
+          await window.api.db.savePipes(newRecord.id, pipesToSave);
+        }
         if (attachedFile) {
           const isExcel = attachedFile.name.endsWith('.xlsx') || attachedFile.name.endsWith('.xls');
           const fileData = {
@@ -431,6 +635,14 @@ export function NewBorewellPage() {
       if (action === 'overwrite') {
         const updates = buildBorewellRecord(existing.id);
         await updateBorewell(existing.id, updates);
+        if (parsedStrata.length > 0) {
+          const strataToSave = parsedStrata.map(s => ({ ...s, borewellId: existing.id }));
+          await window.api.db.saveStrata(existing.id, strataToSave);
+        }
+        if (parsedPipes.length > 0) {
+          const pipesToSave = parsedPipes.map(p => ({ ...p, borewellId: existing.id }));
+          await window.api.db.savePipes(existing.id, pipesToSave);
+        }
         if (attachedFile) {
           const isExcel = attachedFile.name.endsWith('.xlsx') || attachedFile.name.endsWith('.xls');
           const fileData = {
@@ -443,6 +655,14 @@ export function NewBorewellPage() {
       } else {
         const copy = buildBorewellRecord(undefined, true);
         await addBorewell(copy);
+        if (parsedStrata.length > 0) {
+          const strataToSave = parsedStrata.map(s => ({ ...s, borewellId: copy.id }));
+          await window.api.db.saveStrata(copy.id, strataToSave);
+        }
+        if (parsedPipes.length > 0) {
+          const pipesToSave = parsedPipes.map(p => ({ ...p, borewellId: copy.id }));
+          await window.api.db.savePipes(copy.id, pipesToSave);
+        }
         if (attachedFile) {
           const isExcel = attachedFile.name.endsWith('.xlsx') || attachedFile.name.endsWith('.xls');
           const fileData = {
@@ -498,6 +718,8 @@ export function NewBorewellPage() {
             attachedFile={attachedFile}
             errors={errors}
             touched={touched}
+            parsedStrataCount={parsedStrata.length}
+            parsedPipesCount={parsedPipes.length}
           />
         </div>
 

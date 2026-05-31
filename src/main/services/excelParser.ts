@@ -8,7 +8,20 @@ export const excelParser = {
         throw new Error(`File does not exist: ${filePath}`);
       }
 
-      const workbook = xlsx.readFile(filePath);
+      let fileBuffer;
+      try {
+        fileBuffer = fs.readFileSync(filePath);
+      } catch (fsErr: any) {
+        if (fsErr.code === 'EBUSY') {
+          throw new Error('The file is locked or open in another program (like Microsoft Excel). Please close it and try again.');
+        }
+        if (fsErr.code === 'EACCES') {
+          throw new Error('Permission denied: cannot read the file.');
+        }
+        throw new Error(`Failed to read file: ${fsErr.message || String(fsErr)}`);
+      }
+
+      const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
 
