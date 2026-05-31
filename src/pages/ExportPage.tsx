@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
-import { FileDown, ArrowLeft, CheckSquare, Square, FileText, FileSpreadsheet, Download } from 'lucide-react';
+import { FileDown, ArrowLeft, CheckSquare, Square, FileText, FileSpreadsheet, Download, Search, X } from 'lucide-react';
 import type { ExportFormat } from '@shared/types';
 
 export function ExportPage() {
@@ -19,6 +19,7 @@ export function ExportPage() {
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!exporting) {
@@ -35,11 +36,35 @@ export function ExportPage() {
     };
   }, [exporting]);
 
+  const filteredBorewells = borewells.filter((b) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      b.ownerName?.toLowerCase().includes(query) ||
+      b.borewellId?.toLowerCase().includes(query) ||
+      b.city?.toLowerCase().includes(query) ||
+      b.project?.toLowerCase().includes(query) ||
+      b.area?.toLowerCase().includes(query)
+    );
+  });
+
   const toggleSelectAll = () => {
-    if (selectedIds.length === borewells.length) {
-      setSelectedIds([]);
+    if (filteredBorewells.length === 0) return;
+    const allFilteredSelected = filteredBorewells.every((b) => selectedIds.includes(b.id));
+    if (allFilteredSelected) {
+      const filteredIds = filteredBorewells.map((b) => b.id);
+      setSelectedIds((prev) => prev.filter((id) => !filteredIds.includes(id)));
     } else {
-      setSelectedIds(borewells.map((b) => b.id));
+      const filteredIds = filteredBorewells.map((b) => b.id);
+      setSelectedIds((prev) => {
+        const next = [...prev];
+        filteredIds.forEach((id) => {
+          if (!next.includes(id)) {
+            next.push(id);
+          }
+        });
+        return next;
+      });
     }
   };
 
@@ -212,18 +237,41 @@ export function ExportPage() {
                 onClick={toggleSelectAll}
                 className="flex items-center gap-1.5 text-xs text-accent hover:underline font-semibold"
               >
-                {selectedIds.length === borewells.length ? 'Deselect All' : 'Select All'}
+                {filteredBorewells.length > 0 && filteredBorewells.every((b) => selectedIds.includes(b.id)) ? 'Deselect All' : 'Select All'}
               </button>
             </div>
 
+            {/* Search Bar */}
+            <div className="mb-3 relative select-text">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-txt-muted">
+                <Search size={15} />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by owner, ID, city, project, area..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 bg-sf-base border border-sf-border rounded-lg text-xs text-txt-primary placeholder-txt-muted transition-all focus:border-accent focus:ring-1 focus:ring-accent-muted outline-none shadow-2xs select-text"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-3 flex items-center text-txt-muted hover:text-txt-primary"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-              {borewells.length === 0 ? (
+              {filteredBorewells.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-txt-muted text-xs gap-1 border border-dashed border-sf-border rounded-lg py-20">
-                  <FileText size={24} />
-                  <span>No records available to export</span>
+                  <Search size={24} />
+                  <span>No matching records found</span>
                 </div>
               ) : (
-                borewells.map((b) => {
+                filteredBorewells.map((b) => {
                   const isSelected = selectedIds.includes(b.id);
                   return (
                     <div
