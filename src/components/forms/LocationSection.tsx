@@ -22,12 +22,13 @@ export function LocationSection({ formData, onChange, errors, touched }: Locatio
         {/* Latitude */}
         <div>
           <label className="sf-label flex items-center gap-1.5">
-            <Compass size={14} className="text-accent" /> Latitude
+            <Compass size={14} className="text-accent" /> Latitude *
           </label>
           <input
             type="number"
             step="any"
             name="latitude"
+            required
             placeholder="e.g. 28.6139"
             value={formData.latitude || ''}
             onChange={onChange}
@@ -43,12 +44,13 @@ export function LocationSection({ formData, onChange, errors, touched }: Locatio
         {/* Longitude */}
         <div>
           <label className="sf-label flex items-center gap-1.5">
-            <Compass size={14} className="text-accent" /> Longitude
+            <Compass size={14} className="text-accent" /> Longitude *
           </label>
           <input
             type="number"
             step="any"
             name="longitude"
+            required
             placeholder="e.g. 77.2090"
             value={formData.longitude || ''}
             onChange={onChange}

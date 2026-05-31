@@ -62,18 +62,22 @@ export function NewBorewellPage() {
         return !value || String(value).trim() === '' ? 'Owner / Client Name is a mandatory field.' : '';
       case 'city':
         return !value || String(value).trim() === '' ? 'City / District is a mandatory field.' : '';
-      case 'latitude':
-        if (value !== '' && value !== null && value !== undefined) {
-          const lat = Number(value);
-          if (isNaN(lat) || lat < -90 || lat > 90) return 'Latitude must be a valid number between -90 and 90 degrees.';
+      case 'latitude': {
+        if (value === '' || value === null || value === undefined) {
+          return 'Latitude is a mandatory field.';
         }
+        const lat = Number(value);
+        if (isNaN(lat) || lat < -90 || lat > 90) return 'Latitude must be a valid number between -90 and 90 degrees.';
         return '';
-      case 'longitude':
-        if (value !== '' && value !== null && value !== undefined) {
-          const lng = Number(value);
-          if (isNaN(lng) || lng < -180 || lng > 180) return 'Longitude must be a valid number between -180 and 180 degrees.';
+      }
+      case 'longitude': {
+        if (value === '' || value === null || value === undefined) {
+          return 'Longitude is a mandatory field.';
         }
+        const lng = Number(value);
+        if (isNaN(lng) || lng < -180 || lng > 180) return 'Longitude must be a valid number between -180 and 180 degrees.';
         return '';
+      }
       case 'totalDepth':
         if (value !== '' && value !== null && value !== undefined) {
           const depth = Number(value);

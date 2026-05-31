@@ -44,6 +44,13 @@ export function validateBorewell(b: Partial<Borewell>): string[] {
     errors.push('City / District is a mandatory field.');
   }
 
+  if (b.latitude === undefined || b.latitude === null || String(b.latitude).trim() === '') {
+    errors.push('Latitude is a mandatory field.');
+  }
+  if (b.longitude === undefined || b.longitude === null || String(b.longitude).trim() === '') {
+    errors.push('Longitude is a mandatory field.');
+  }
+
   if (b.totalDepth !== undefined && b.totalDepth !== null) {
     if (isNaN(b.totalDepth) || b.totalDepth < 0) {
       errors.push('Total depth cannot be a negative value.');
@@ -59,8 +66,8 @@ export function validateBorewell(b: Partial<Borewell>): string[] {
     }
   }
 
-  if (b.latitude !== undefined && b.longitude !== undefined) {
-    errors.push(...validateCoordinates(b.latitude, b.longitude));
+  if (b.latitude !== undefined && b.latitude !== null && b.longitude !== undefined && b.longitude !== null) {
+    errors.push(...validateCoordinates(Number(b.latitude), Number(b.longitude)));
   }
 
   return errors;

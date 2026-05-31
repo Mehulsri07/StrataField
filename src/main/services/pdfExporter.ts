@@ -436,11 +436,11 @@ export const pdfExporter = {
         page.drawText('GEOLOGICAL STRATA', { x: strataX + 15, y: chartTopY + 5, size: 7.5, font: helveticaBold, color: rgb(0.4, 0.4, 0.4) });
         page.drawText('PIPE LOWERING', { x: pipeX + 5, y: chartTopY + 5, size: 7.5, font: helveticaBold, color: rgb(0.4, 0.4, 0.4) });
 
-        // 6. Detailed Layers Summary Table (Right Panel layout)
+        // 6. Geological Strata Legend (Right Panel layout)
         const summaryX = 305;
         const summaryW = width - 25 - summaryX;
 
-        page.drawText('GEOLOGICAL LAYERS DESCRIPTION', {
+        page.drawText('GEOLOGICAL STRATA LEGEND', {
           x: summaryX + 10,
           y: chartTopY + 5,
           size: 7.5,
@@ -458,46 +458,68 @@ export const pdfExporter = {
           borderWidth: 1,
         });
 
-        let summaryItemY = chartTopY - 20;
-        strata.forEach((layer, idx) => {
-          if (summaryItemY < chartTopY - chartH + 20) return; // avoid drawing past bottom boundary
+        // Compute unique materials and stats
+        const uniqueMaterials: { material: string; color: string }[] = [];
+        const seenMaterials = new Set<string>();
+        const materialStats: Record<string, { totalThickness: number; layersCount: number }> = {};
+
+        strata.forEach((layer) => {
+          const key = layer.material.toLowerCase().trim();
+          const thickness = layer.endDepth - layer.startDepth;
+
+          if (!materialStats[key]) {
+            materialStats[key] = { totalThickness: 0, layersCount: 0 };
+          }
+          materialStats[key].totalThickness += thickness;
+          materialStats[key].layersCount += 1;
+
+          if (!seenMaterials.has(key)) {
+            seenMaterials.add(key);
+            uniqueMaterials.push({
+              material: layer.material.trim(),
+              color: layer.color,
+            });
+          }
+        });
+
+        let legendItemY = chartTopY - 22;
+        uniqueMaterials.forEach((item) => {
+          if (legendItemY < chartTopY - chartH + 20) return; // avoid drawing past bottom boundary
+
+          const key = item.material.toLowerCase().trim();
+          const stats = materialStats[key];
 
           // Draw small color pill representation
           page.drawRectangle({
-            x: summaryX + 10,
-            y: summaryItemY,
-            width: 14,
-            height: 10,
-            color: parseHexColor(layer.color),
-            borderColor: rgb(0.4, 0.4, 0.4),
-            borderWidth: 0.5,
+            x: summaryX + 12,
+            y: legendItemY,
+            width: 16,
+            height: 11,
+            color: parseHexColor(item.color),
+            borderColor: rgb(0.3, 0.3, 0.3),
+            borderWidth: 0.6,
           });
 
-          // Layer title name and depth
-          page.drawText(`${idx + 1}. ${layer.material} (${layer.startDepth} - ${layer.endDepth} ft)`, {
-            x: summaryX + 30,
-            y: summaryItemY + 2,
-            size: 8,
+          // Material Name (bold, uppercase)
+          page.drawText(item.material.toUpperCase(), {
+            x: summaryX + 36,
+            y: legendItemY + 3,
+            size: 8.5,
             font: helveticaBold,
             color: rgb(0.1, 0.12, 0.15),
           });
 
-          // Layer Remarks (wrapped if needed)
-          const wrappedRemarks = wrapText(layer.remarks || 'No specific details logged.', summaryW - 40, 7.5, helvetica);
-          let remY = summaryItemY - 9;
-          wrappedRemarks.forEach((line) => {
-            if (remY < chartTopY - chartH + 5) return;
-            page.drawText(line, {
-              x: summaryX + 30,
-              y: remY,
-              size: 7.5,
-              font: helvetica,
-              color: rgb(0.4, 0.42, 0.45),
-            });
-            remY -= 9;
+          // Stats: total thickness & layer count
+          const statsText = `Total Thickness: ${stats.totalThickness} ft (${stats.layersCount} layer${stats.layersCount > 1 ? 's' : ''})`;
+          page.drawText(statsText, {
+            x: summaryX + 36,
+            y: legendItemY - 6,
+            size: 7.5,
+            font: helvetica,
+            color: rgb(0.4, 0.42, 0.45),
           });
 
-          summaryItemY -= 36; // advance down for next item
+          legendItemY -= 26; // advance down for next item
         });
 
         // 7. Remarks Section
