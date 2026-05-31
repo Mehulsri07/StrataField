@@ -22,6 +22,9 @@ export const backupService = {
   },
 
   performBackup(): boolean {
+    const now = new Date();
+    let integrityStatus: 'ok' | 'failed' = 'failed';
+
     try {
       const settings = this.getSettings();
       const dbPath = settings.databasePath || path.join(app.getPath('userData'), 'stratafield.db');
@@ -29,6 +32,7 @@ export const backupService = {
 
       if (!fs.existsSync(dbPath)) {
         console.warn('BackupService: Active database file not found at:', dbPath);
+        this.saveBackupStatus({ lastBackupTime: now.toISOString(), status: 'failed', integrity: 'failed' });
         return false;
       }
 
@@ -39,8 +43,10 @@ export const backupService = {
       const status = integrity[0]?.values[0][0] as string;
       if (status !== 'ok') {
         console.error('BackupService: Integrity check failed! Active database is corrupted. Aborting backup. Status:', status);
+        this.saveBackupStatus({ lastBackupTime: now.toISOString(), status: 'failed', integrity: 'failed' });
         return false;
       }
+      integrityStatus = 'ok';
 
       // Create backup directory if it does not exist
       if (!fs.existsSync(backupDir)) {
@@ -48,7 +54,6 @@ export const backupService = {
       }
 
       // Generate filename: stratafield_backup_YYYYMMDD_HHMMSS.db
-      const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
       const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
       
@@ -58,11 +63,43 @@ export const backupService = {
 
       // Clean up old backups (keep 30 most recent backups)
       this.cleanupOldBackups(backupDir);
+      
+      this.saveBackupStatus({ lastBackupTime: now.toISOString(), status: 'success', integrity: 'ok' });
       return true;
     } catch (err) {
       console.error('BackupService: Automatic backup execution failed:', err);
+      this.saveBackupStatus({ lastBackupTime: now.toISOString(), status: 'failed', integrity: integrityStatus });
       return false;
     }
+  },
+
+  saveBackupStatus(statusObj: { lastBackupTime: string; status: 'success' | 'failed'; integrity: 'ok' | 'failed' }) {
+    const filePath = path.join(app.getPath('userData'), 'settings.json');
+    try {
+      let current: any = {};
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        current = JSON.parse(raw);
+      }
+      current.lastBackup = statusObj;
+      fs.writeFileSync(filePath, JSON.stringify(current, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('BackupService: Failed to save last backup status to settings:', err);
+    }
+  },
+
+  getBackupStatus() {
+    try {
+      const filePath = path.join(app.getPath('userData'), 'settings.json');
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        const settings = JSON.parse(raw);
+        return settings.lastBackup || { lastBackupTime: null, status: null, integrity: null };
+      }
+    } catch (err) {
+      console.error('BackupService: Failed to read backup status:', err);
+    }
+    return { lastBackupTime: null, status: null, integrity: null };
   },
 
   cleanupOldBackups(backupDir: string): void {

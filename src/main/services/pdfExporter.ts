@@ -56,7 +56,11 @@ function wrapText(text: string, maxWidth: number, fontSize: number, font: any): 
 }
 
 export const pdfExporter = {
-  async exportRecords(borewellIds: string[], savePath: string): Promise<void> {
+  async exportRecords(
+    borewellIds: string[],
+    savePath: string,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<void> {
     try {
       const pdfDoc = await PDFDocument.create();
 
@@ -66,10 +70,18 @@ export const pdfExporter = {
       const courier = await pdfDoc.embedFont(StandardFonts.Courier);
 
       let pageIndex = 1;
+      let currentIdx = 0;
 
       for (const id of borewellIds) {
+        if (onProgress) {
+          onProgress(currentIdx, borewellIds.length);
+        }
+
         const borewell = borewellRepository.getById(id);
-        if (!borewell) continue;
+        if (!borewell) {
+          currentIdx++;
+          continue;
+        }
 
         const strata = strataRepository.getByBorewellId(id);
         const pipes = pipeRepository.getByBorewellId(id);
@@ -500,6 +512,11 @@ export const pdfExporter = {
         });
 
         pageIndex++;
+        currentIdx++;
+      }
+
+      if (onProgress) {
+        onProgress(borewellIds.length, borewellIds.length);
       }
 
       // Serialize standard PDF document buffer and save

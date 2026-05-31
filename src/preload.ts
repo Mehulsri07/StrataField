@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('api', {
     getBackupsList: () => ipcRenderer.invoke(IPC_CHANNELS.DB_BACKUP_LIST),
     restoreBackup: (filename: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_BACKUP_RESTORE, filename),
     restoreBackupExternal: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_BACKUP_RESTORE_EXTERNAL, filePath),
+    getBackupStatus: () => ipcRenderer.invoke('settings:getBackupStatus'),
   },
 
   geocode: {
@@ -60,6 +61,13 @@ contextBridge.exposeInMainWorld('api', {
     pdf: (borewellIds: string[], savePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_PDF, borewellIds, savePath),
     excel: (borewellIds: string[], savePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_EXCEL, borewellIds, savePath),
     png: (dataUrl: string, savePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_PNG, dataUrl, savePath),
+    onProgress: (callback: (current: number, total: number) => void) => {
+      const subscription = (_event: any, current: number, total: number) => callback(current, total);
+      ipcRenderer.on('export:progress', subscription);
+      return () => {
+        ipcRenderer.removeListener('export:progress', subscription);
+      };
+    }
   },
 
   dialog: {

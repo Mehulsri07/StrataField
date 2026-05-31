@@ -57,6 +57,29 @@ export function SettingsPage() {
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
+  // Last Backup status state
+  const [lastBackupStatus, setLastBackupStatus] = useState<{
+    lastBackupTime: string | null;
+    status: 'success' | 'failed' | null;
+    integrity: 'ok' | 'failed' | null;
+  } | null>(null);
+
+  // Permanent Delete Modal states
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteRecordId, setDeleteRecordId] = useState('');
+  const [deleteBorewellId, setDeleteBorewellId] = useState('');
+  const [deleteExpectedBorewellId, setDeleteExpectedBorewellId] = useState('');
+  const [deleteRecordName, setDeleteRecordName] = useState('');
+
+  const fetchBackupStatus = async () => {
+    try {
+      const status = await window.api.settings.getBackupStatus();
+      setLastBackupStatus(status);
+    } catch (err) {
+      console.error('Failed to get last backup status:', err);
+    }
+  };
+
   // Load configuration from database/file storage
   useEffect(() => {
     const loadSettings = async () => {
@@ -74,6 +97,7 @@ export function SettingsPage() {
     fetchBackupsList();
     fetchTrash();
     fetchMaterials();
+    fetchBackupStatus();
   }, [fetchBackupsList, fetchTrash, fetchMaterials]);
 
   // Backup & Restore
@@ -84,6 +108,7 @@ export function SettingsPage() {
       if (res.success) {
         addToast({ message: 'Database integrity verified. Backup saved successfully!', type: 'success' });
         await fetchBackupsList();
+        await fetchBackupStatus();
       } else {
         addToast({ message: `Backup failed: ${res.error || 'Unknown error'}`, type: 'error' });
       }
@@ -105,6 +130,7 @@ export function SettingsPage() {
         addToast({ message: 'Database restored successfully! Reloading data...', type: 'success' });
         await fetchTrash();
         await fetchMaterials();
+        await fetchBackupStatus();
       } else {
         addToast({ message: `Restore failed: ${res.error || 'integrity violation'}`, type: 'error' });
       }
@@ -138,6 +164,7 @@ export function SettingsPage() {
         await fetchTrash();
         await fetchMaterials();
         await fetchBackupsList();
+        await fetchBackupStatus();
       } else {
         addToast({ message: `Restore failed: ${res.error || 'invalid SQLite file'}`, type: 'error' });
       }
@@ -161,6 +188,7 @@ export function SettingsPage() {
         await window.api.settings.save({ backupPath: newPath });
         addToast({ message: 'Backup directory updated successfully.', type: 'success' });
         await fetchBackupsList();
+        await fetchBackupStatus();
       }
     } catch (err: any) {
       addToast({ message: `Failed to change directory: ${err.message || String(err)}`, type: 'error' });
@@ -217,13 +245,23 @@ export function SettingsPage() {
     }
   };
 
-  const handlePermanentDelete = async (id: string, name: string) => {
-    if (!confirm(`WARNING: Are you sure you want to PERMANENTLY delete "${name}"? This will hard-delete this borewell and all associated strata, pipes, and photos from disk. This action CANNOT be undone.`)) {
+  const handlePermanentDelete = (id: string, name: string, expectedBorewellId: string) => {
+    setDeleteRecordId(id);
+    setDeleteRecordName(name);
+    setDeleteExpectedBorewellId(expectedBorewellId);
+    setDeleteBorewellId('');
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmPermanentDelete = async () => {
+    if (deleteBorewellId !== deleteExpectedBorewellId) {
+      addToast({ message: 'Borewell ID mismatch. Delete aborted.', type: 'warning' });
       return;
     }
     try {
-      await deleteBorewellPermanent(id);
-      addToast({ message: `Permanently deleted "${name}".`, type: 'info' });
+      await deleteBorewellPermanent(deleteRecordId);
+      addToast({ message: `Permanently deleted "${deleteRecordName}".`, type: 'info' });
+      setDeleteConfirmOpen(false);
     } catch (err: any) {
       addToast({ message: `Failed to delete permanently: ${err.message || String(err)}`, type: 'error' });
     }
@@ -350,11 +388,38 @@ export function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Last Backup Integrity Report */}
+                  <div className="p-3 bg-sf-void border border-sf-border rounded-lg space-y-2 select-none text-[11px] font-mono">
+                    <div className="text-[9px] uppercase text-txt-muted font-bold tracking-wider">Last Automated Backup Report</div>
+                    {lastBackupStatus && lastBackupStatus.lastBackupTime ? (
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-txt-secondary">Time:</span>
+                          <span className="text-txt-primary font-bold">{new Date(lastBackupStatus.lastBackupTime).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-txt-secondary">Status:</span>
+                          <span className={lastBackupStatus.status === 'success' ? 'text-success font-bold' : 'text-danger font-bold'}>
+                            {lastBackupStatus.status?.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-txt-secondary">Integrity check:</span>
+                          <span className={lastBackupStatus.integrity === 'ok' ? 'text-success font-bold' : 'text-danger font-bold'}>
+                            {lastBackupStatus.integrity === 'ok' ? 'PASSED (ok)' : 'FAILED'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-txt-muted text-2xs py-1">No backups recorded yet. Run a backup now.</div>
+                    )}
+                  </div>
+
                   <div className="pt-2 border-t border-sf-border">
                     <button
                       onClick={handleBackupNow}
                       disabled={loadingBackups}
-                      className="w-full sf-btn-primary flex items-center justify-center gap-2 py-2"
+                      className="w-full sf-btn-primary flex items-center justify-center gap-2 py-2 cursor-pointer"
                     >
                       <Shield size={14} />
                       <span>{loadingBackups ? 'Verifying & Saving...' : 'Verify & Backup DB'}</span>
@@ -596,9 +661,9 @@ export function SettingsPage() {
                             >
                               Restore
                             </button>
-                            <button
-                              onClick={() => handlePermanentDelete(b.id, b.ownerName)}
-                              className="sf-btn-secondary text-2xs py-1 px-3 text-danger border-danger/20 hover:bg-danger/10 hover:border-danger/40"
+                             <button
+                              onClick={() => handlePermanentDelete(b.id, b.ownerName, b.borewellId)}
+                              className="sf-btn-secondary text-2xs py-1 px-3 text-danger border-danger/20 hover:bg-danger/10 hover:border-danger/40 cursor-pointer"
                             >
                               Destroy Permanently
                             </button>
@@ -613,6 +678,53 @@ export function SettingsPage() {
           </div>
         )}
       </div>
+
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4">
+          <div className="bg-sf-surface border border-sf-border rounded-xl p-6 max-w-md w-full shadow-lg space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-danger/10 text-danger rounded-lg flex-shrink-0">
+                <ShieldAlert size={20} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-txt-primary">Confirm Permanent Deletion</h3>
+                <p className="text-2xs text-txt-secondary leading-relaxed">
+                  Are you sure you want to permanently delete <strong className="text-txt-primary">"{deleteRecordName}"</strong>? This will wipe this borewell and all associated strata, pipes, and photos from the database. This action CANNOT be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-sf-border text-xs">
+              <label className="sf-label block text-txt-secondary">
+                To confirm, type the exact Borewell ID <strong className="text-txt-primary font-mono select-all">"{deleteExpectedBorewellId}"</strong> below:
+              </label>
+              <input
+                type="text"
+                className="sf-input w-full font-mono mt-1 text-txt-primary"
+                placeholder={deleteExpectedBorewellId}
+                value={deleteBorewellId}
+                onChange={(e) => setDeleteBorewellId(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                className="sf-btn-secondary py-1.5 px-4 text-2xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmPermanentDelete}
+                disabled={deleteBorewellId !== deleteExpectedBorewellId}
+                className="sf-btn-danger py-1.5 px-4 text-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-bold"
+              >
+                Permanently Destroy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

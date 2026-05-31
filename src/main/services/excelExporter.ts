@@ -10,7 +10,11 @@ import { pipeRepository } from '../database/pipeRepository';
 import type { Borewell } from '../../shared/types';
 
 export const excelExporter = {
-  async exportRecords(borewellIds: string[], savePath: string): Promise<void> {
+  async exportRecords(
+    borewellIds: string[],
+    savePath: string,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<void> {
     try {
       const workbook = xlsx.utils.book_new();
 
@@ -79,7 +83,11 @@ export const excelExporter = {
       xlsx.utils.book_append_sheet(workbook, summarySheet, 'Export Summary');
 
       // 2. Create individual detailed sheets for each borewell
+      let currentIdx = 0;
       for (const borewell of borewellsData) {
+        if (onProgress) {
+          onProgress(currentIdx, borewellsData.length);
+        }
         const strata = strataRepository.getByBorewellId(borewell.id);
         const pipes = pipeRepository.getByBorewellId(borewell.id);
 
@@ -185,6 +193,11 @@ export const excelExporter = {
         // Sheet name must not exceed 31 chars and contain restricted chars in Excel
         const sanitizedSheetName = borewell.borewellId.replace(/[\\/?:*[\]]/g, '_').substring(0, 30);
         xlsx.utils.book_append_sheet(workbook, detailSheet, sanitizedSheetName);
+        currentIdx++;
+      }
+
+      if (onProgress) {
+        onProgress(borewellsData.length, borewellsData.length);
       }
 
       // Write workbook file to target path

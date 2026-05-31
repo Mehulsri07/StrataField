@@ -164,6 +164,13 @@ export function ImportPage() {
         const fileLoc = (file as any).path || file.name;
         setFilePath(fileLoc);
 
+        // Clear previous states before parsing new file
+        setParsedBorewell(null);
+        setParsedStrata([]);
+        setParsedPipes([]);
+        setValidationErrors([]);
+        setIsDuplicate(null);
+
         try {
           // Parse file from SQLite parser
           const result = await window.api.db.parseExcel(fileLoc);
@@ -210,6 +217,13 @@ export function ImportPage() {
 
   // Compile data and run validation previews
   const handleConfirmMapping = async () => {
+    // Clear previous parsed states at the start of a re-parse attempt
+    setParsedBorewell(null);
+    setParsedStrata([]);
+    setParsedPipes([]);
+    setValidationErrors([]);
+    setIsDuplicate(null);
+
     // 1. Verify required coordinate mappings
     if (!coordsMap.borewellId || !coordsMap.ownerName || !coordsMap.city) {
       addToast({ message: 'Coordinates mapping for ID, Owner, and City are mandatory.', type: 'error' });
@@ -498,6 +512,24 @@ export function ImportPage() {
               <FileSpreadsheet size={16} className="text-accent" />
               <span>Configure Header Mappings for: {selectedFile.name}</span>
             </div>
+ 
+            {/* Validation errors list callout */}
+            {validationErrors.length > 0 && (
+              <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 flex gap-3 text-danger animate-fadeIn">
+                <AlertTriangle className="flex-shrink-0 mt-0.5" size={18} />
+                <div className="space-y-1">
+                  <span className="font-bold block">Geological Data Integrity Violations from last parse:</span>
+                  <ul className="list-disc pl-4 space-y-1 text-txt-secondary">
+                    {validationErrors.map((err, idx) => (
+                      <li key={idx}>{err}</li>
+                    ))}
+                  </ul>
+                  <span className="text-2xs text-txt-muted block pt-1">
+                    Adjust the mappings below to correct these errors, then re-parse.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Coordinates Mappers */}
             <div className="space-y-3">
@@ -709,7 +741,17 @@ export function ImportPage() {
             </div>
 
             <div className="flex justify-end gap-3 pt-6 border-t border-sf-border">
-              <button onClick={() => setStep('upload')} className="sf-btn-secondary">
+              <button onClick={() => {
+                setSelectedFile(null);
+                setExcelCells({});
+                setExcelRows([]);
+                setParsedBorewell(null);
+                setParsedStrata([]);
+                setParsedPipes([]);
+                setValidationErrors([]);
+                setIsDuplicate(null);
+                setStep('upload');
+              }} className="sf-btn-secondary">
                 Back
               </button>
               <button onClick={handleConfirmMapping} className="sf-btn-primary">
@@ -898,7 +940,17 @@ export function ImportPage() {
               </p>
             </div>
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setStep('upload')} className="sf-btn-secondary">
+              <button onClick={() => {
+                setSelectedFile(null);
+                setExcelCells({});
+                setExcelRows([]);
+                setParsedBorewell(null);
+                setParsedStrata([]);
+                setParsedPipes([]);
+                setValidationErrors([]);
+                setIsDuplicate(null);
+                setStep('upload');
+              }} className="sf-btn-secondary">
                 Import Another File
               </button>
               <button onClick={() => navigate('/')} className="sf-btn-primary">

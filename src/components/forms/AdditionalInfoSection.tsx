@@ -5,6 +5,8 @@ interface AdditionalInfoProps {
   onChange: (e: any) => void;
   onPhotoAdd?: (e: any) => void;
   onFileAttach?: (e: any) => void;
+  errors?: any;
+  touched?: any;
 }
 
 export function AdditionalInfoSection({ formData, onChange, onPhotoAdd, onFileAttach }: AdditionalInfoProps) {

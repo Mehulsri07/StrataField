@@ -43,6 +43,7 @@ export interface WindowApi {
     getBackupsList: () => Promise<any[]>;
     restoreBackup: (filename: string) => Promise<{ success: boolean; error?: string }>;
     restoreBackupExternal: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+    getBackupStatus: () => Promise<{ lastBackupTime: string | null; status: 'success' | 'failed' | null; integrity: 'ok' | 'failed' | null }>;
   };
   geocode: {
     address: (addressQuery: string) => Promise<any>;
@@ -51,6 +52,7 @@ export interface WindowApi {
     pdf: (borewellIds: string[], savePath: string) => Promise<{ success: boolean; error?: string }>;
     excel: (borewellIds: string[], savePath: string) => Promise<{ success: boolean; error?: string }>;
     png: (dataUrl: string, savePath: string) => Promise<{ success: boolean; error?: string }>;
+    onProgress: (callback: (current: number, total: number) => void) => () => void;
   };
   dialog: {
     openFile: (options: any) => Promise<any>;

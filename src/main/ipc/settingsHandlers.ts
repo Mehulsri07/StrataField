@@ -72,6 +72,11 @@ export function registerSettingsHandlers(): void {
     return backupService.listBackups();
   });
 
+  // Get Last Backup Status
+  safeHandle('settings:getBackupStatus', () => {
+    return backupService.getBackupStatus();
+  });
+
   // Restore database backup
   safeHandle(IPC_CHANNELS.DB_BACKUP_RESTORE, async (_event, filename: string) => {
     try {

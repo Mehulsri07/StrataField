@@ -88,10 +88,21 @@ export function MapPage() {
     tileLayerRef.current.addTo(leafletMap.current);
   }, [theme]);
 
-  // 3. Re-render markers when filter, depth labels, or water table settings change
+  // 3. Re-render markers when filter, depth labels, water table, theme, or selection state change
+  const markersFingerprint = JSON.stringify(
+    filteredBorewells.map((b) => ({
+      id: b.id,
+      lat: b.latitude,
+      lng: b.longitude,
+      depth: b.totalDepth,
+      ownerName: b.ownerName,
+      selected: selectedBorewell?.id === b.id,
+    }))
+  );
+
   useEffect(() => {
     renderMarkers();
-  }, [searchQuery, showDepthLabels, showWaterTable, borewells]);
+  }, [markersFingerprint, showDepthLabels, showWaterTable, theme]);
 
   const renderMarkers = () => {
     if (!leafletMap.current || !markersGroup.current) return;

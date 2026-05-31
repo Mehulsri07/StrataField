@@ -78,10 +78,12 @@ function KeyboardShortcutsManager() {
 export default function App() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const fetchAll = useBorewellStore((s) => s.fetchAll);
+  const fetchTrash = useBorewellStore((s) => s.fetchTrash);
 
   useEffect(() => {
     fetchAll();
-  }, [fetchAll]);
+    fetchTrash();
+  }, [fetchAll, fetchTrash]);
 
   return (
     <BrowserRouter>

@@ -6,19 +6,11 @@
 import { PlusCircle, FileUp, Search, Map, Database, FolderGit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
-import { useEffect } from 'react';
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const borewells = useBorewellStore((s) => s.borewells);
   const trash = useBorewellStore((s) => s.trash);
-  const fetchAll = useBorewellStore((s) => s.fetchAll);
-  const fetchTrash = useBorewellStore((s) => s.fetchTrash);
-
-  useEffect(() => {
-    fetchAll();
-    fetchTrash();
-  }, [fetchAll, fetchTrash]);
 
   // Extract unique active projects
   const uniqueProjects = Array.from(new Set(borewells.map((b) => b.project || 'Default Project')));

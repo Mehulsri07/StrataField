@@ -9,7 +9,7 @@ export const photoRepository = {
   getByBorewellId(borewellId: string): Photo[] {
     const db = getDb();
     try {
-      const res = db.exec('SELECT * FROM photos WHERE borewellId = ?', [borewellId]);
+      const res = db.exec('SELECT * FROM photos WHERE borewell_id = ?', [borewellId]);
       return mapResultToObjects<Photo>(res);
     } catch (err) {
       console.error(`Failed to get photos for borewell ${borewellId}:`, err);
@@ -20,7 +20,7 @@ export const photoRepository = {
   add(photo: Photo): void {
     const db = getDb();
     try {
-      const sql = 'INSERT INTO photos (id, borewellId, filePath, captureDate) VALUES (?, ?, ?, ?)';
+      const sql = 'INSERT INTO photos (id, borewell_id, file_path, capture_date) VALUES (?, ?, ?, ?)';
       db.run(sql, [photo.id, photo.borewellId, photo.filePath, photo.captureDate || null]);
       saveDatabase();
     } catch (err) {

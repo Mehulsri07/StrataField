@@ -10,9 +10,11 @@ import { IPC_CHANNELS } from '../../shared/types';
 
 export function registerExportHandlers(): void {
   // Handle PDF compilation
-  safeHandle(IPC_CHANNELS.EXPORT_PDF, async (_event, borewellIds: string[], savePath: string) => {
+  safeHandle(IPC_CHANNELS.EXPORT_PDF, async (event, borewellIds: string[], savePath: string) => {
     try {
-      await pdfExporter.exportRecords(borewellIds, savePath);
+      await pdfExporter.exportRecords(borewellIds, savePath, (current, total) => {
+        event.sender.send('export:progress', current, total);
+      });
       return { success: true };
     } catch (err: any) {
       console.error('IPC EXPORT_PDF Failed:', err);
@@ -21,9 +23,11 @@ export function registerExportHandlers(): void {
   });
 
   // Handle Excel compilation
-  safeHandle(IPC_CHANNELS.EXPORT_EXCEL, async (_event, borewellIds: string[], savePath: string) => {
+  safeHandle(IPC_CHANNELS.EXPORT_EXCEL, async (event, borewellIds: string[], savePath: string) => {
     try {
-      await excelExporter.exportRecords(borewellIds, savePath);
+      await excelExporter.exportRecords(borewellIds, savePath, (current, total) => {
+        event.sender.send('export:progress', current, total);
+      });
       return { success: true };
     } catch (err: any) {
       console.error('IPC EXPORT_EXCEL Failed:', err);

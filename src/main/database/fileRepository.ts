@@ -9,7 +9,7 @@ export const fileRepository = {
   getByBorewellId(borewellId: string): BorewellFile | null {
     const db = getDb();
     try {
-      const res = db.exec('SELECT * FROM files WHERE borewellId = ?', [borewellId]);
+      const res = db.exec('SELECT * FROM files WHERE borewell_id = ?', [borewellId]);
       const mapped = mapResultToObjects<BorewellFile>(res);
       return mapped.length > 0 ? mapped[0] : null;
     } catch (err) {
@@ -24,18 +24,18 @@ export const fileRepository = {
       db.run('BEGIN TRANSACTION');
 
       // Check if entry already exists
-      const checkRes = db.exec('SELECT id FROM files WHERE borewellId = ?', [borewellId]);
+      const checkRes = db.exec('SELECT id FROM files WHERE borewell_id = ?', [borewellId]);
       const exists = checkRes.length > 0 && checkRes[0].values.length > 0;
 
       if (exists) {
         db.run(
-          'UPDATE files SET excelPath = ?, pdfPath = ? WHERE borewellId = ?',
+          'UPDATE files SET excel_path = ?, pdf_path = ? WHERE borewell_id = ?',
           [files.excelPath || null, files.pdfPath || null, borewellId]
         );
       } else {
         const id = `file-${Date.now()}`;
         db.run(
-          'INSERT INTO files (id, borewellId, excelPath, pdfPath) VALUES (?, ?, ?, ?)',
+          'INSERT INTO files (id, borewell_id, excel_path, pdf_path) VALUES (?, ?, ?, ?)',
           [id, borewellId, files.excelPath || null, files.pdfPath || null]
         );
       }

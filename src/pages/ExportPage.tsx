@@ -3,7 +3,7 @@
  * Allows bundling multiple records to PDF and Excel.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -18,6 +18,22 @@ export function ExportPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+
+  useEffect(() => {
+    if (!exporting) {
+      setProgress(null);
+      return;
+    }
+
+    const unsubscribe = window.api.export.onProgress((current, total) => {
+      setProgress({ current, total });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [exporting]);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === borewells.length) {
@@ -165,6 +181,25 @@ export function ExportPage() {
                 <span>{exporting ? 'Compiling...' : `Export Selected (${selectedIds.length})`}</span>
               </button>
             </div>
+
+            {exporting && progress && (
+              <div className="mt-4 p-3 bg-sf-base border border-sf-border rounded-lg space-y-2">
+                <div className="flex justify-between text-3xs font-semibold text-txt-secondary">
+                  <span>
+                    {progress.current >= progress.total
+                      ? 'Saving file...'
+                      : `Compiling record ${progress.current + 1} of ${progress.total}...`}
+                  </span>
+                  <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                </div>
+                <div className="w-full bg-sf-surface border border-sf-border rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="bg-accent h-full transition-all duration-300"
+                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
