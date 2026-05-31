@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('api', {
   export: {
     pdf: (borewellIds: string[], savePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_PDF, borewellIds, savePath),
     excel: (borewellIds: string[], savePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_EXCEL, borewellIds, savePath),
+    png: (dataUrl: string, savePath: string) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_PNG, dataUrl, savePath),
   },
 
   dialog: {

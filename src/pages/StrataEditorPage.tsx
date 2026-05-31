@@ -8,10 +8,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
 import { 
-  ArrowLeft, Save, Plus, Trash2, Sliders, Layers, HelpCircle, 
-  GripVertical, ChevronUp, ChevronDown, Check 
+  ArrowLeft, Save, Plus, Trash2, Sliders, Layers, HelpCircle, Check 
 } from 'lucide-react';
 import type { StrataLayer, PipeSegment } from '@shared/types';
+import { BorewellProfileDrawing } from '@/components/ui/BorewellProfileDrawing';
 
 export function StrataEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +36,8 @@ export function StrataEditorPage() {
   const [selectedPipeId, setSelectedPipeId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hoveredStrataId, setHoveredStrataId] = useState<string | null>(null);
+  const [hoveredPipeId, setHoveredPipeId] = useState<string | null>(null);
 
   // Load database entities
   useEffect(() => {
@@ -240,12 +242,6 @@ export function StrataEditorPage() {
       backgroundSize: '10px 10px'
     };
   };
-
-  // Dynamic Ruler scale ticks based on depth
-  const tickCount = 10;
-  const tickStep = totalDepth / tickCount;
-  const rulerTicks = Array.from({ length: tickCount + 1 }, (_, i) => Math.round(i * tickStep));
-
   return (
     <div className="h-[calc(100vh-76px)] flex flex-col select-none overflow-hidden bg-sf-void">
       {/* Editor Header */}
@@ -323,164 +319,52 @@ export function StrataEditorPage() {
         </aside>
 
         {/* Middle Panel: Visual CAD-Style Columns Canvas */}
-        <main className="flex-1 p-6 overflow-y-auto flex gap-4 justify-center items-stretch bg-sf-void min-w-[500px]">
-          {/* Vertical Depth Scale ticks */}
-          <div className="w-14 flex flex-col justify-between py-2.5 border-r border-sf-border pr-2.5 text-right font-mono text-[10px] text-txt-muted select-none">
-            {rulerTicks.map((t) => (
-              <div key={t} className="h-0 flex items-center justify-end gap-1">
-                <span>{t} ft</span>
-                <span className="w-1.5 h-px bg-sf-border"></span>
-              </div>
-            ))}
-          </div>
-
-          {/* Strata Columns */}
-          <div className="flex-1 max-w-[240px] flex flex-col">
-            <div className="flex justify-between items-center mb-2 select-none">
-              <span className="text-3xs font-bold text-txt-muted uppercase tracking-wider">Strata Layers</span>
+        <main className="flex-1 p-6 overflow-y-auto flex flex-col items-center bg-sf-void min-w-[500px]">
+          <div className="w-full max-w-2xl flex justify-between items-center mb-4 select-none font-mono text-xs">
+            <span className="text-[10px] font-extrabold text-txt-muted uppercase tracking-wider">Drawing Board Canvas</span>
+            <div className="flex gap-2">
               <button onClick={handleAddLayer} className="text-3xs text-accent font-bold hover:underline flex items-center gap-0.5">
                 <Plus size={11} /> Add Layer
               </button>
-            </div>
-            
-            <div className="flex-1 border border-sf-border rounded-xl overflow-hidden bg-sf-surface flex flex-col relative min-h-[400px]">
-              {layers.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center p-4 text-center text-txt-muted text-xs gap-1 py-32">
-                  <Layers size={24} className="text-txt-muted animate-pulse" />
-                  <span>No layers defined</span>
-                </div>
-              ) : (
-                layers.map((layer, idx) => {
-                  const isSelected = selectedLayerId === layer.id;
-                  const heightPercent = ((layer.endDepth - layer.startDepth) / totalDepth) * 100;
-                  
-                  return (
-                    <div
-                      key={layer.id}
-                      onClick={() => {
-                        setSelectedLayerId(layer.id);
-                        setSelectedPipeId(null);
-                      }}
-                      style={{ 
-                        height: `${heightPercent}%`, 
-                        backgroundColor: layer.color,
-                        minHeight: '64px' // Strata blocks minimum 64x24 px
-                      }}
-                      className={`
-                        w-full flex flex-col justify-center items-center text-center p-3 relative hover:brightness-105 border-b border-black/10 last:border-b-0 cursor-pointer transition-all group
-                        ${isSelected ? 'ring-2 ring-accent ring-inset shadow-md' : ''}
-                      `}
-                    >
-                      {/* Hatch Pattern */}
-                      <div className="absolute inset-0 opacity-20 pointer-events-none" style={getPatternOverlayStyle(layer.pattern)} />
-                      
-                      {/* Material Color Strip Indicator */}
-                      <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: layer.color }} />
-
-                      {/* Depth Markings */}
-                      <div className="absolute top-1 left-2 text-[9px] font-mono text-black/50 select-none drop-shadow">
-                        {layer.startDepth} ft
-                      </div>
-                      <div className="absolute bottom-1 left-2 text-[9px] font-mono text-black/50 select-none drop-shadow">
-                        {layer.endDepth} ft
-                      </div>
-
-                      {/* Reordering Controls overlay */}
-                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-0.5 bg-black/60 backdrop-blur rounded p-0.5 z-10">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); moveLayer(idx, 'up'); }}
-                          disabled={idx === 0}
-                          className="p-0.5 text-white/70 hover:text-white disabled:opacity-30 cursor-pointer"
-                        >
-                          <ChevronUp size={12} />
-                        </button>
-                        <div className="text-white/40 cursor-grab flex items-center justify-center p-0.5">
-                          <GripVertical size={10} />
-                        </div>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); moveLayer(idx, 'down'); }}
-                          disabled={idx === layers.length - 1}
-                          className="p-0.5 text-white/70 hover:text-white disabled:opacity-30 cursor-pointer"
-                        >
-                          <ChevronDown size={12} />
-                        </button>
-                      </div>
-
-                      {/* Text Badge (High Contrast Overlay) */}
-                      <div className="bg-black/50 backdrop-blur-xs border border-white/10 rounded-md px-2 py-0.5 max-w-[90%] truncate shadow">
-                        <span className="text-2xs font-extrabold text-white tracking-wide">{layer.material}</span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Pipe Lowering Column */}
-          <div className="w-[140px] flex flex-col">
-            <div className="flex justify-between items-center mb-2 select-none">
-              <span className="text-3xs font-bold text-txt-muted uppercase tracking-wider">Pipe Lowering</span>
+              <span className="text-txt-muted text-3xs">|</span>
               <button onClick={handleAddPipe} className="text-3xs text-accent font-bold hover:underline flex items-center gap-0.5">
-                <Plus size={11} /> Add Pipe
+                <Plus size={11} /> Add Casing Pipe
               </button>
             </div>
-            
-            <div className="flex-1 border border-sf-border rounded-xl overflow-hidden bg-sf-surface flex flex-col relative min-h-[400px]">
-              {pipes.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center p-4 text-center text-txt-muted text-xs gap-1 py-32">
-                  <Sliders size={20} className="text-txt-muted" />
-                  <span>No pipes lowered</span>
-                </div>
-              ) : (
-                pipes.map((pipe) => {
-                  const isSelected = selectedPipeId === pipe.id;
-                  const heightPercent = ((pipe.endDepth - pipe.startDepth) / totalDepth) * 100;
-                  const isSlotted = pipe.pipeType === 'slotted';
-                  
-                  return (
-                    <div
-                      key={pipe.id}
-                      onClick={() => {
-                        setSelectedPipeId(pipe.id);
-                        setSelectedLayerId(null);
-                      }}
-                      style={{ 
-                        height: `${heightPercent}%`,
-                        minHeight: '48px'
-                      }}
-                      className={`
-                        w-full flex flex-col justify-center items-center text-center border-b border-sf-border/50 last:border-b-0 cursor-pointer transition-all relative
-                        ${isSlotted 
-                          ? 'bg-accent text-white font-black' 
-                          : 'bg-white text-slate-800 font-extrabold border-l-[3px] border-r-[3px] border-slate-300'
-                        }
-                        ${isSelected ? 'ring-2 ring-emerald-500 ring-inset shadow' : ''}
-                      `}
-                    >
-                      {/* Slotted Pattern overlay */}
-                      {isSlotted && (
-                        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
-                          backgroundImage: 'repeating-linear-gradient(90deg, #fff 0, #fff 2px, transparent 0, transparent 8px)'
-                        }} />
-                      )}
-
-                      {/* Depth Markings */}
-                      <span className="absolute top-1 text-[8px] opacity-70 leading-none select-none">
-                        {pipe.startDepth} ft
-                      </span>
-                      <span className="absolute bottom-1 text-[8px] opacity-70 leading-none select-none">
-                        {pipe.endDepth} ft
-                      </span>
-
-                      {/* Labels */}
-                      <span className="text-[10px] uppercase tracking-wider drop-shadow">{isSlotted ? 'Slotted' : 'Plain'}</span>
-                      <span className="text-[8px] opacity-80 mt-0.5">{pipe.endDepth - pipe.startDepth} ft</span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+          </div>
+          
+          <div className="border border-sf-border bg-sf-base rounded-xl overflow-auto p-4 flex justify-center w-full" style={{ height: '650px' }}>
+            <BorewellProfileDrawing
+              borewell={borewell}
+              layers={layers}
+              pipes={pipes}
+              scaleFactor={Math.max(2, Math.min(8, 600 / totalDepth))}
+              isPrintPreview={false}
+              hoveredStrataId={hoveredStrataId}
+              setHoveredStrataId={setHoveredStrataId}
+              hoveredPipeId={hoveredPipeId}
+              setHoveredPipeId={setHoveredPipeId}
+              selectedEntity={
+                selectedLayerId 
+                  ? { type: 'strata', id: selectedLayerId } 
+                  : selectedPipeId 
+                  ? { type: 'pipe', id: selectedPipeId } 
+                  : null
+              }
+              setSelectedEntity={(entity) => {
+                if (!entity) {
+                  setSelectedLayerId(null);
+                  setSelectedPipeId(null);
+                } else if (entity.type === 'strata') {
+                  setSelectedLayerId(entity.id);
+                  setSelectedPipeId(null);
+                } else if (entity.type === 'pipe') {
+                  setSelectedPipeId(entity.id);
+                  setSelectedLayerId(null);
+                }
+              }}
+              onMoveLayer={moveLayer}
+            />
           </div>
         </main>
 

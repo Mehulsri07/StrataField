@@ -199,6 +199,7 @@ export const IPC_CHANNELS = {
   // Export
   EXPORT_PDF: 'export:pdf',
   EXPORT_EXCEL: 'export:excel',
+  EXPORT_PNG: 'export:png',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

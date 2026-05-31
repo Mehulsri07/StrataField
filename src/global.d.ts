@@ -50,6 +50,7 @@ export interface WindowApi {
   export: {
     pdf: (borewellIds: string[], savePath: string) => Promise<{ success: boolean; error?: string }>;
     excel: (borewellIds: string[], savePath: string) => Promise<{ success: boolean; error?: string }>;
+    png: (dataUrl: string, savePath: string) => Promise<{ success: boolean; error?: string }>;
   };
   dialog: {
     openFile: (options: any) => Promise<any>;
