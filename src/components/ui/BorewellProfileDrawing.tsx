@@ -6,14 +6,16 @@ import { ChevronUp, ChevronDown } from 'lucide-react';
 export function getMaterialPatternStyle(pattern: string, color: string, isPrintPreview: boolean) {
   let bgColor = color;
   if (isPrintPreview) {
-    if (pattern === 'lines' || pattern === 'horizontal' || pattern === 'clay') {
-      bgColor = '#f8fafc'; // light clay gray
+    if (pattern === 'lines' || pattern === 'horizontal' || pattern === 'clay' || pattern === 'bricks') {
+      bgColor = '#f8fafc'; // light clay/brick gray
     } else if (pattern === 'dots' || pattern === 'sand') {
       bgColor = '#fafaf9'; // sand gray
     } else if (pattern === 'circles' || pattern === 'gravel') {
       bgColor = '#f1f5f9'; // gravel gray
     } else if (pattern === 'diagonal' || pattern === 'rock') {
       bgColor = '#e2e8f0'; // rock gray
+    } else if (pattern === 'crosses' || pattern === 'kankar') {
+      bgColor = '#f5f5f4'; // kankar gray
     } else {
       bgColor = '#ffffff';
     }
@@ -30,6 +32,10 @@ export function getMaterialPatternStyle(pattern: string, color: string, isPrintP
     bgImage = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Ccircle cx='4' cy='4' r='2.2' fill='none' stroke='${encodeURIComponent(strokeColor)}' stroke-width='0.75'/%3E%3Ccircle cx='12' cy='12' r='2.2' fill='none' stroke='${encodeURIComponent(strokeColor)}' stroke-width='0.75'/%3E%3C/svg%3E")`;
   } else if (pattern === 'diagonal' || pattern === 'rock') {
     bgImage = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Cpath d='M-1,1 L2,-2 M0,10 L10,0 M9,11 L11,9' stroke='${encodeURIComponent(strokeColor)}' stroke-width='0.75'/%3E%3C/svg%3E")`;
+  } else if (pattern === 'bricks') {
+    bgImage = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10'%3E%3Cpath d='M0,5 L12,5 M0,10 L12,10 M6,0 L6,5 M0,5 L0,10 M12,5 L12,10' stroke='${encodeURIComponent(strokeColor)}' stroke-width='0.75' fill='none'/%3E%3C/svg%3E")`;
+  } else if (pattern === 'crosses' || pattern === 'kankar') {
+    bgImage = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Cpath d='M5,1 L5,9 M1,5 L9,5' stroke='${encodeURIComponent(strokeColor)}' stroke-width='0.75' fill='none'/%3E%3C/svg%3E")`;
   }
 
   return {

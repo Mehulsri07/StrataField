@@ -25,6 +25,7 @@ export function StrataEditorPage() {
   const fetchPipes = useBorewellStore((s) => s.fetchPipes);
   const materials = useBorewellStore((s) => s.materials);
   const fetchMaterials = useBorewellStore((s) => s.fetchMaterials);
+  const addMaterial = useBorewellStore((s) => s.addMaterial);
   const addToast = useUIStore((s) => s.addToast);
 
   const borewell = borewells.find((b) => b.id === id);
@@ -38,6 +39,49 @@ export function StrataEditorPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hoveredStrataId, setHoveredStrataId] = useState<string | null>(null);
   const [hoveredPipeId, setHoveredPipeId] = useState<string | null>(null);
+
+  // States for creating custom material types inline
+  const [isCreatingMaterial, setIsCreatingMaterial] = useState(false);
+  const [newMatName, setNewMatName] = useState('');
+  const [newMatColor, setNewMatColor] = useState('#8D6E63');
+  const [newMatPattern, setNewMatPattern] = useState('dots');
+
+  const handleCreateCustomMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMatName.trim()) {
+      addToast({ message: 'Please enter a name for the custom material.', type: 'warning' });
+      return;
+    }
+    const exists = materials.some(m => m.name.toLowerCase() === newMatName.trim().toLowerCase());
+    if (exists) {
+      addToast({ message: 'A material with this name already exists.', type: 'warning' });
+      return;
+    }
+
+    const newMat = {
+      id: `mat-${Date.now()}`,
+      name: newMatName.trim(),
+      color: newMatColor,
+      pattern: newMatPattern,
+      isCustom: true
+    };
+
+    try {
+      await addMaterial(newMat);
+      addToast({ message: `Custom material '${newMat.name}' added to dictionary.`, type: 'success' });
+      setNewMatName('');
+      setIsCreatingMaterial(false);
+      
+      // Auto apply if a layer is selected
+      if (selectedLayerId) {
+        setLocalLayers(prev => 
+          prev.map(l => l.id === selectedLayerId ? { ...l, material: newMat.name, color: newMat.color, pattern: newMat.pattern } : l)
+        );
+      }
+    } catch (err) {
+      addToast({ message: 'Failed to create material.', type: 'error' });
+    }
+  };
 
   // Load database entities
   useEffect(() => {
@@ -285,7 +329,7 @@ export function StrataEditorPage() {
             <span>Material Swatches</span>
           </h3>
 
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 mb-3">
             {materials.map((mat) => (
               <button
                 key={mat.id || mat.name}
@@ -316,6 +360,76 @@ export function StrataEditorPage() {
               </button>
             ))}
           </div>
+
+          {/* Add custom type inline form */}
+          {isCreatingMaterial ? (
+            <form onSubmit={handleCreateCustomMaterial} className="p-2.5 border border-sf-border bg-sf-base rounded-lg space-y-2 text-[10px]">
+              <div>
+                <label className="block text-[8px] font-bold text-txt-muted uppercase mb-1">Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Fine Gravel"
+                  value={newMatName}
+                  onChange={(e) => setNewMatName(e.target.value)}
+                  className="w-full px-2 py-1 border border-sf-border rounded bg-sf-surface text-[10px] text-txt-primary outline-none"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-[8px] font-bold text-txt-muted uppercase mb-1">Color</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="color"
+                      value={newMatColor}
+                      onChange={(e) => setNewMatColor(e.target.value)}
+                      className="w-5 h-5 rounded border border-sf-border cursor-pointer bg-transparent"
+                    />
+                    <span className="text-[8px] font-mono text-txt-muted uppercase truncate w-10">{newMatColor}</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[8px] font-bold text-txt-muted uppercase mb-1">Pattern</label>
+                  <select
+                    value={newMatPattern}
+                    onChange={(e) => setNewMatPattern(e.target.value)}
+                    className="w-full px-1 py-0.5 border border-sf-border rounded bg-sf-surface text-[9px] text-txt-primary outline-none"
+                  >
+                    <option value="solid">Solid</option>
+                    <option value="dots">Dots (Sand)</option>
+                    <option value="lines">Lines (Clay)</option>
+                    <option value="crosses">Cross (Kankar)</option>
+                    <option value="bricks">Bricks</option>
+                    <option value="diagonal">Diagonal (Rock)</option>
+                    <option value="circles">Circles (Gravel)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-1.5 pt-1">
+                <button
+                  type="submit"
+                  className="flex-1 py-1 bg-accent text-white font-bold rounded text-[9px] text-center"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingMaterial(false)}
+                  className="flex-1 py-1 bg-sf-surface-2 border border-sf-border text-txt-secondary font-bold rounded text-[9px] text-center"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              onClick={() => setIsCreatingMaterial(true)}
+              className="w-full py-2 bg-sf-base border border-dashed border-sf-border hover:border-accent text-accent font-bold rounded-lg text-2xs text-center cursor-pointer transition-all flex items-center justify-center gap-1"
+            >
+              <Plus size={11} />
+              <span>Add Custom Type</span>
+            </button>
+          )}
         </aside>
 
         {/* Middle Panel: Visual CAD-Style Columns Canvas */}

@@ -63,8 +63,8 @@ export function BorewellDetailPage() {
         const seedLayers: StrataLayer[] = [
           { id: 'l1', borewellId: id, startDepth: 0, endDepth: 40, material: 'Clay', color: '#8D6E63', pattern: 'lines', remarks: 'Brown sticky clay' },
           { id: 'l2', borewellId: id, startDepth: 40, endDepth: 110, material: 'Sand', color: '#E0C097', pattern: 'dots', remarks: 'Fine sand with water trace' },
-          { id: 'l3', borewellId: id, startDepth: 110, endDepth: 180, material: 'Gravel', color: '#9E9E9E', pattern: 'circles', remarks: 'Coarse water-bearing gravel' },
-          { id: 'l4', borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), material: 'Rock', color: '#616161', pattern: 'diagonal', remarks: 'Hard granite bedrock' },
+          { id: 'l3', borewellId: id, startDepth: 110, endDepth: 180, material: 'Kankar', color: '#BCAAA4', pattern: 'crosses', remarks: 'Kankar layer' },
+          { id: 'l4', borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), material: 'Clay Kankar', color: '#6D4C41', pattern: 'bricks', remarks: 'Clay kankar mix bedrock' },
         ];
         setStrataLayers(id, seedLayers);
       }
@@ -289,6 +289,34 @@ export function BorewellDetailPage() {
         } else if (layer.pattern === 'diagonal' || layer.pattern === 'rock') {
           for (let py = ly - strataW; py < ly + lh; py += 10) {
             ctx.beginPath(); ctx.moveTo(strataX, py); ctx.lineTo(strataX + strataW, py + strataW); ctx.stroke();
+          }
+        } else if (layer.pattern === 'bricks') {
+          // Horizontal brick lines
+          for (let py = ly; py <= ly + lh; py += 10) {
+            ctx.beginPath(); ctx.moveTo(strataX, py); ctx.lineTo(strataX + strataW, py); ctx.stroke();
+          }
+          // Vertical offset brick lines
+          let row = 0;
+          for (let py = ly; py < ly + lh; py += 10) {
+            const shift = (row % 2) * 12;
+            for (let px = strataX + shift; px < strataX + strataW; px += 24) {
+              ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, Math.min(py + 10, ly + lh)); ctx.stroke();
+            }
+            row++;
+          }
+        } else if (layer.pattern === 'crosses' || layer.pattern === 'kankar') {
+          // Crosses
+          for (let px = strataX + 8; px < strataX + strataW; px += 16) {
+            for (let py = ly + 8; py < ly + lh; py += 16) {
+              ctx.beginPath();
+              // vertical line
+              ctx.moveTo(px + (py % 32 ? 4 : 0), py - 3);
+              ctx.lineTo(px + (py % 32 ? 4 : 0), py + 3);
+              // horizontal line
+              ctx.moveTo(px + (py % 32 ? 4 : 0) - 3, py);
+              ctx.lineTo(px + (py % 32 ? 4 : 0) + 3, py);
+              ctx.stroke();
+            }
           }
         }
         ctx.restore();

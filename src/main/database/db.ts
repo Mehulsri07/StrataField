@@ -116,19 +116,16 @@ export function mapResultToObjects<T>(result: initSqlJs.QueryExecResult[]): T[] 
 
 function populateDefaultMaterials(db: initSqlJs.Database): void {
   try {
-    const res = db.exec("SELECT COUNT(*) as count FROM materials");
-    const count = res[0]?.values[0][0] as number;
-    if (count === 0) {
-      console.log('Database Init: Populating central materials dictionary with default geological values...');
-      db.run('BEGIN TRANSACTION');
-      const stmt = db.prepare('INSERT OR IGNORE INTO materials (id, name, color, pattern, is_custom) VALUES (?, ?, ?, ?, 0)');
-      for (const m of DEFAULT_MATERIALS) {
-        stmt.run([m.id, m.name, m.color, m.pattern]);
-      }
-      stmt.free();
-      db.run('COMMIT');
-      saveDatabase();
+    console.log('Database Sync: Syncing central materials dictionary with default geological values...');
+    db.run('BEGIN TRANSACTION');
+    db.run('DELETE FROM materials WHERE is_custom = 0');
+    const stmt = db.prepare('INSERT OR IGNORE INTO materials (id, name, color, pattern, is_custom) VALUES (?, ?, ?, ?, 0)');
+    for (const m of DEFAULT_MATERIALS) {
+      stmt.run([m.id, m.name, m.color, m.pattern]);
     }
+    stmt.free();
+    db.run('COMMIT');
+    saveDatabase();
   } catch (err) {
     try { db.run('ROLLBACK'); } catch (e) { /* ignore rollback failure */ }
     console.error('Failed to populate default materials dictionary:', err);
