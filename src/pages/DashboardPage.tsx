@@ -3,18 +3,30 @@
  * Displays statistics and quick navigation links.
  */
 
-import { PlusCircle, FileUp, Search, Map, Database, ClipboardList, TrendingUp } from 'lucide-react';
+import { PlusCircle, FileUp, Search, Map, Database, FolderGit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
+import { useEffect } from 'react';
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const borewells = useBorewellStore((s) => s.borewells);
+  const trash = useBorewellStore((s) => s.trash);
+  const fetchAll = useBorewellStore((s) => s.fetchAll);
+  const fetchTrash = useBorewellStore((s) => s.fetchTrash);
+
+  useEffect(() => {
+    fetchAll();
+    fetchTrash();
+  }, [fetchAll, fetchTrash]);
+
+  // Extract unique active projects
+  const uniqueProjects = Array.from(new Set(borewells.map((b) => b.project || 'Default Project')));
 
   const stats = [
-    { label: 'Total Records', value: borewells.length, icon: <Database className="text-accent" size={24} />, desc: 'Borewells logged' },
-    { label: 'Recent Activity', value: borewells.slice(0, 5).length, icon: <ClipboardList className="text-steel-light" size={24} />, desc: 'Borewells added recently' },
-    { label: 'Sync Status', value: '100%', icon: <TrendingUp className="text-success" size={24} />, desc: 'Local DB up to date' },
+    { label: 'Total Records', value: borewells.length, icon: <Database className="text-accent" size={24} />, desc: 'Active borewells logged' },
+    { label: 'Active Projects', value: uniqueProjects.length, icon: <FolderGit className="text-steel-light" size={24} />, desc: 'Project sites' },
+    { label: 'Recycle Bin', value: trash.length, icon: <Trash2 className="text-warning" size={24} />, desc: 'Deleted records' },
   ];
 
   return (
@@ -37,7 +49,17 @@ export function DashboardPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, idx) => (
-          <div key={idx} className="sf-card flex items-start gap-4">
+          <div 
+            key={idx} 
+            className="sf-card flex items-start gap-4 hover:border-sf-border-hover transition-all cursor-pointer"
+            onClick={() => {
+              if (stat.label === 'Recycle Bin') {
+                navigate('/settings'); // Settings has Recycle Bin tab
+              } else if (stat.label === 'Active Projects' || stat.label === 'Total Records') {
+                navigate('/search');
+              }
+            }}
+          >
             <div className="p-3 bg-sf-surface-2 border border-sf-border rounded-lg">
               {stat.icon}
             </div>

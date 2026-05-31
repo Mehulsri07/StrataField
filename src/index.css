@@ -2,6 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Global Theme Variable Definitions ────────────────────────────────────── */
+
+:root {
+  /* Spacing Definitions */
+  --sidebar-collapsed-width: 72px;
+  --sidebar-expanded-width: 260px;
+  --topbar-height: 48px;
+  --statusbar-height: 28px;
+
+  /* Light Theme Palette */
+  --sf-void: #F1F3F6;         /* Level 0: Void Background */
+  --sf-base: #FFFFFF;         /* Level 1: Main Panel */
+  --sf-surface: #F8FAFC;      /* Level 2: Cards / Content Panels */
+  --sf-surface-2: #E2E8F0;    /* Level 3: Elevated Panels / Active states */
+  --sf-surface-3: #FFFFFF;    /* Level 4: Inputs / Tables Background */
+  --sf-border: #CBD5E1;       /* Border Color */
+  --sf-border-2: #94A3B8;     /* Border Hover / Highlight Color */
+  --txt-primary: #0F172A;     /* Primary Text */
+  --txt-secondary: #475569;   /* Secondary Text */
+  --txt-muted: #94A3B8;       /* Muted Text */
+  --success: #16A34A;         /* Success (Green) */
+  --warning: #D97706;         /* Warning (Amber) */
+  --danger: #DC2626;          /* Error (Red) */
+  --info: #2563EB;            /* Information (Blue) */
+  --accent: #2563EB;          /* Primary Brand Accent */
+  --accent-hover: #1D4ED8;    /* Accent Hover State */
+  --accent-muted: rgba(37, 99, 235, 0.1);
+  --accent-text: #1D4ED8;     /* Accent text color */
+  --water-level: #0284C7;     /* Water Level Cyan Accent */
+  --geo-accent: #B45309;      /* Geology Golden Accent */
+  --pipe-plain: #FFFFFF;      /* Plain Casing Pipe */
+  --pipe-slotted: #0284C7;    /* Slotted Screen Pipe */
+}
+
+.dark {
+  /* Dark Theme Palette (Redesigned per requirements) */
+  --sf-void: #0F1115;         /* Level 0: Application Background */
+  --sf-base: #161A22;         /* Level 1: Main Panels */
+  --sf-surface: #1C2230;      /* Level 2: Cards */
+  --sf-surface-2: #242C3D;    /* Level 3: Elevated Panels */
+  --sf-surface-3: #2B3447;    /* Level 4: Inputs / Tables */
+  --sf-border: #343E52;       /* Borders */
+  --sf-border-2: #4D5E7C;     /* Borders Hover / Highlight */
+  --txt-primary: #F4F6FA;     /* Primary Text */
+  --txt-secondary: #A7B0C0;   /* Secondary Text */
+  --txt-muted: #7A8497;       /* Muted Text */
+  --success: #2DBF7A;         /* Success */
+  --warning: #D6A542;         /* Warning */
+  --danger: #D95C5C;          /* Error */
+  --info: #4D8DFF;            /* Information */
+  --accent: #4D8DFF;          /* Accent Color */
+  --accent-hover: #70A3FF;    /* Accent Hover State */
+  --accent-muted: rgba(77, 141, 255, 0.15);
+  --accent-text: #8AB4FF;     /* Accent text color */
+  --water-level: #00AEEF;     /* Water Level */
+  --geo-accent: #C89D4A;      /* Geology Accent */
+  --pipe-plain: #FFFFFF;      /* Plain Pipe (White) */
+  --pipe-slotted: #4D8DFF;    /* Slotted Pipe (Blue) */
+}
+
 /* ─── Base Styles ──────────────────────────────────────────────────────────── */
 
 @layer base {
@@ -17,10 +77,17 @@
     overflow: hidden;
   }
 
-  /* Custom scrollbar (dark theme) */
+  body {
+    background-color: var(--sf-void);
+    color: var(--txt-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  /* Custom scrollbar (modern engineering app styling) */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
@@ -28,28 +95,28 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(139, 148, 158, 0.25);
-    border-radius: 4px;
+    background: var(--sf-border);
+    border-radius: 3px;
+    transition: background 150ms ease;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(139, 148, 158, 0.4);
+    background: var(--sf-border-2);
   }
 
   /* Selection color */
   ::selection {
-    background: rgba(232, 123, 53, 0.3);
-    color: #E6EDF3;
+    background: var(--accent-muted);
+    color: var(--txt-primary);
   }
 
   /* Focus ring */
   :focus-visible {
-    outline: 2px solid #E87B35;
-    outline-offset: 2px;
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
     border-radius: 4px;
   }
 
-  /* Remove default focus for non-keyboard users */
   :focus:not(:focus-visible) {
     outline: none;
   }
@@ -58,129 +125,232 @@
 /* ─── Component Utilities ──────────────────────────────────────────────────── */
 
 @layer components {
-  /* Glass panel effect */
+  /* Panels */
   .sf-panel {
-    @apply bg-sf-surface border border-sf-border rounded-lg;
+    @apply border rounded-xl transition-all duration-200;
+    background-color: var(--sf-base);
+    border-color: var(--sf-border);
   }
 
   .sf-panel-elevated {
-    @apply bg-sf-surface-2 border border-sf-border shadow-sf;
+    @apply border rounded-xl shadow-md transition-all duration-200;
+    background-color: var(--sf-surface);
+    border-color: var(--sf-border);
   }
 
   /* Input fields */
   .sf-input {
-    @apply w-full px-3 py-2 bg-sf-base border border-sf-border rounded-md
-           text-txt-primary text-sm placeholder-txt-muted
-           transition-colors duration-150
-           hover:border-sf-border-2
-           focus:border-accent focus:ring-1 focus:ring-accent/30;
+    @apply w-full px-3 py-2 border rounded-md text-sm transition-all duration-150 outline-none;
+    background-color: var(--sf-surface-3);
+    border-color: var(--sf-border);
+    color: var(--txt-primary);
   }
+
+  .sf-input:hover {
+    border-color: var(--sf-border-2);
+  }
+
+  .sf-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-muted);
+  }
+
+  .sf-input::placeholder {
+    color: var(--txt-muted);
+  }
+
+  /* Validation input states */
+  .sf-input-success {
+    border-color: var(--success) !important;
+  }
+  .sf-input-success:focus {
+    box-shadow: 0 0 0 2px rgba(45, 191, 122, 0.15) !important;
+  }
+
+  .sf-input-warning {
+    border-color: var(--warning) !important;
+  }
+  .sf-input-warning:focus {
+    box-shadow: 0 0 0 2px rgba(214, 165, 66, 0.15) !important;
+  }
+
+  .sf-input-error {
+    border-color: var(--danger) !important;
+  }
+  .sf-input-error:focus {
+    box-shadow: 0 0 0 2px rgba(217, 92, 92, 0.15) !important;
+  }
+
+  /* Labels (Redesigned: larger and clearer spacing) */
+  .sf-label {
+    @apply block text-[13px] font-semibold mb-1.5 flex items-center gap-1.5;
+    color: var(--txt-secondary);
+  }
+
+  /* Inline validation messages */
+  .sf-validation-message {
+    @apply text-3xs font-semibold mt-1 flex items-center gap-1 animate-fade-in;
+  }
+  .sf-validation-message.success { color: var(--success); }
+  .sf-validation-message.warning { color: var(--warning); }
+  .sf-validation-message.error { color: var(--danger); }
 
   /* Buttons */
   .sf-btn {
     @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 rounded-md text-sm font-medium
-           transition-all duration-150 cursor-pointer
+           px-4 py-2 rounded-md text-xs font-semibold
+           transition-all duration-150 cursor-pointer select-none
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .sf-btn-primary {
-    @apply sf-btn bg-accent text-white
-           hover:bg-accent-hover active:scale-[0.98]
-           shadow-sf hover:shadow-sf-glow;
+    @apply sf-btn text-white;
+    background-color: var(--accent);
+  }
+  .sf-btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+  .sf-btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   .sf-btn-secondary {
-    @apply sf-btn bg-sf-surface-2 text-txt-primary border border-sf-border
-           hover:bg-sf-surface-3 hover:border-sf-border-2 active:scale-[0.98];
+    @apply sf-btn border;
+    background-color: var(--sf-surface-3);
+    border-color: var(--sf-border);
+    color: var(--txt-primary);
+  }
+  .sf-btn-secondary:hover:not(:disabled) {
+    background-color: var(--sf-surface-2);
+    border-color: var(--sf-border-2);
+  }
+  .sf-btn-secondary:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   .sf-btn-ghost {
-    @apply sf-btn bg-transparent text-txt-secondary
-           hover:bg-sf-surface-2 hover:text-txt-primary;
+    @apply sf-btn bg-transparent;
+    color: var(--txt-secondary);
+  }
+  .sf-btn-ghost:hover:not(:disabled) {
+    background-color: var(--sf-surface-2);
+    color: var(--txt-primary);
   }
 
   .sf-btn-danger {
-    @apply sf-btn bg-danger/10 text-danger border border-danger/20
-           hover:bg-danger/20 active:scale-[0.98];
+    @apply sf-btn border;
+    background-color: rgba(217, 92, 92, 0.08);
+    border-color: rgba(217, 92, 92, 0.2);
+    color: var(--danger);
   }
-
-  /* Labels */
-  .sf-label {
-    @apply block text-sm font-medium text-txt-secondary mb-1;
+  .sf-btn-danger:hover:not(:disabled) {
+    background-color: rgba(217, 92, 92, 0.15);
+    border-color: rgba(217, 92, 92, 0.4);
+  }
+  .sf-btn-danger:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   /* Sidebar navigation item */
   .sf-nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
-           text-txt-secondary cursor-pointer transition-all duration-150
-           hover:bg-sf-surface-2 hover:text-txt-primary;
+    @apply flex items-center gap-3.5 rounded-lg text-xs font-semibold
+           cursor-pointer transition-all duration-150 select-none;
+    color: var(--txt-secondary);
+  }
+
+  .sf-nav-item:hover {
+    background-color: var(--sf-surface-2);
+    color: var(--txt-primary);
   }
 
   .sf-nav-item-active {
-    @apply sf-nav-item bg-accent/10 text-accent-text border-l-2 border-accent;
+    background-color: var(--accent-muted);
+    color: var(--accent-text);
+    border-left: 3px solid var(--accent);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
   }
 
   /* Card */
   .sf-card {
-    @apply bg-sf-surface border border-sf-border rounded-lg p-4
-           transition-all duration-200
-           hover:border-sf-border-2 hover:shadow-sf;
+    @apply border rounded-xl p-4 transition-all duration-200;
+    background-color: var(--sf-surface);
+    border-color: var(--sf-border);
+  }
+
+  .sf-card:hover {
+    border-color: var(--sf-border-2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Tables: Premium Engineering Layout */
+  .sf-table-container {
+    @apply overflow-auto rounded-xl border;
+    background-color: var(--sf-base);
+    border-color: var(--sf-border);
+  }
+
+  .sf-table {
+    @apply w-full text-left text-xs border-collapse;
+  }
+
+  .sf-table th {
+    @apply sticky top-0 z-10 font-semibold px-4 py-3 border-b select-none;
+    background-color: var(--sf-surface-2);
+    border-color: var(--sf-border);
+    color: var(--txt-secondary);
+  }
+
+  .sf-table td {
+    @apply px-4 py-3 border-b transition-colors duration-150;
+    border-color: rgba(52, 62, 82, 0.15);
+    color: var(--txt-primary);
+  }
+
+  .sf-table tr {
+    @apply transition-colors duration-150;
+  }
+
+  .sf-table tr:hover td {
+    background-color: var(--sf-surface-2);
+  }
+
+  .sf-table-striped tr:nth-child(even) td {
+    background-color: rgba(28, 34, 48, 0.02);
+  }
+
+  .dark .sf-table-striped tr:nth-child(even) td {
+    background-color: rgba(28, 34, 48, 0.2);
   }
 
   /* Badge */
   .sf-badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full
-           text-2xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-bold uppercase tracking-wider;
   }
 
   .sf-badge-accent {
-    @apply sf-badge bg-accent/15 text-accent-text;
+    @apply sf-badge;
+    background-color: var(--accent-muted);
+    color: var(--accent-text);
   }
 
   .sf-badge-success {
-    @apply sf-badge bg-success/15 text-success;
+    @apply sf-badge;
+    background-color: rgba(45, 191, 122, 0.12);
+    color: var(--success);
   }
 
   .sf-badge-warning {
-    @apply sf-badge bg-warning/15 text-warning;
+    @apply sf-badge;
+    background-color: rgba(214, 165, 66, 0.12);
+    color: var(--warning);
   }
-}
 
-/* ─── Light Theme Overrides ────────────────────────────────────────────────── */
-
-html:not(.dark) {
-  --sf-void: #f0f2f5;
-  --sf-base: #ffffff;
-}
-
-html:not(.dark) body {
-  background-color: #ffffff;
-  color: #1F2328;
-}
-
-html:not(.dark) .sf-panel {
-  background-color: #F6F8FA;
-  border-color: #D0D7DE;
-}
-
-html:not(.dark) .sf-input {
-  background-color: #FFFFFF;
-  border-color: #D0D7DE;
-  color: #1F2328;
-}
-
-html:not(.dark) ::-webkit-scrollbar-thumb {
-  background: rgba(31, 35, 40, 0.15);
-}
-
-html:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background: rgba(31, 35, 40, 0.25);
-}
-
-html:not(.dark) ::selection {
-  background: rgba(232, 123, 53, 0.2);
-  color: #1F2328;
+  .sf-badge-danger {
+    @apply sf-badge;
+    background-color: rgba(217, 92, 92, 0.12);
+    color: var(--danger);
+  }
 }
 
 /* ─── Animations ───────────────────────────────────────────────────────────── */
@@ -193,9 +363,9 @@ html:not(.dark) ::selection {
 .sf-skeleton {
   background: linear-gradient(
     90deg,
-    rgba(139, 148, 158, 0.1) 25%,
-    rgba(139, 148, 158, 0.2) 50%,
-    rgba(139, 148, 158, 0.1) 75%
+    rgba(167, 176, 192, 0.08) 25%,
+    rgba(167, 176, 192, 0.18) 50%,
+    rgba(167, 176, 192, 0.08) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;

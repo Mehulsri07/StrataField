@@ -8,15 +8,33 @@ import type { Material } from './types';
 // ─── Default Materials ───────────────────────────────────────────────────────
 
 export const DEFAULT_MATERIALS: Material[] = [
-  { name: 'Clay',         color: '#8D6E63', pattern: 'bricks',   isCustom: false },
-  { name: 'Sand',         color: '#E0C097', pattern: 'dots',     isCustom: false },
-  { name: 'Kankar',       color: '#A1887F', pattern: 'crosses',  isCustom: false },
-  { name: 'Clay Kankar',  color: '#6D4C41', pattern: 'bricks',   isCustom: false },
-  { name: 'Sandy Kankar', color: '#BCAAA4', pattern: 'dots',     isCustom: false },
-  { name: 'Gravel',       color: '#9E9E9E', pattern: 'circles',  isCustom: false },
-  { name: 'Boulder',      color: '#757575', pattern: 'triangles', isCustom: false },
-  { name: 'Rock',         color: '#616161', pattern: 'diagonal', isCustom: false },
+  { id: 'clay',         name: 'Clay',         color: '#8D6E63', pattern: 'bricks',   isCustom: false },
+  { id: 'sand',         name: 'Sand',         color: '#E0C097', pattern: 'dots',     isCustom: false },
+  { id: 'kankar',       name: 'Kankar',       color: '#A1887F', pattern: 'crosses',  isCustom: false },
+  { id: 'clay_kankar',  name: 'Clay Kankar',  color: '#6D4C41', pattern: 'bricks',   isCustom: false },
+  { id: 'sandy_kankar', name: 'Sandy Kankar', color: '#BCAAA4', pattern: 'dots',     isCustom: false },
+  { id: 'gravel',       name: 'Gravel',       color: '#9E9E9E', pattern: 'circles',  isCustom: false },
+  { id: 'boulder',      name: 'Boulder',      color: '#757575', pattern: 'triangles', isCustom: false },
+  { id: 'rock',         name: 'Rock',         color: '#616161', pattern: 'diagonal', isCustom: false },
 ];
+
+// ─── Excel Scan Keywords ─────────────────────────────────────────────────────
+
+export const SCAN_KEYWORDS = {
+  borewellId: ['borewell id', 'borewell', 'hole id', 'hole no', 'hole', 'well id', 'well', 'id'],
+  ownerName: ['owner', 'client', 'customer', 'owner name', 'client name'],
+  project: ['project', 'project name', 'site', 'site name', 'job'],
+  city: ['city', 'town', 'district', 'location', 'region'],
+  address: ['address', 'site address', 'location address'],
+  latitude: ['latitude', 'lat', 'y coordinate', 'y coord', 'northing'],
+  longitude: ['longitude', 'lng', 'long', 'x coordinate', 'x coord', 'easting'],
+  totalDepth: ['depth', 'total depth', 'final depth', 'well depth', 'bore depth'],
+  waterLevel: ['water level', 'static water level', 'swl', 'water depth'],
+  remarks: ['remarks', 'remark', 'description', 'notes', 'comment'],
+  date: ['date', 'logged date', 'drill date', 'drilled date']
+};
+
+export const DEFAULT_PROJECT = 'Default Project';
 
 // ─── Pipe Type Definitions ───────────────────────────────────────────────────
 
@@ -55,6 +73,7 @@ export const AVAILABLE_PATTERNS = [
   'bricks',
   'circles',
   'triangles',
+  'diagonal_desc',
   'dashes',
 ] as const;
 

@@ -9,6 +9,7 @@ import { registerFileHandlers } from './fileHandlers';
 import { registerGeocodeHandlers } from './geocodeHandlers';
 import { registerSettingsHandlers } from './settingsHandlers';
 import { registerExportHandlers } from './exportHandlers';
+import { registerMaterialHandlers } from './materialHandlers';
 
 export function registerAllIpcHandlers(): void {
   registerBorewellHandlers();
@@ -18,4 +19,5 @@ export function registerAllIpcHandlers(): void {
   registerGeocodeHandlers();
   registerSettingsHandlers();
   registerExportHandlers();
+  registerMaterialHandlers();
 }

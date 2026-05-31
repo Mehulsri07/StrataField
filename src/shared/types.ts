@@ -8,6 +8,7 @@
 export interface Borewell {
   id: string;
   borewellId: string;       // user-assigned identifier (e.g. "BW-2024-001")
+  project: string;          // project grouping (e.g. "Default Project")
   ownerName: string;
   houseNo: string;
   area: string;
@@ -23,6 +24,9 @@ export interface Borewell {
   date: string;             // ISO date string
   createdAt: string;        // ISO datetime
   updatedAt: string;        // ISO datetime
+  importSource: string | null; // file name or null
+  importMethod: 'excel' | 'manual';
+  deletedAt: string | null;  // ISO datetime if soft-deleted, else null
 }
 
 export interface StrataLayer {
@@ -63,6 +67,7 @@ export interface BorewellFile {
 // ─── Material System ─────────────────────────────────────────────────────────
 
 export interface Material {
+  id: string;
   name: string;
   color: string;            // hex color
   pattern: string;          // pattern type
@@ -77,7 +82,9 @@ export interface SearchFilters {
   dateFrom?: string;
   dateTo?: string;
   city?: string;
+  project?: string;
   material?: string;
+  showDeleted?: boolean;     // for Recycle Bin queries
 }
 
 export type SearchField =
@@ -87,6 +94,7 @@ export type SearchField =
   | 'area'
   | 'city'
   | 'date'
+  | 'project'
   | 'material';
 
 // ─── Export ──────────────────────────────────────────────────────────────────
@@ -103,6 +111,7 @@ export interface ExportOptions {
     dateFrom?: string;
     dateTo?: string;
     owner?: string;
+    project?: string;
   };
 }
 
@@ -133,8 +142,13 @@ export const IPC_CHANNELS = {
   BOREWELL_GET_BY_ID: 'borewell:getById',
   BOREWELL_CREATE: 'borewell:create',
   BOREWELL_UPDATE: 'borewell:update',
-  BOREWELL_DELETE: 'borewell:delete',
+  BOREWELL_DELETE: 'borewell:delete', // soft delete
   BOREWELL_SEARCH: 'borewell:search',
+  
+  // Recycle Bin (Trash)
+  BOREWELL_GET_TRASH: 'borewell:getTrash',
+  BOREWELL_RESTORE: 'borewell:restore',
+  BOREWELL_DELETE_PERMANENT: 'borewell:deletePermanent',
 
   // Strata layers
   STRATA_GET: 'strata:get',
@@ -143,6 +157,12 @@ export const IPC_CHANNELS = {
   // Pipe assembly
   PIPE_GET: 'pipe:get',
   PIPE_SAVE: 'pipe:save',
+
+  // Materials Dictionary CRUD
+  MATERIAL_GET_ALL: 'material:getAll',
+  MATERIAL_CREATE: 'material:create',
+  MATERIAL_UPDATE: 'material:update',
+  MATERIAL_DELETE: 'material:delete',
 
   // Photos
   PHOTO_GET: 'photo:get',
@@ -169,6 +189,9 @@ export const IPC_CHANNELS = {
   // Database
   DB_GET_STATS: 'db:getStats',
   DB_BACKUP: 'db:backup',
+  DB_BACKUP_LIST: 'db:backupList',
+  DB_BACKUP_RESTORE: 'db:backupRestore',
+  DB_BACKUP_RESTORE_EXTERNAL: 'db:backupRestoreExternal',
 
   // Excel import
   EXCEL_PARSE: 'excel:parse',

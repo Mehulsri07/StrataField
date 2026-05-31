@@ -1,26 +1,61 @@
 /**
- * SettingsPage — User configuration screen.
- * Persists theme preference, data locations, and custom geological materials library.
+ * SettingsPage — User configuration, backup/restore manager, central material dictionary, and recycle bin.
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useUIStore } from '@/stores/uiStore';
-import { Settings, ArrowLeft, Sun, Moon, Database, Shield, Layers, Plus, Trash2 } from 'lucide-react';
+import { useBorewellStore } from '@/stores/borewellStore';
+import { 
+  Settings, ArrowLeft, Sun, Moon, Database, Shield, Layers, Plus, Trash2, 
+  RefreshCw, Upload, FolderHeart, ShieldAlert, Check
+} from 'lucide-react';
+import { AVAILABLE_PATTERNS } from '@/shared/constants';
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
   const addToast = useUIStore((s) => s.addToast);
 
+  // Store lists & triggers
+  const backups = useBorewellStore((s) => s.backups);
+  const fetchBackupsList = useBorewellStore((s) => s.fetchBackupsList);
+  const restoreBackup = useBorewellStore((s) => s.restoreBackup);
+  const restoreBackupExternal = useBorewellStore((s) => s.restoreBackupExternal);
+
+  const trash = useBorewellStore((s) => s.trash);
+  const fetchTrash = useBorewellStore((s) => s.fetchTrash);
+  const restoreBorewell = useBorewellStore((s) => s.restoreBorewell);
+  const deleteBorewellPermanent = useBorewellStore((s) => s.deleteBorewellPermanent);
+
+  const materials = useBorewellStore((s) => s.materials);
+  const fetchMaterials = useBorewellStore((s) => s.fetchMaterials);
+  const addMaterial = useBorewellStore((s) => s.addMaterial);
+  const deleteMaterial = useBorewellStore((s) => s.deleteMaterial);
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState<'general' | 'materials' | 'trash'>('general');
+
+  useEffect(() => {
+    if (location.state && (location.state as any).tab) {
+      setActiveTab((location.state as any).tab);
+    }
+  }, [location.state]);
+
+  // General Settings States
   const [dbPath, setDbPath] = useState('');
   const [backupPath, setBackupPath] = useState('');
-  const [customMaterials, setCustomMaterials] = useState<any[]>([]);
 
+  // Material Creation Form States
   const [newMatName, setNewMatName] = useState('');
   const [newMatColor, setNewMatColor] = useState('#E87B35');
   const [newMatPattern, setNewMatPattern] = useState('solid');
+
+  // Loading States
+  const [loadingBackups, setLoadingBackups] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   // Load configuration from database/file storage
   useEffect(() => {
@@ -30,51 +65,86 @@ export function SettingsPage() {
         if (settings) {
           setDbPath(settings.databasePath || '');
           setBackupPath(settings.backupPath || '');
-          if (settings.customMaterials) {
-            setCustomMaterials(settings.customMaterials);
-          }
         }
       } catch (err) {
         console.error('Failed to load settings:', err);
       }
     };
     loadSettings();
-  }, []);
+    fetchBackupsList();
+    fetchTrash();
+    fetchMaterials();
+  }, [fetchBackupsList, fetchTrash, fetchMaterials]);
 
-  const handleAddMaterial = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMatName.trim()) return;
-
-    if (customMaterials.some((m) => m.name.toLowerCase() === newMatName.toLowerCase())) {
-      addToast({ message: 'A material with this name already exists.', type: 'warning' });
-      return;
-    }
-
-    const updated = [
-      ...customMaterials,
-      { name: newMatName.trim(), color: newMatColor, pattern: newMatPattern, isCustom: true },
-    ];
-    setCustomMaterials(updated);
-    setNewMatName('');
-    
+  // Backup & Restore
+  const handleBackupNow = async () => {
+    setLoadingBackups(true);
     try {
-      await window.api.settings.save({ customMaterials: updated });
-      addToast({ message: `Added custom material: ${newMatName}`, type: 'success' });
-    } catch (err) {
-      console.error(err);
-      addToast({ message: 'Failed to persist material.', type: 'error' });
+      const res = await window.api.settings.backupDatabase();
+      if (res.success) {
+        addToast({ message: 'Database integrity verified. Backup saved successfully!', type: 'success' });
+        await fetchBackupsList();
+      } else {
+        addToast({ message: `Backup failed: ${res.error || 'Unknown error'}`, type: 'error' });
+      }
+    } catch (err: any) {
+      addToast({ message: `Backup failed: ${err.message || String(err)}`, type: 'error' });
+    } finally {
+      setLoadingBackups(false);
     }
   };
 
-  const handleDeleteMaterial = async (name: string) => {
-    const updated = customMaterials.filter((m) => m.name !== name);
-    setCustomMaterials(updated);
+  const handleRestoreBackup = async (filename: string) => {
+    if (!confirm(`WARNING: Are you sure you want to restore the database to "${filename}"? This will overwrite all active logs on screen. A backup of your current database will be saved before restoring.`)) {
+      return;
+    }
+    setRestoring(true);
     try {
-      await window.api.settings.save({ customMaterials: updated });
-      addToast({ message: `Deleted custom material: ${name}`, type: 'info' });
-    } catch (err) {
-      console.error(err);
-      addToast({ message: 'Failed to persist change.', type: 'error' });
+      const res = await restoreBackup(filename);
+      if (res.success) {
+        addToast({ message: 'Database restored successfully! Reloading data...', type: 'success' });
+        await fetchTrash();
+        await fetchMaterials();
+      } else {
+        addToast({ message: `Restore failed: ${res.error || 'integrity violation'}`, type: 'error' });
+      }
+    } catch (err: any) {
+      addToast({ message: `Restore failed: ${err.message || String(err)}`, type: 'error' });
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const handleRestoreExternal = async () => {
+    try {
+      const picker = await window.api.dialog.openFile({
+        title: 'Select Backup Database to Restore',
+        filters: [{ name: 'SQLite Database', extensions: ['db'] }]
+      });
+
+      if (picker.canceled || !picker.filePaths || picker.filePaths.length === 0) {
+        return;
+      }
+
+      const filePath = picker.filePaths[0];
+      if (!confirm(`WARNING: Are you sure you want to restore the database from the file "${filePath}"? All active records will be overwritten.`)) {
+        return;
+      }
+
+      setRestoring(true);
+      const res = await restoreBackupExternal(filePath);
+      if (res.success) {
+        addToast({ message: 'External database restored successfully!', type: 'success' });
+        await fetchTrash();
+        await fetchMaterials();
+        await fetchBackupsList();
+      } else {
+        addToast({ message: `Restore failed: ${res.error || 'invalid SQLite file'}`, type: 'error' });
+      }
+    } catch (err: any) {
+      addToast({ message: `Restore failed: ${err.message || String(err)}`, type: 'error' });
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -90,27 +160,85 @@ export function SettingsPage() {
         setBackupPath(newPath);
         await window.api.settings.save({ backupPath: newPath });
         addToast({ message: 'Backup directory updated successfully.', type: 'success' });
+        await fetchBackupsList();
       }
     } catch (err: any) {
       addToast({ message: `Failed to change directory: ${err.message || String(err)}`, type: 'error' });
     }
   };
 
-  const handleBackupNow = async () => {
+  // Materials Dictionary Management
+  const handleAddMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMatName.trim()) return;
+
+    const nameClean = newMatName.trim();
+    if (materials.some((m) => m.name.toLowerCase() === nameClean.toLowerCase())) {
+      addToast({ message: `"${nameClean}" already exists in the dictionary.`, type: 'warning' });
+      return;
+    }
+
+    const newMat = {
+      id: nameClean.toLowerCase().replace(/\s+/g, '_'),
+      name: nameClean,
+      color: newMatColor,
+      pattern: newMatPattern,
+      isCustom: true
+    };
+
     try {
-      const res = await window.api.settings.backupDatabase();
-      if (res.success) {
-        addToast({ message: 'Manual database backup completed successfully!', type: 'success' });
-      } else {
-        addToast({ message: `Backup failed: ${res.error || 'Unknown error'}`, type: 'error' });
-      }
+      await addMaterial(newMat);
+      addToast({ message: `Added "${nameClean}" to dictionary.`, type: 'success' });
+      setNewMatName('');
     } catch (err: any) {
-      addToast({ message: `Backup failed: ${err.message || String(err)}`, type: 'error' });
+      addToast({ message: `Failed to add material: ${err.message || String(err)}`, type: 'error' });
+    }
+  };
+
+  const handleDeleteMaterial = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}" from the dictionary?`)) {
+      return;
+    }
+    try {
+      await deleteMaterial(id);
+      addToast({ message: `Deleted "${name}" from dictionary.`, type: 'info' });
+    } catch (err: any) {
+      addToast({ message: `Failed to delete material: ${err.message || String(err)}`, type: 'error' });
+    }
+  };
+
+  // Recycle Bin / Trash Management
+  const handleRestoreBorewell = async (id: string, name: string) => {
+    try {
+      await restoreBorewell(id);
+      addToast({ message: `Restored "${name}" successfully!`, type: 'success' });
+    } catch (err: any) {
+      addToast({ message: `Failed to restore: ${err.message || String(err)}`, type: 'error' });
+    }
+  };
+
+  const handlePermanentDelete = async (id: string, name: string) => {
+    if (!confirm(`WARNING: Are you sure you want to PERMANENTLY delete "${name}"? This will hard-delete this borewell and all associated strata, pipes, and photos from disk. This action CANNOT be undone.`)) {
+      return;
+    }
+    try {
+      await deleteBorewellPermanent(id);
+      addToast({ message: `Permanently deleted "${name}".`, type: 'info' });
+    } catch (err: any) {
+      addToast({ message: `Failed to delete permanently: ${err.message || String(err)}`, type: 'error' });
     }
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6 select-none">
+    <div className="p-6 max-w-5xl mx-auto space-y-6 select-none relative">
+      {restoring && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center z-50 animate-fadeIn">
+          <RefreshCw className="animate-spin text-accent mb-4" size={48} />
+          <h2 className="text-lg font-bold text-txt-primary">Restoring Database...</h2>
+          <p className="text-xs text-txt-muted mt-1">Please wait, reloading application state.</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -120,185 +248,370 @@ export function SettingsPage() {
           <ArrowLeft size={16} />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-txt-primary">Settings</h1>
-          <p className="text-2xs text-txt-muted">Manage system configuration, theme modes, paths, and custom materials library.</p>
+          <h1 className="text-xl font-bold text-txt-primary">Settings Center</h1>
+          <p className="text-2xs text-txt-muted">Manage system configuration, central materials, automated backups, and trash bin.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
-          {/* General & Theme Settings */}
-          <div className="sf-panel p-5 space-y-4 shadow-sf">
-            <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
-              <Settings size={16} className="text-accent" />
-              <span>General Settings</span>
-            </h2>
+      {/* Tab Navigation Menu */}
+      <div className="flex border-b border-sf-border gap-1 bg-sf-surface p-1 rounded-xl shadow-sf">
+        <button
+          onClick={() => setActiveTab('general')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'general' ? 'bg-accent text-white shadow-sf-glow' : 'text-txt-secondary hover:bg-sf-surface-2 hover:text-txt-primary'
+          }`}
+        >
+          <Settings size={14} />
+          <span>General & Backups</span>
+        </button>
 
-            <div className="flex justify-between items-center py-2 text-xs">
-              <div>
-                <span className="font-bold text-txt-primary block">App Theme Mode</span>
-                <span className="text-2xs text-txt-secondary">Switch between dark and light displays</span>
-              </div>
-              <button
-                onClick={toggleTheme}
-                className="sf-btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-xs"
-              >
-                {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
-                <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
-              </button>
-            </div>
-          </div>
+        <button
+          onClick={() => setActiveTab('materials')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'materials' ? 'bg-accent text-white shadow-sf-glow' : 'text-txt-secondary hover:bg-sf-surface-2 hover:text-txt-primary'
+          }`}
+        >
+          <Layers size={14} />
+          <span>Material Dictionary</span>
+        </button>
 
-          {/* Database & Backup Settings */}
-          <div className="sf-panel p-5 space-y-4 shadow-sf">
-            <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
-              <Database size={16} className="text-accent" />
-              <span>Storage Locations</span>
-            </h2>
+        <button
+          onClick={() => setActiveTab('trash')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            activeTab === 'trash' ? 'bg-accent text-white shadow-sf-glow' : 'text-txt-secondary hover:bg-sf-surface-2 hover:text-txt-primary'
+          }`}
+        >
+          <Trash2 size={14} />
+          <span>Recycle Bin ({trash.length})</span>
+        </button>
+      </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="sf-label text-2xs">Active SQLite Database Path</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={dbPath}
-                    className="sf-input font-mono text-2xs flex-1 bg-sf-surface-2 cursor-not-allowed"
-                  />
+      {/* TAB CONTENTS */}
+      <div className="grid grid-cols-1 gap-6">
+        
+        {/* Tab 1: General & Backups */}
+        {activeTab === 'general' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1 space-y-6">
+              {/* App Theme */}
+              <div className="sf-panel p-5 space-y-4 shadow-sf">
+                <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
+                  <Settings size={16} className="text-accent" />
+                  <span>General Preferences</span>
+                </h2>
+                <div className="flex justify-between items-center py-1 text-xs">
+                  <div>
+                    <span className="font-bold text-txt-primary block">App Theme Mode</span>
+                    <span className="text-2xs text-txt-secondary">Light/dark screen styling</span>
+                  </div>
                   <button
-                    onClick={() => addToast({ message: 'In V1, database path modifications are disabled.', type: 'info' })}
-                    className="sf-btn-secondary text-2xs py-1 px-3 cursor-not-allowed"
+                    onClick={toggleTheme}
+                    className="sf-btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-2xs"
                   >
-                    Change
+                    {theme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
+                    <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="sf-label text-2xs">Automatic Backup Directory</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={backupPath}
-                    className="sf-input font-mono text-2xs flex-1 bg-sf-surface-2 cursor-not-allowed"
-                  />
-                  <button
-                    onClick={handleChangeBackupPath}
-                    className="sf-btn-secondary text-2xs py-1 px-3"
-                  >
-                    Change
-                  </button>
-                </div>
-              </div>
+              {/* Data paths config */}
+              <div className="sf-panel p-5 space-y-4 shadow-sf">
+                <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
+                  <Database size={16} className="text-accent" />
+                  <span>Storage Configuration</span>
+                </h2>
 
-              <div className="pt-2 border-t border-sf-border">
-                <button
-                  type="button"
-                  onClick={handleBackupNow}
-                  className="w-full sf-btn-primary flex items-center justify-center gap-2 py-2"
-                >
-                  <Shield size={14} />
-                  <span>Backup Database Now</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="sf-label text-3xs font-semibold">Active Database Path</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={dbPath}
+                      className="sf-input font-mono text-3xs bg-sf-surface-2 cursor-not-allowed mt-1"
+                    />
+                  </div>
 
-        {/* Right Column: Custom Materials Management */}
-        <div className="space-y-6">
-          <div className="sf-panel p-5 space-y-4 shadow-sf">
-            <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
-              <Layers size={16} className="text-accent" />
-              <span>Custom Material Library</span>
-            </h2>
-
-            {/* Existing custom list */}
-            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-              {customMaterials.length === 0 ? (
-                <div className="text-center py-6 border border-dashed border-sf-border rounded text-2xs text-txt-muted">
-                  No custom geological materials added.
-                </div>
-              ) : (
-                customMaterials.map((mat) => (
-                  <div
-                    key={mat.name}
-                    className="flex justify-between items-center p-2 rounded-lg bg-sf-base border border-sf-border text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-4 h-4 rounded border border-white/20"
-                        style={{ backgroundColor: mat.color }}
+                  <div>
+                    <label className="sf-label text-3xs font-semibold">Automatic Backups Folder</label>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        readOnly
+                        value={backupPath}
+                        className="sf-input font-mono text-3xs bg-sf-surface-2 flex-1"
                       />
-                      <div>
-                        <span className="font-semibold text-txt-primary block leading-tight">{mat.name}</span>
-                        <span className="text-3xs text-txt-muted uppercase tracking-wider font-mono">{mat.pattern}</span>
-                      </div>
+                      <button
+                        onClick={handleChangeBackupPath}
+                        className="sf-btn-secondary text-2xs px-2.5"
+                      >
+                        Change
+                      </button>
                     </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-sf-border">
                     <button
-                      onClick={() => handleDeleteMaterial(mat.name)}
-                      className="p-1 hover:bg-danger/10 text-txt-muted hover:text-danger rounded transition-all"
+                      onClick={handleBackupNow}
+                      disabled={loadingBackups}
+                      className="w-full sf-btn-primary flex items-center justify-center gap-2 py-2"
                     >
-                      <Trash2 size={14} />
+                      <Shield size={14} />
+                      <span>{loadingBackups ? 'Verifying & Saving...' : 'Verify & Backup DB'}</span>
                     </button>
                   </div>
-                ))
-              )}
+                </div>
+              </div>
             </div>
 
-            {/* Add Custom form */}
-            <form onSubmit={handleAddMaterial} className="border-t border-sf-border pt-4 space-y-3">
-              <h3 className="text-2xs font-bold text-txt-primary uppercase tracking-wider">Add Custom Material</h3>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Backups List Table */}
+            <div className="md:col-span-2 sf-panel p-5 space-y-4 shadow-sf">
+              <div className="flex justify-between items-center pb-2 border-b border-sf-border">
+                <h2 className="text-sm font-bold text-txt-primary flex items-center gap-1.5">
+                  <Database size={16} className="text-accent" />
+                  <span>Automated Database Backups (30 Archive Limit)</span>
+                </h2>
+                <button
+                  onClick={handleRestoreExternal}
+                  className="sf-btn-secondary text-2xs py-1 px-3 flex items-center gap-1.5"
+                >
+                  <Upload size={12} />
+                  <span>Restore from File...</span>
+                </button>
+              </div>
+
+              {backups.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-sf-border rounded-xl text-txt-muted text-xs flex flex-col gap-2 justify-center items-center">
+                  <ShieldAlert size={24} className="text-txt-muted" />
+                  <span>No database backup archives found on disk.</span>
+                  <button onClick={handleBackupNow} className="text-xs text-accent hover:underline font-semibold mt-1">
+                    Create your first verified backup now
+                  </button>
+                </div>
+              ) : (
+                <div className="sf-table-container">
+                  <table className="sf-table sf-table-striped">
+                    <thead>
+                      <tr>
+                        <th>Backup Filename</th>
+                        <th>Archive Date</th>
+                        <th>File Size</th>
+                        <th>Status</th>
+                        <th className="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backups.map((bk) => (
+                        <tr key={bk.name} className="hover:bg-sf-surface-2/40">
+                          <td className="py-2.5 font-mono text-3xs text-txt-primary">{bk.name}</td>
+                          <td className="text-txt-secondary">{new Date(bk.time).toLocaleString()}</td>
+                          <td className="text-txt-secondary font-mono text-3xs">{(bk.size / 1024).toFixed(1)} KB</td>
+                          <td>
+                            <span className="flex items-center gap-1 text-success text-3xs font-semibold bg-success/10 px-2 py-0.5 rounded-full w-max">
+                              <Check size={10} /> Checked
+                            </span>
+                          </td>
+                          <td className="text-right">
+                            <button
+                              onClick={() => handleRestoreBackup(bk.name)}
+                              className="sf-btn-secondary text-2xs py-0.5 px-2 hover:bg-accent/10 hover:text-accent"
+                            >
+                              Restore
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Material Dictionary Manager */}
+        {activeTab === 'materials' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Add New Material Form */}
+            <div className="md:col-span-1 sf-panel p-5 space-y-4 shadow-sf h-fit">
+              <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
+                <Plus size={16} className="text-accent" />
+                <span>Add Dictionary Material</span>
+              </h2>
+
+              <form onSubmit={handleAddMaterial} className="space-y-4 text-xs">
                 <div>
-                  <label className="sf-label text-3xs">Material Name</label>
+                  <label className="sf-label">Material Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Clay Loam"
+                    placeholder="e.g. Silty Sand"
                     value={newMatName}
                     onChange={(e) => setNewMatName(e.target.value)}
-                    className="sf-input py-1 text-2xs"
+                    className="sf-input mt-1"
                   />
                 </div>
 
-                <div>
-                  <label className="sf-label text-3xs">Display Pattern</label>
-                  <select
-                    value={newMatPattern}
-                    onChange={(e) => setNewMatPattern(e.target.value)}
-                    className="sf-input py-1 text-2xs"
-                  >
-                    <option value="solid">Solid Color</option>
-                    <option value="dots">Dotted</option>
-                    <option value="diagonal">Diagonal Lines</option>
-                    <option value="crosses">Crosshatch</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="sf-label">Fill Pattern</label>
+                    <select
+                      value={newMatPattern}
+                      onChange={(e) => setNewMatPattern(e.target.value)}
+                      className="sf-input mt-1"
+                    >
+                      {AVAILABLE_PATTERNS.map(pat => (
+                        <option key={pat} value={pat}>{pat.charAt(0).toUpperCase() + pat.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="sf-label">Color Swatch</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="color"
+                        value={newMatColor}
+                        onChange={(e) => setNewMatColor(e.target.value)}
+                        className="w-10 h-10 rounded border border-sf-border cursor-pointer bg-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={newMatColor.toUpperCase()}
+                        onChange={(e) => setNewMatColor(e.target.value)}
+                        className="sf-input font-mono text-3xs py-2 w-full text-center"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between gap-4 pt-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-3xs text-txt-secondary font-medium">Color Swatch:</span>
-                  <input
-                    type="color"
-                    value={newMatColor}
-                    onChange={(e) => setNewMatColor(e.target.value)}
-                    className="w-7 h-7 rounded border border-sf-border cursor-pointer bg-transparent"
-                  />
-                </div>
-
-                <button type="submit" className="sf-btn-primary py-1 px-3 text-2xs">
-                  <Plus size={12} />
-                  <span>Add Material</span>
+                <button type="submit" className="w-full sf-btn-primary py-2 flex items-center justify-center gap-1.5 mt-2">
+                  <Plus size={14} />
+                  <span>Save Material</span>
                 </button>
+              </form>
+            </div>
+
+            {/* Central Dictionary list */}
+            <div className="md:col-span-2 sf-panel p-5 space-y-4 shadow-sf">
+              <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
+                <Layers size={16} className="text-accent" />
+                <span>Geological Material Dictionary Vocabulary ({materials.length})</span>
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[480px] overflow-y-auto pr-1">
+                {materials.map((mat) => (
+                  <div
+                    key={mat.id}
+                    className="flex justify-between items-center p-3 rounded-xl bg-sf-surface-2 border border-sf-border hover:border-sf-border-hover transition-all text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-lg border border-white/20 flex items-center justify-center shadow-inner relative overflow-hidden"
+                        style={{ backgroundColor: mat.color }}
+                      >
+                        {mat.pattern !== 'solid' && (
+                          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
+                            backgroundImage: mat.pattern === 'dots' 
+                              ? 'radial-gradient(#000 15%, transparent 16%)'
+                              : mat.pattern === 'lines'
+                              ? 'linear-gradient(90deg, #000 1px, transparent 0)'
+                              : mat.pattern === 'diagonal'
+                              ? 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)'
+                              : mat.pattern === 'bricks'
+                              ? 'repeating-linear-gradient(0deg, #000 0, #000 1px, transparent 0, transparent 8px)'
+                              : 'none',
+                            backgroundSize: '8px 8px'
+                          }} />
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-bold text-txt-primary block leading-tight">{mat.name}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-3xs text-txt-muted uppercase font-mono">{mat.pattern}</span>
+                          <span className="text-3xs text-txt-muted font-semibold">•</span>
+                          <span className={`text-4xs font-bold px-1.5 py-0.5 rounded-full ${mat.isCustom ? 'bg-accent/10 text-accent' : 'bg-sf-surface-3 text-txt-secondary'}`}>
+                            {mat.isCustom ? 'Custom' : 'System'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {mat.isCustom && (
+                      <button
+                        onClick={() => handleDeleteMaterial(mat.id, mat.name)}
+                        className="p-2 hover:bg-danger/10 text-txt-muted hover:text-danger rounded-lg transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-            </form>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Tab 3: Recycle Bin */}
+        {activeTab === 'trash' && (
+          <div className="sf-panel p-5 space-y-4 shadow-sf">
+            <h2 className="text-sm font-bold text-txt-primary pb-2 border-b border-sf-border flex items-center gap-1.5">
+              <Trash2 size={16} className="text-warning" />
+              <span>Borewell Recycle Bin (Soft-deleted logs)</span>
+            </h2>
+
+            {trash.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-sf-border rounded-xl text-txt-muted text-xs flex flex-col gap-2 justify-center items-center">
+                <FolderHeart size={28} className="text-txt-muted animate-pulse" />
+                <span>The Recycle Bin is completely empty.</span>
+                <p className="text-2xs text-txt-secondary leading-relaxed max-w-sm mt-0.5">
+                  When you delete borewell logs, they are moved here. You can safely restore them or wipe them forever.
+                </p>
+              </div>
+            ) : (
+              <div className="sf-table-container">
+                <table className="sf-table sf-table-striped">
+                  <thead>
+                    <tr>
+                      <th>Borewell Name</th>
+                      <th>Record ID</th>
+                      <th>Project</th>
+                      <th>City/District</th>
+                      <th>Deleted Date</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trash.map((b) => (
+                      <tr key={b.id} className="hover:bg-sf-surface-2/40">
+                        <td className="py-3 font-semibold text-txt-primary">{b.ownerName}</td>
+                        <td><span className="sf-badge-accent py-0.5 px-2 text-2xs">{b.borewellId}</span></td>
+                        <td className="text-txt-secondary">{b.project}</td>
+                        <td className="text-txt-secondary">{b.city}</td>
+                        <td className="text-txt-secondary">{b.deletedAt ? new Date(b.deletedAt).toLocaleString() : 'N/A'}</td>
+                        <td className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleRestoreBorewell(b.id, b.ownerName)}
+                              className="sf-btn-secondary text-2xs py-1 px-3 hover:bg-success/15 hover:text-success hover:border-success/30"
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => handlePermanentDelete(b.id, b.ownerName)}
+                              className="sf-btn-secondary text-2xs py-1 px-3 text-danger border-danger/20 hover:bg-danger/10 hover:border-danger/40"
+                            >
+                              Destroy Permanently
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

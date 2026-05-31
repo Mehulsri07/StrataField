@@ -1,0 +1,80 @@
+import { getDb, saveDatabase, mapResultToObjects } from './db';
+import type { Material } from '@shared/types';
+
+export const materialRepository = {
+  getAll(): Material[] {
+    const db = getDb();
+    try {
+      const res = db.exec('SELECT * FROM materials ORDER BY is_custom ASC, name ASC');
+      return mapResultToObjects<Material>(res);
+    } catch (err) {
+      console.error('Failed to get all materials:', err);
+      return [];
+    }
+  },
+
+  create(m: Material): void {
+    const db = getDb();
+    try {
+      const sql = `
+        INSERT INTO materials (id, name, color, pattern, is_custom)
+        VALUES (?, ?, ?, ?, ?)
+      `;
+      db.run(sql, [
+        m.id,
+        m.name,
+        m.color,
+        m.pattern,
+        m.isCustom ? 1 : 0
+      ]);
+      saveDatabase();
+    } catch (err) {
+      console.error('Failed to create material:', err);
+      throw err;
+    }
+  },
+
+  update(id: string, m: Partial<Material>): void {
+    const db = getDb();
+    try {
+      const sets: string[] = [];
+      const params: any[] = [];
+
+      Object.entries(m).forEach(([key, value]) => {
+        if (key !== 'id') {
+          // Convert key to snake_case
+          const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          sets.push(`${snakeKey} = ?`);
+          
+          if (key === 'isCustom') {
+            params.push(value ? 1 : 0);
+          } else {
+            params.push(value);
+          }
+        }
+      });
+
+      if (sets.length === 0) return;
+
+      params.push(id);
+
+      const sql = `UPDATE materials SET ${sets.join(', ')} WHERE id = ?`;
+      db.run(sql, params);
+      saveDatabase();
+    } catch (err) {
+      console.error(`Failed to update material ${id}:`, err);
+      throw err;
+    }
+  },
+
+  delete(id: string): void {
+    const db = getDb();
+    try {
+      db.run('DELETE FROM materials WHERE id = ?', [id]);
+      saveDatabase();
+    } catch (err) {
+      console.error(`Failed to delete material ${id}:`, err);
+      throw err;
+    }
+  }
+};

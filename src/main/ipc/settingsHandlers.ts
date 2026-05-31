@@ -66,5 +66,36 @@ export function registerSettingsHandlers(): void {
       return { success: false, error: err.message || String(err) };
     }
   });
+
+  // Get Backup List
+  safeHandle(IPC_CHANNELS.DB_BACKUP_LIST, () => {
+    return backupService.listBackups();
+  });
+
+  // Restore database backup
+  safeHandle(IPC_CHANNELS.DB_BACKUP_RESTORE, async (_event, filename: string) => {
+    try {
+      // Perform backup of current database first just in case
+      backupService.performBackup();
+      const success = await backupService.restoreBackup(filename);
+      return { success };
+    } catch (err: any) {
+      console.error(`IPC DB_BACKUP_RESTORE Failed for ${filename}:`, err);
+      return { success: false, error: err.message || String(err) };
+    }
+  });
+
+  // Restore database from external file
+  safeHandle(IPC_CHANNELS.DB_BACKUP_RESTORE_EXTERNAL, async (_event, filePath: string) => {
+    try {
+      // Perform backup of current database first just in case
+      backupService.performBackup();
+      const success = await backupService.restoreFromExternalFile(filePath);
+      return { success };
+    } catch (err: any) {
+      console.error(`IPC DB_BACKUP_RESTORE_EXTERNAL Failed for ${filePath}:`, err);
+      return { success: false, error: err.message || String(err) };
+    }
+  });
 }
 export default registerSettingsHandlers;

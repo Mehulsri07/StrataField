@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
-import { FileDown, ArrowLeft, CheckSquare, Square, FileText, FileSpreadsheet, Check, Download } from 'lucide-react';
+import { FileDown, ArrowLeft, CheckSquare, Square, FileText, FileSpreadsheet, Download } from 'lucide-react';
 import type { ExportFormat } from '@shared/types';
 
 export function ExportPage() {

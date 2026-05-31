@@ -1,13 +1,8 @@
-/**
- * Service to parse Excel spreadsheets.
- * Reads worksheet structures and sends row contents to the renderer for column mapping.
- */
-
 import * as xlsx from 'xlsx';
 import fs from 'node:fs';
 
 export const excelParser = {
-  parseFile(filePath: string): any[][] {
+  parseFile(filePath: string): { cells: Record<string, { v: any; w: string }>; rows: any[][] } {
     try {
       if (!fs.existsSync(filePath)) {
         throw new Error(`File does not exist: ${filePath}`);
@@ -17,9 +12,23 @@ export const excelParser = {
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
 
-      // Convert sheet rows to 2D grid array (header: 1 returns raw array of cells per row)
+      // Convert worksheet keys (A1, B2, etc.) to a coordinate lookup map
+      const cells: Record<string, { v: any; w: string }> = {};
+      Object.keys(worksheet).forEach((key) => {
+        if (!key.startsWith('!')) {
+          const cell = worksheet[key];
+          if (cell) {
+            cells[key] = {
+              v: cell.v !== undefined ? cell.v : null,
+              w: cell.w || (cell.v !== undefined ? String(cell.v) : '')
+            };
+          }
+        }
+      });
+
+      // Convert sheet rows to 2D grid array
       const rows = xlsx.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-      return rows;
+      return { cells, rows };
     } catch (err) {
       console.error('Failed to parse Excel file:', err);
       throw err;

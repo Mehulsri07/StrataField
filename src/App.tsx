@@ -98,7 +98,7 @@ export default function App() {
           {/* Workspace */}
           <main
             className="flex-1 overflow-auto transition-all duration-300"
-            style={{ marginLeft: sidebarCollapsed ? 56 : 280 }}
+            style={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
           >
             <Routes>
               <Route path="/" element={<DashboardPage />} />

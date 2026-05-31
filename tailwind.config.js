@@ -8,49 +8,40 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // ── StrataField Design System ────────────────────────────────────
-        // Deep navy base (ArcGIS Pro / VS Code inspired)
+        // ── StrataField Design System (Redesigned with CSS Variables) ────
         sf: {
-          void:      '#0a0e17',    // deepest background
-          base:      '#0f1419',    // main background
-          surface:   '#161b22',    // card/panel backgrounds
-          'surface-2': '#1c2128',  // elevated surfaces
-          'surface-3': '#21262d',  // hover states
-          border:    '#30363d',    // borders
-          'border-2': '#3d444d',   // prominent borders
+          void:        'var(--sf-void)',      // Level 0
+          base:        'var(--sf-base)',      // Level 1
+          surface:     'var(--sf-surface)',   // Level 2
+          'surface-2': 'var(--sf-surface-2)', // Level 3
+          'surface-3': 'var(--sf-surface-3)', // Level 4
+          border:      'var(--sf-border)',
+          'border-2':  'var(--sf-border-2)',
         },
 
-        // Primary accent — engineering orange
+        // Primary Accent
         accent: {
-          DEFAULT:   '#E87B35',    // primary CTA, active states
-          hover:     '#F09048',    // hover on primary
-          muted:     '#E87B3520',  // backgrounds
-          text:      '#FFB070',    // accent text on dark
-        },
-
-        // Steel blue accent (structural UI)
-        steel: {
-          DEFAULT:   '#3B82F6',    // secondary accent
-          dark:      '#1D4ED8',    // pressed state
-          light:     '#60A5FA',    // text/icons
-          muted:     '#3B82F620',  // backgrounds
+          DEFAULT:   'var(--accent)',
+          hover:     'var(--accent-hover)',
+          muted:     'var(--accent-muted)',
+          text:      'var(--accent-text)',
         },
 
         // Text scale
         txt: {
-          primary:   '#E6EDF3',    // main text
-          secondary: '#8B949E',    // secondary text
-          muted:     '#484F58',    // muted/disabled text
-          inverse:   '#0f1419',    // text on light surfaces
+          primary:   'var(--txt-primary)',
+          secondary: 'var(--txt-secondary)',
+          muted:     'var(--txt-muted)',
+          inverse:   'var(--txt-secondary)', // mapped nicely
         },
 
         // Status colors
-        success:     '#3FB950',
-        warning:     '#D29922',
-        danger:      '#F85149',
-        info:        '#58A6FF',
+        success:     'var(--success)',
+        warning:     'var(--warning)',
+        danger:      'var(--danger)',
+        info:        'var(--info)',
 
-        // Geological chart colors (preserved from Strata)
+        // Geological chart colors (preserved from Strata, but can also use defaults)
         geo: {
           clay:         '#8D6E63',
           sand:         '#E0C097',
@@ -64,18 +55,8 @@ module.exports = {
 
         // Pipe colors
         pipe: {
-          plain:     '#FFFFFF',
-          slotted:   '#42A5F5',
-        },
-
-        // ── Light theme overrides ──────────────────────────────────────
-        light: {
-          bg:        '#FFFFFF',
-          surface:   '#F6F8FA',
-          'surface-2': '#EAEEF2',
-          border:    '#D0D7DE',
-          'txt-primary': '#1F2328',
-          'txt-secondary': '#656D76',
+          plain:     'var(--pipe-plain)',
+          slotted:   'var(--pipe-slotted)',
         },
       },
 
@@ -86,6 +67,9 @@ module.exports = {
 
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],
+        '3xs': ['0.55rem', { lineHeight: '0.75rem' }],
+        '4xs': ['0.475rem', { lineHeight: '0.625rem' }],
+        '5xs': ['0.4rem', { lineHeight: '0.5rem' }],
       },
 
       borderRadius: {
@@ -133,7 +117,7 @@ module.exports = {
       },
 
       spacing: {
-        'sidebar': '280px',
+        'sidebar': '260px',
         'topbar':  '48px',
         'statusbar': '28px',
       },

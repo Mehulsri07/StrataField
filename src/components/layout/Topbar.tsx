@@ -3,7 +3,7 @@
  * Provides quick actions, theme toggle, and search.
  */
 
-import { Sun, Moon, Plus, FileUp, FileDown, Search } from 'lucide-react';
+import { Sun, Moon, Plus, FileUp, Search } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUIStore } from '@/stores/uiStore';
 import { useBorewellStore } from '@/stores/borewellStore';

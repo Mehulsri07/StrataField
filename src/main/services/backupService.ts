@@ -1,11 +1,8 @@
-/**
- * Database Backup Service.
- * Manages copying of SQLite database to a backup directory, with automatic cleanup of old backups.
- */
-
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
+import initSqlJs from 'sql.js';
+import { getDb, reloadDatabase } from '../database/db';
 
 export const backupService = {
   getSettings() {
@@ -35,6 +32,16 @@ export const backupService = {
         return false;
       }
 
+      // ─── Database Verification ───
+      // Run PRAGMA integrity_check on active database instance before backing up
+      const db = getDb();
+      const integrity = db.exec('PRAGMA integrity_check');
+      const status = integrity[0]?.values[0][0] as string;
+      if (status !== 'ok') {
+        console.error('BackupService: Integrity check failed! Active database is corrupted. Aborting backup. Status:', status);
+        return false;
+      }
+
       // Create backup directory if it does not exist
       if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
@@ -47,9 +54,9 @@ export const backupService = {
       
       const destPath = path.join(backupDir, `stratafield_backup_${timestamp}.db`);
       fs.copyFileSync(dbPath, destPath);
-      console.log('BackupService: Database backed up successfully to:', destPath);
+      console.log('BackupService: Database verified and backed up successfully to:', destPath);
 
-      // Clean up old backups (keep only the 10 most recent)
+      // Clean up old backups (keep 30 most recent backups)
       this.cleanupOldBackups(backupDir);
       return true;
     } catch (err) {
@@ -73,9 +80,9 @@ export const backupService = {
         })
         .sort((a, b) => b.time - a.time); // Newest first
 
-      // Keep only 10 most recent backups
-      if (backupFiles.length > 10) {
-        const oldFiles = backupFiles.slice(10);
+      // Keep only 30 most recent backups
+      if (backupFiles.length > 30) {
+        const oldFiles = backupFiles.slice(30);
         for (const file of oldFiles) {
           fs.unlinkSync(file.path);
           console.log('BackupService: Pruned historical backup file:', file.name);
@@ -83,6 +90,112 @@ export const backupService = {
       }
     } catch (err) {
       console.error('BackupService: Failed to prune historical backup files:', err);
+    }
+  },
+
+  listBackups(): any[] {
+    try {
+      const settings = this.getSettings();
+      const backupDir = settings.backupPath || path.join(app.getPath('home'), 'StrataFieldBackups');
+
+      if (!fs.existsSync(backupDir)) {
+        return [];
+      }
+
+      const files = fs.readdirSync(backupDir);
+      return files
+        .filter((f) => f.startsWith('stratafield_backup_') && f.endsWith('.db'))
+        .map((f) => {
+          const fullPath = path.join(backupDir, f);
+          const stat = fs.statSync(fullPath);
+          return {
+            name: f,
+            path: fullPath,
+            size: stat.size,
+            time: stat.mtime.toISOString(),
+            isValid: true // We can check integrity on listing, or verify before restore
+          };
+        })
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    } catch (err) {
+      console.error('BackupService: Failed to list backups:', err);
+      return [];
+    }
+  },
+
+  async verifyBackupIntegrity(filePath: string): Promise<boolean> {
+    try {
+      if (!fs.existsSync(filePath)) return false;
+      const fileBuffer = fs.readFileSync(filePath);
+      
+      const wasmPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'sql-wasm.wasm')
+        : require.resolve('sql.js/dist/sql-wasm.wasm');
+      const wasmBinary = fs.readFileSync(wasmPath);
+      
+      const SQL = await initSqlJs({ wasmBinary: wasmBinary as any });
+      const db = new SQL.Database(fileBuffer);
+      const integrity = db.exec('PRAGMA integrity_check');
+      const result = integrity[0]?.values[0][0] as string;
+      db.close();
+      return result === 'ok';
+    } catch (e) {
+      console.error('BackupService: Failed to verify backup file:', e);
+      return false;
+    }
+  },
+
+  async restoreBackup(filename: string): Promise<boolean> {
+    try {
+      const settings = this.getSettings();
+      const backupDir = settings.backupPath || path.join(app.getPath('home'), 'StrataFieldBackups');
+      const backupFilePath = path.join(backupDir, filename);
+
+      if (!fs.existsSync(backupFilePath)) {
+        throw new Error(`Backup file not found at: ${backupFilePath}`);
+      }
+
+      // Verify integrity before restoring
+      const isValid = await this.verifyBackupIntegrity(backupFilePath);
+      if (!isValid) {
+        throw new Error('Backup file is corrupted or not a valid SQLite database.');
+      }
+
+      // Read backup file buffer
+      const buffer = fs.readFileSync(backupFilePath);
+      
+      // Perform database reload
+      await reloadDatabase(buffer);
+      console.log(`BackupService: Successfully restored database from backup file: ${filename}`);
+      return true;
+    } catch (err) {
+      console.error(`BackupService: Failed to restore backup ${filename}:`, err);
+      throw err;
+    }
+  },
+
+  async restoreFromExternalFile(filePath: string): Promise<boolean> {
+    try {
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`External file not found at: ${filePath}`);
+      }
+
+      // Verify integrity
+      const isValid = await this.verifyBackupIntegrity(filePath);
+      if (!isValid) {
+        throw new Error('Selected file is corrupted or not a valid SQLite database.');
+      }
+
+      // Read file buffer
+      const buffer = fs.readFileSync(filePath);
+
+      // Perform database reload
+      await reloadDatabase(buffer);
+      console.log(`BackupService: Successfully restored database from external file: ${filePath}`);
+      return true;
+    } catch (err) {
+      console.error(`BackupService: Failed to restore from external file ${filePath}:`, err);
+      throw err;
     }
   }
 };

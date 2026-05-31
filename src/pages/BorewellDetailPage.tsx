@@ -6,8 +6,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
-import { ArrowLeft, Edit3, Trash2, MapPin, Calendar, Compass, Settings2, FileText, Plus, Eye, Layers } from 'lucide-react';
+import { ArrowLeft, Edit3, Trash2, MapPin, Compass, Settings2, FileText, AlertTriangle, Layers, FolderGit, Share2 } from 'lucide-react';
 import type { StrataLayer, PipeSegment } from '@shared/types';
+import { validateStrata, validatePipeSegments } from '@/shared/validation';
 
 export function BorewellDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,18 +19,38 @@ export function BorewellDetailPage() {
   const pipeStore = useBorewellStore((s) => s.pipeSegments);
   const setStrataLayers = useBorewellStore((s) => s.setStrataLayers);
   const setPipeSegments = useBorewellStore((s) => s.setPipeSegments);
+  const fetchStrata = useBorewellStore((s) => s.fetchStrata);
+  const fetchPipes = useBorewellStore((s) => s.fetchPipes);
   const addToast = useUIStore((s) => s.addToast);
 
   const borewell = borewells.find((b) => b.id === id);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load strata and pipe segments from store or seed sample data
   const layers = id ? strataStore[id] || [] : [];
   const pipes = id ? pipeStore[id] || [] : [];
 
+  // Fetch strata and pipes from DB on mount/ID change
   useEffect(() => {
-    if (id && borewell) {
-      // Seed default mock layers if none exist to demonstrate the visual layout
-      if (layers.length === 0) {
+    async function loadData() {
+      if (id) {
+        setIsLoaded(false);
+        await Promise.all([
+          fetchStrata(id),
+          fetchPipes(id),
+        ]);
+        setIsLoaded(true);
+      }
+    }
+    loadData();
+  }, [id, fetchStrata, fetchPipes]);
+
+  // Seed default layers only after data is loaded and verified empty
+  useEffect(() => {
+    if (id && borewell && isLoaded) {
+      const dbLayers = strataStore[id] || [];
+      const dbPipes = pipeStore[id] || [];
+
+      if (dbLayers.length === 0) {
         const seedLayers: StrataLayer[] = [
           { id: 'l1', borewellId: id, startDepth: 0, endDepth: 40, material: 'Clay', color: '#8D6E63', pattern: 'bricks', remarks: 'Brown sticky clay' },
           { id: 'l2', borewellId: id, startDepth: 40, endDepth: 110, material: 'Sand', color: '#E0C097', pattern: 'dots', remarks: 'Fine sand with water trace' },
@@ -39,7 +60,7 @@ export function BorewellDetailPage() {
         setStrataLayers(id, seedLayers);
       }
 
-      if (pipes.length === 0) {
+      if (dbPipes.length === 0) {
         const seedPipes: PipeSegment[] = [
           { id: 'p1', borewellId: id, startDepth: 0, endDepth: 110, pipeType: 'plain' },
           { id: 'p2', borewellId: id, startDepth: 110, endDepth: 180, pipeType: 'slotted' },
@@ -48,7 +69,7 @@ export function BorewellDetailPage() {
         setPipeSegments(id, seedPipes);
       }
     }
-  }, [id, borewell]);
+  }, [id, borewell, isLoaded, strataStore, pipeStore]);
 
   if (!borewell) {
     return (
@@ -59,10 +80,15 @@ export function BorewellDetailPage() {
     );
   }
 
+  // Run shared data integrity validation
+  const strataErrors = validateStrata(layers, borewell.totalDepth);
+  const pipeErrors = validatePipeSegments(pipes, borewell.totalDepth);
+  const integrityErrors = [...strataErrors, ...pipeErrors];
+
   const handleDelete = () => {
-    if (confirm('Are you sure you want to permanently delete this borewell record?')) {
+    if (confirm('Are you sure you want to delete this borewell record? It will be moved to the Recycle Bin.')) {
       deleteBorewell(borewell.id);
-      addToast({ message: 'Record deleted.', type: 'info' });
+      addToast({ message: 'Record moved to Recycle Bin.', type: 'info' });
       navigate('/');
     }
   };
@@ -108,6 +134,24 @@ export function BorewellDetailPage() {
         </div>
       </div>
 
+      {/* Data Integrity Warning Banner */}
+      {integrityErrors.length > 0 && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex gap-3 text-xs text-warning animate-fadeIn">
+          <AlertTriangle className="flex-shrink-0 mt-0.5" size={18} />
+          <div className="space-y-1">
+            <span className="font-bold block">Geological Data Integrity Issues Detected:</span>
+            <ul className="list-disc pl-4 space-y-1 text-txt-secondary">
+              {integrityErrors.map((err, idx) => (
+                <li key={idx}>{err}</li>
+              ))}
+            </ul>
+            <span className="text-2xs text-txt-muted block pt-1">
+              Please click "Edit Design Chart" to correct these depths or material issues.
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Columns: Metadata Details */}
         <div className="lg:col-span-1 space-y-6">
@@ -119,6 +163,14 @@ export function BorewellDetailPage() {
             </h2>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-sf-surface-2 border border-sf-border rounded p-2.5 col-span-2 flex items-center gap-2">
+                <FolderGit size={14} className="text-accent" />
+                <div className="flex-1">
+                  <span className="text-3xs text-txt-muted block uppercase tracking-wider">Project Name</span>
+                  <span className="text-xs font-bold text-txt-primary mt-0.5">{borewell.project || 'Default Project'}</span>
+                </div>
+              </div>
+              
               <div className="bg-sf-surface-2 border border-sf-border rounded p-2.5">
                 <span className="text-3xs text-txt-muted block uppercase tracking-wider">Bore Diameter</span>
                 <span className="text-sm font-bold text-txt-primary mt-0.5">{borewell.boreDia ? `${borewell.boreDia}"` : 'N/A'}</span>
@@ -134,6 +186,18 @@ export function BorewellDetailPage() {
               <div className="bg-sf-surface-2 border border-sf-border rounded p-2.5">
                 <span className="text-3xs text-txt-muted block uppercase tracking-wider">Static Water Table</span>
                 <span className="text-sm font-bold text-txt-primary mt-0.5">{borewell.waterLevel ? `${borewell.waterLevel} ft` : 'N/A'}</span>
+              </div>
+
+              <div className="bg-sf-surface-2 border border-sf-border rounded p-2.5 col-span-2 flex items-center gap-2">
+                <Share2 size={14} className="text-success" />
+                <div className="flex-1">
+                  <span className="text-3xs text-txt-muted block uppercase tracking-wider">Import Details</span>
+                  <span className="text-2xs font-semibold text-txt-secondary mt-0.5">
+                    {borewell.importMethod === 'excel'
+                      ? `Imported from Excel (${borewell.importSource})`
+                      : 'Manually logged in-app'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -185,66 +249,106 @@ export function BorewellDetailPage() {
             </h2>
 
             {/* Visual Canvas Container */}
-            <div className="flex-1 flex gap-8 select-none overflow-x-auto min-w-[450px]">
+            <div className="flex-1 flex gap-6 select-none overflow-x-auto min-w-[450px] bg-sf-void p-4 border border-sf-border rounded-xl">
               {/* Depth Scale Ruler */}
-              <div className="w-12 flex flex-col justify-between py-2 border-r border-sf-border pr-2 font-mono text-3xs text-txt-muted text-right select-none">
-                <div>0 ft</div>
-                <div>50 ft</div>
-                <div>100 ft</div>
-                <div>150 ft</div>
-                <div>200 ft</div>
-                <div>{borewell.totalDepth || 250} ft</div>
+              <div className="w-14 flex flex-col justify-between py-2 border-r border-sf-border pr-2 font-mono text-[10px] text-txt-muted text-right select-none">
+                {Array.from({ length: 11 }, (_, i) => Math.round(i * ((borewell.totalDepth || 250) / 10))).map((t) => (
+                  <div key={t} className="h-0 flex items-center justify-end gap-1">
+                    <span>{t} ft</span>
+                  </div>
+                ))}
               </div>
 
               {/* Strata Column Visual */}
-              <div className="flex-1 flex flex-col gap-1 py-1">
-                <span className="text-3xs font-semibold text-txt-muted uppercase tracking-wider text-center block mb-1">Geological Strata Layers</span>
-                <div className="flex-1 border border-sf-border rounded-lg overflow-hidden flex flex-col">
-                  {layers.map((layer) => {
-                    const totalD = borewell.totalDepth || 250;
-                    const heightPercent = ((layer.endDepth - layer.startDepth) / totalD) * 100;
-                    return (
-                      <div
-                        key={layer.id}
-                        style={{ height: `${heightPercent}%`, backgroundColor: layer.color }}
-                        className="w-full flex flex-col justify-center items-center text-center p-2 relative min-h-[48px] hover:brightness-110 transition-all border-b border-white/10 last:border-b-0"
-                        title={`${layer.material}: ${layer.startDepth}-${layer.endDepth} ft`}
-                      >
-                        <span className="text-xs font-bold text-white drop-shadow-md">{layer.material}</span>
-                        <span className="text-3xs text-white/80 drop-shadow-md">{layer.startDepth} - {layer.endDepth} ft</span>
-                      </div>
-                    );
-                  })}
+              <div className="flex-1 flex flex-col gap-1 py-1 max-w-[240px]">
+                <span className="text-[10px] font-bold text-txt-muted uppercase tracking-wider text-center block mb-1">Geological Strata</span>
+                <div className="flex-1 border border-sf-border rounded-xl overflow-hidden flex flex-col bg-sf-surface">
+                  {layers.length === 0 ? (
+                    <div className="flex items-center justify-center flex-1 text-2xs text-txt-muted">No layers defined</div>
+                  ) : (
+                    layers.map((layer) => {
+                      const totalD = borewell.totalDepth || 250;
+                      const heightPercent = ((layer.endDepth - layer.startDepth) / totalD) * 100;
+                      const patternStyle = {
+                        backgroundImage: layer.pattern === 'dots'
+                          ? 'radial-gradient(rgba(0, 0, 0, 0.25) 15%, transparent 16%)'
+                          : layer.pattern === 'lines'
+                          ? 'linear-gradient(90deg, rgba(0, 0, 0, 0.2) 1px, transparent 0)'
+                          : layer.pattern === 'diagonal'
+                          ? 'linear-gradient(45deg, rgba(0, 0, 0, 0.2) 25%, transparent 25%, transparent 50%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.2) 75%, transparent 75%, transparent)'
+                          : layer.pattern === 'bricks'
+                          ? 'repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0, rgba(0, 0, 0, 0.2) 1px, transparent 0, transparent 8px)'
+                          : layer.pattern === 'circles'
+                          ? 'radial-gradient(circle, rgba(0,0,0,0.15) 30%, transparent 40%)'
+                          : 'none',
+                        backgroundSize: '10px 10px'
+                      };
+                      return (
+                        <div
+                          key={layer.id}
+                          style={{ height: `${heightPercent}%`, backgroundColor: layer.color, minHeight: '64px' }}
+                          className="w-full flex flex-col justify-center items-center text-center p-3 relative border-b border-black/10 last:border-b-0 hover:brightness-105 transition-all"
+                          title={`${layer.material}: ${layer.startDepth}-${layer.endDepth} ft`}
+                        >
+                          <div className="absolute inset-0 opacity-20 pointer-events-none" style={patternStyle} />
+                          <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: layer.color }} />
+                          <div className="absolute top-1 left-2 text-[9px] font-mono text-black/50 select-none drop-shadow">
+                            {layer.startDepth} ft
+                          </div>
+                          <div className="absolute bottom-1 left-2 text-[9px] font-mono text-black/50 select-none drop-shadow">
+                            {layer.endDepth} ft
+                          </div>
+                          <div className="bg-black/50 backdrop-blur-xs border border-white/10 rounded-md px-2 py-0.5 max-w-[90%] truncate shadow z-10">
+                            <span className="text-2xs font-extrabold text-white tracking-wide">{layer.material}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
               {/* Pipe Column Visual */}
-              <div className="w-[120px] flex flex-col gap-1 py-1">
-                <span className="text-3xs font-semibold text-txt-muted uppercase tracking-wider text-center block mb-1">Pipe lowering</span>
-                <div className="flex-1 border border-sf-border rounded-lg overflow-hidden flex flex-col bg-sf-void relative">
-                  {pipes.map((pipe) => {
-                    const totalD = borewell.totalDepth || 250;
-                    const heightPercent = ((pipe.endDepth - pipe.startDepth) / totalD) * 100;
-                    const isSlotted = pipe.pipeType === 'slotted';
-                    return (
-                      <div
-                        key={pipe.id}
-                        style={{ height: `${heightPercent}%` }}
-                        className={`
-                          w-full flex flex-col justify-center items-center text-center relative border-b border-sf-border last:border-b-0
-                          ${isSlotted ? 'bg-steel text-white' : 'bg-white text-txt-inverse'}
-                        `}
-                      >
-                        {isSlotted && (
-                          <div className="absolute inset-0 opacity-15 pointer-events-none" style={{
-                            backgroundImage: 'repeating-linear-gradient(45deg, #000 0, #000 2px, transparent 0, transparent 8px)'
-                          }} />
-                        )}
-                        <span className="text-2xs font-extrabold leading-none">{isSlotted ? 'Slotted' : 'Plain'}</span>
-                        <span className="text-4xs opacity-80 leading-none mt-0.5">{pipe.startDepth} - {pipe.endDepth} ft</span>
-                      </div>
-                    );
-                  })}
+              <div className="w-[140px] flex flex-col gap-1 py-1">
+                <span className="text-[10px] font-bold text-txt-muted uppercase tracking-wider text-center block mb-1">Pipe Assembly</span>
+                <div className="flex-1 border border-sf-border rounded-xl overflow-hidden bg-sf-surface flex flex-col relative">
+                  {pipes.length === 0 ? (
+                    <div className="flex items-center justify-center flex-1 text-2xs text-txt-muted">No assembly lowered</div>
+                  ) : (
+                    pipes.map((pipe) => {
+                      const totalD = borewell.totalDepth || 250;
+                      const heightPercent = ((pipe.endDepth - pipe.startDepth) / totalD) * 100;
+                      const isSlotted = pipe.pipeType === 'slotted';
+                      return (
+                        <div
+                          key={pipe.id}
+                          style={{ height: `${heightPercent}%`, minHeight: '48px' }}
+                          className={`
+                            w-full flex flex-col justify-center items-center text-center relative border-b border-sf-border/50 last:border-b-0
+                            ${isSlotted 
+                              ? 'bg-accent text-white font-black' 
+                              : 'bg-white text-slate-800 font-extrabold border-l-[3px] border-r-[3px] border-slate-300'
+                            }
+                          `}
+                          title={`${isSlotted ? 'Slotted Screen' : 'Plain Casing'}: ${pipe.startDepth}-${pipe.endDepth} ft`}
+                        >
+                          {isSlotted && (
+                            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
+                              backgroundImage: 'repeating-linear-gradient(90deg, #fff 0, #fff 2px, transparent 0, transparent 8px)'
+                            }} />
+                          )}
+                          <span className="absolute top-1 text-[8px] opacity-70 leading-none select-none">
+                            {pipe.startDepth} ft
+                          </span>
+                          <span className="absolute bottom-1 text-[8px] opacity-70 leading-none select-none">
+                            {pipe.endDepth} ft
+                          </span>
+                          <span className="text-[10px] uppercase tracking-wider drop-shadow">{isSlotted ? 'Slotted' : 'Plain'}</span>
+                          <span className="text-[8px] opacity-80 mt-0.5">{pipe.endDepth - pipe.startDepth} ft</span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
