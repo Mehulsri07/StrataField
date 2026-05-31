@@ -8,13 +8,13 @@ import type { Material } from './types';
 // ─── Default Materials ───────────────────────────────────────────────────────
 
 export const DEFAULT_MATERIALS: Material[] = [
-  { id: 'clay',         name: 'Clay',         color: '#8D6E63', pattern: 'lines',    isCustom: false },
   { id: 'sand',         name: 'Sand',         color: '#E0C097', pattern: 'dots',     isCustom: false },
-  { id: 'medium_sand',  name: 'Medium Sand',  color: '#C8A279', pattern: 'dots',     isCustom: false },
-  { id: 'fine_sand',     name: 'Fine Sand',    color: '#EAD1B3', pattern: 'dots',     isCustom: false },
-  { id: 'yellow_sand',  name: 'Yellow Sand',  color: '#EBC066', pattern: 'dots',     isCustom: false },
-  { id: 'kankar',       name: 'Kankar',       color: '#BCAAA4', pattern: 'crosses',  isCustom: false },
-  { id: 'clay_kankar',  name: 'Clay Kankar',  color: '#6D4C41', pattern: 'bricks',   isCustom: false },
+  { id: 'medium_sand',  name: 'medium sand',  color: '#C8A279', pattern: 'dots',     isCustom: false },
+  { id: 'fine_sand',    name: 'fine sand',    color: '#EAD1B3', pattern: 'dots',     isCustom: false },
+  { id: 'yellow_sand',  name: 'yellow sand',  color: '#EBC066', pattern: 'dots',     isCustom: false },
+  { id: 'clay',         name: 'clay',         color: '#8D6E63', pattern: 'lines',    isCustom: false },
+  { id: 'kankar',       name: 'kankar',       color: '#BCAAA4', pattern: 'crosses',  isCustom: false },
+  { id: 'clay_kankar',  name: 'clay kankar',  color: '#6D4C41', pattern: 'bricks',   isCustom: false },
 ];
 
 // ─── Excel Scan Keywords ─────────────────────────────────────────────────────

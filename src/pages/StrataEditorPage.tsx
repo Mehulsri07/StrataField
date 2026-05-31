@@ -397,8 +397,8 @@ export function StrataEditorPage() {
                   >
                     <option value="solid">Solid</option>
                     <option value="dots">Dots (Sand)</option>
-                    <option value="lines">Lines (Clay)</option>
-                    <option value="crosses">Cross (Kankar)</option>
+                    <option value="lines">Lines (clay)</option>
+                    <option value="crosses">Cross (kankar)</option>
                     <option value="bricks">Bricks</option>
                     <option value="diagonal">Diagonal (Rock)</option>
                     <option value="circles">Circles (Gravel)</option>

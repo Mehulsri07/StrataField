@@ -680,7 +680,7 @@ export function SettingsPage() {
       </div>
 
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in p-4 select-text">
           <div className="bg-sf-surface border border-sf-border rounded-xl p-6 max-w-md w-full shadow-lg space-y-4">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-danger/10 text-danger rounded-lg flex-shrink-0">

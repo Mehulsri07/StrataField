@@ -18,7 +18,6 @@ import {
   ChevronRight,
   Layers,
   FolderGit,
-  Shield,
 } from 'lucide-react';
 
 interface NavItem {
@@ -102,19 +101,11 @@ export function Sidebar() {
     // System Section
     {
       path: '/settings',
-      label: 'Backups',
-      icon: <Shield size={18} />,
-      section: 'system',
-      state: { tab: 'general' },
-      isActive: (p, s) => p === '/settings' && s?.tab === 'general',
-    },
-    {
-      path: '/settings',
       label: 'Settings',
       icon: <Settings size={18} />,
       section: 'system',
-      state: { tab: 'general', fromSettingsBtn: true },
-      isActive: (p, s) => p === '/settings' && (!s?.tab || s?.fromSettingsBtn),
+      state: { tab: 'general' },
+      isActive: (p, s) => p === '/settings' && (!s?.tab || s?.tab === 'general'),
     },
   ];
 

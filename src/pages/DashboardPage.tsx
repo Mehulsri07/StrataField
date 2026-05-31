@@ -46,7 +46,7 @@ export function DashboardPage() {
             className="sf-card flex items-start gap-4 hover:border-sf-border-hover transition-all cursor-pointer"
             onClick={() => {
               if (stat.label === 'Recycle Bin') {
-                navigate('/settings'); // Settings has Recycle Bin tab
+                navigate('/settings', { state: { tab: 'trash' } });
               } else if (stat.label === 'Active Projects' || stat.label === 'Total Records') {
                 navigate('/search');
               }

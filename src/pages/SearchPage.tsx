@@ -31,7 +31,7 @@ export function SearchPage() {
   const SAVED_SEARCHES = [
     { label: 'All Records', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: '', dateFrom: '', dateTo: '' } },
     { label: 'Deep Borewells (>200ft)', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: '', dateFrom: '', dateTo: '' } },
-    { label: 'Clay Stratum Logs', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: 'Clay', dateFrom: '', dateTo: '' } },
+    { label: 'Clay Stratum Logs', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: 'clay', dateFrom: '', dateTo: '' } },
     { label: 'Recent Active Site', query: '', filters: { field: 'all' as SearchField, project: 'Default Project', city: '', material: '', dateFrom: '', dateTo: '' } }
   ];
 
@@ -190,7 +190,7 @@ export function SearchPage() {
               <label className="sf-label">Filter by Soil Material</label>
               <input
                 type="text"
-                placeholder="e.g. Clay"
+                placeholder="e.g. clay"
                 value={searchFilters.material || ''}
                 className="sf-input mt-1.5"
                 onChange={(e) => {

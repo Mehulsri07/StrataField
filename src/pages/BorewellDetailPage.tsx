@@ -132,10 +132,10 @@ export function BorewellDetailPage() {
   const handleSeedDefaultData = async () => {
     if (!id || !borewell) return;
     const seedLayers: StrataLayer[] = [
-      { id: `l1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 40, material: 'Clay', color: '#8D6E63', pattern: 'lines', remarks: 'Brown sticky clay' },
+      { id: `l1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 40, material: 'clay', color: '#8D6E63', pattern: 'lines', remarks: 'Brown sticky clay' },
       { id: `l2-${Date.now()}`, borewellId: id, startDepth: 40, endDepth: 110, material: 'Sand', color: '#E0C097', pattern: 'dots', remarks: 'Fine sand with water trace' },
-      { id: `l3-${Date.now()}`, borewellId: id, startDepth: 110, endDepth: 180, material: 'Kankar', color: '#BCAAA4', pattern: 'crosses', remarks: 'Kankar layer' },
-      { id: `l4-${Date.now()}`, borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), material: 'Clay Kankar', color: '#6D4C41', pattern: 'bricks', remarks: 'Clay kankar mix bedrock' },
+      { id: `l3-${Date.now()}`, borewellId: id, startDepth: 110, endDepth: 180, material: 'kankar', color: '#BCAAA4', pattern: 'crosses', remarks: 'Kankar layer' },
+      { id: `l4-${Date.now()}`, borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), material: 'clay kankar', color: '#6D4C41', pattern: 'bricks', remarks: 'Clay kankar mix bedrock' },
     ];
     const seedPipes: PipeSegment[] = [
       { id: `p1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 110, pipeType: 'plain' },
