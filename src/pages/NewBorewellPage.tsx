@@ -470,6 +470,10 @@ export function NewBorewellPage() {
 
   const handleFileAttachClick = async () => {
     try {
+      if (!window.api?.dialog?.openFile) {
+        addToast({ message: 'File dialog API is not available. Please restart the application.', type: 'error' });
+        return;
+      }
       const res = await window.api.dialog.openFile({
         title: 'Select Reference Document',
         properties: ['openFile'],

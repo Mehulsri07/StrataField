@@ -3,7 +3,7 @@
  * Sets up routing and the main layout shell.
  */
 
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
 import { StatusBar } from './components/layout/StatusBar';
@@ -86,7 +86,7 @@ export default function App() {
   }, [fetchAll, fetchTrash]);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <KeyboardShortcutsManager />
       <div className="h-screen w-screen flex flex-col overflow-hidden bg-sf-base">
         {/* Top Bar */}
@@ -122,6 +122,6 @@ export default function App() {
         {/* Toast Notifications */}
         <ToastContainer />
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

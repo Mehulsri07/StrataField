@@ -37,25 +37,43 @@ export function registerFileHandlers(): void {
   });
 
   // Native Electron Dialog handlers
-  safeHandle(IPC_CHANNELS.DIALOG_OPEN_FILE, async (_event, options: Electron.OpenDialogOptions) => {
-    const window = BrowserWindow.getFocusedWindow();
-    if (!window) return { canceled: true, filePaths: [] };
-    return dialog.showOpenDialog(window, options);
+  // Use event.sender to reliably get the originating BrowserWindow in both dev and
+  // packaged builds. BrowserWindow.getFocusedWindow() returns null in production when
+  // the window loses OS focus during the async IPC round-trip.
+  safeHandle(IPC_CHANNELS.DIALOG_OPEN_FILE, async (event, options: Electron.OpenDialogOptions) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0];
+      if (!win) return { canceled: true, filePaths: [] };
+      return await dialog.showOpenDialog(win, options);
+    } catch (err) {
+      console.error('DIALOG_OPEN_FILE error:', err);
+      return { canceled: true, filePaths: [] };
+    }
   });
 
-  safeHandle(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY, async (_event, options: Electron.OpenDialogOptions) => {
-    const window = BrowserWindow.getFocusedWindow();
-    if (!window) return { canceled: true, filePaths: [] };
-    return dialog.showOpenDialog(window, {
-      ...options,
-      properties: ['openDirectory', ...(options.properties || [])]
-    });
+  safeHandle(IPC_CHANNELS.DIALOG_OPEN_DIRECTORY, async (event, options: Electron.OpenDialogOptions) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0];
+      if (!win) return { canceled: true, filePaths: [] };
+      return await dialog.showOpenDialog(win, {
+        ...options,
+        properties: ['openDirectory', ...(options.properties || [])]
+      });
+    } catch (err) {
+      console.error('DIALOG_OPEN_DIRECTORY error:', err);
+      return { canceled: true, filePaths: [] };
+    }
   });
 
-  safeHandle(IPC_CHANNELS.DIALOG_SAVE_FILE, async (_event, options: Electron.SaveDialogOptions) => {
-    const window = BrowserWindow.getFocusedWindow();
-    if (!window) return { canceled: true, filePath: '' };
-    return dialog.showSaveDialog(window, options);
+  safeHandle(IPC_CHANNELS.DIALOG_SAVE_FILE, async (event, options: Electron.SaveDialogOptions) => {
+    try {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0];
+      if (!win) return { canceled: true, filePath: '' };
+      return await dialog.showSaveDialog(win, options);
+    } catch (err) {
+      console.error('DIALOG_SAVE_FILE error:', err);
+      return { canceled: true, filePath: '' };
+    }
   });
 
   // Excel parsing
