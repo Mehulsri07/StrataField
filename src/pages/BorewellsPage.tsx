@@ -7,9 +7,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { APP_DEFAULTS } from '@shared/constants';
 import { 
   Search, SlidersHorizontal, MapPin, Calendar, FileText, ArrowRight, Eye, 
-  Trash2, Layers, FolderGit, X, Star, ChevronDown, ChevronUp, Edit3
+  Trash2, Layers, FolderGit, X, Star, ChevronDown, ChevronUp, Edit3,
+  CheckSquare, Square, Download
 } from 'lucide-react';
 import type { SearchField } from '@shared/types';
 
@@ -27,6 +30,16 @@ export function BorewellsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Debounce ref for search
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Bulk select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const isBulkMode = selectedIds.size > 0;
+
+  // Delete confirmation modal
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
   // Dynamic projects list extracted from active records
   const uniqueProjects = Array.from(
     new Set(borewells.map((b) => b.project || 'Default Project'))
@@ -34,10 +47,10 @@ export function BorewellsPage() {
 
   // Quick Saved Search Templates
   const SAVED_SEARCHES = [
-    { label: 'All Records', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: '', dateFrom: '', dateTo: '' } },
-    { label: 'Deep Borewells (>200ft)', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: '', dateFrom: '', dateTo: '' } },
-    { label: 'Clay Stratum Logs', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: 'clay', dateFrom: '', dateTo: '' } },
-    { label: 'Recent Active Site', query: '', filters: { field: 'all' as SearchField, project: 'Default Project', city: '', material: '', dateFrom: '', dateTo: '' } }
+    { label: 'All Records', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: '', dateFrom: '', dateTo: '', minDepth: undefined as number | undefined, maxDepth: undefined as number | undefined } },
+    { label: 'Deep Borewells (>200ft)', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: '', dateFrom: '', dateTo: '', minDepth: 200, maxDepth: undefined as number | undefined } },
+    { label: 'Clay Stratum Logs', query: '', filters: { field: 'all' as SearchField, project: '', city: '', material: 'clay', dateFrom: '', dateTo: '', minDepth: undefined as number | undefined, maxDepth: undefined as number | undefined } },
+    { label: 'Recent Active Site', query: '', filters: { field: 'all' as SearchField, project: 'Default Project', city: '', material: '', dateFrom: '', dateTo: '', minDepth: undefined as number | undefined, maxDepth: undefined as number | undefined } }
   ];
 
   // Sync state navigation (e.g. if loaded from dashboard with predefined project/query)
@@ -53,7 +66,11 @@ export function BorewellsPage() {
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchFilters({ query: value });
-    searchBorewells(value);
+    // Debounced search — prevents a full SQLite query on every keystroke
+    clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      searchBorewells(value);
+    }, APP_DEFAULTS.SEARCH_DEBOUNCE_MS);
   };
 
   const handleFieldChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -70,17 +87,46 @@ export function BorewellsPage() {
 
   const clearFilter = (key: keyof typeof searchFilters) => {
     const fresh: any = {};
-    fresh[key] = '';
+    fresh[key] = key === 'minDepth' || key === 'maxDepth' ? undefined : '';
     setSearchFilters(fresh);
     searchBorewells(searchFilters.query);
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, name: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this borewell record? It will be moved to the Recycle Bin.')) {
-      deleteBorewell(id);
+    setDeleteTarget({ id, name });
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      deleteBorewell(deleteTarget.id);
       addToast({ message: 'Record moved to Recycle Bin.', type: 'info' });
+      setDeleteTarget(null);
     }
+  };
+
+  // Bulk select helpers
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === searchResults.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(searchResults.map(b => b.id)));
+    }
+  };
+
+  const handleBulkExport = () => {
+    const ids = Array.from(selectedIds);
+    navigate('/export', { state: { preselectedIds: ids } });
   };
 
   // Check if any advanced filters are active
@@ -89,10 +135,12 @@ export function BorewellsPage() {
     searchFilters.city || 
     searchFilters.material || 
     searchFilters.dateFrom || 
-    searchFilters.dateTo;
+    searchFilters.dateTo ||
+    searchFilters.minDepth != null ||
+    searchFilters.maxDepth != null;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-[100rem] mx-auto space-y-6">
       {/* Title */}
       <div>
         <h1 className="text-xl font-bold text-txt-primary">Borewell Records</h1>
@@ -230,6 +278,35 @@ export function BorewellsPage() {
                 }}
               />
             </div>
+            {/* Depth Range Filters */}
+            <div>
+              <label className="sf-label">Min Depth (ft)</label>
+              <input
+                type="number"
+                placeholder="e.g. 100"
+                value={searchFilters.minDepth ?? ''}
+                className="sf-input mt-1.5"
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : undefined;
+                  setSearchFilters({ minDepth: val });
+                  searchBorewells(searchFilters.query);
+                }}
+              />
+            </div>
+            <div>
+              <label className="sf-label">Max Depth (ft)</label>
+              <input
+                type="number"
+                placeholder="e.g. 500"
+                value={searchFilters.maxDepth ?? ''}
+                className="sf-input mt-1.5"
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : undefined;
+                  setSearchFilters({ maxDepth: val });
+                  searchBorewells(searchFilters.query);
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -267,9 +344,21 @@ export function BorewellsPage() {
                 <button onClick={() => clearFilter('dateTo')} className="hover:text-txt-primary cursor-pointer"><X size={10} /></button>
               </span>
             )}
+            {searchFilters.minDepth != null && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent-muted text-accent font-bold">
+                Min Depth: {searchFilters.minDepth}ft
+                <button onClick={() => clearFilter('minDepth')} className="hover:text-txt-primary cursor-pointer"><X size={10} /></button>
+              </span>
+            )}
+            {searchFilters.maxDepth != null && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-accent-muted text-accent font-bold">
+                Max Depth: {searchFilters.maxDepth}ft
+                <button onClick={() => clearFilter('maxDepth')} className="hover:text-txt-primary cursor-pointer"><X size={10} /></button>
+              </span>
+            )}
             <button
               onClick={() => {
-                setSearchFilters({ project: '', city: '', material: '', dateFrom: '', dateTo: '' });
+                setSearchFilters({ project: '', city: '', material: '', dateFrom: '', dateTo: '', minDepth: undefined, maxDepth: undefined });
                 searchBorewells(searchFilters.query);
               }}
               className="text-txt-muted hover:text-danger font-bold cursor-pointer"
@@ -279,6 +368,30 @@ export function BorewellsPage() {
           </div>
         )}
       </div>
+
+      {/* Bulk Select Toolbar */}
+      {isBulkMode && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-accent/10 border border-accent/30 rounded-xl animate-slide-down text-xs select-none">
+          <button onClick={toggleSelectAll} className="text-accent font-bold hover:underline cursor-pointer">
+            {selectedIds.size === searchResults.length ? 'Deselect All' : 'Select All'}
+          </button>
+          <span className="text-txt-secondary font-semibold">{selectedIds.size} selected</span>
+          <div className="flex-1" />
+          <button
+            onClick={handleBulkExport}
+            className="sf-btn-primary py-1.5 px-3 text-2xs flex items-center gap-1.5"
+          >
+            <Download size={12} />
+            <span>Export Selected</span>
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-txt-muted hover:text-txt-primary cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Search Results */}
       <div className="space-y-4">
@@ -290,18 +403,27 @@ export function BorewellsPage() {
         ) : (
           searchResults.map((b) => {
             const isExpanded = expandedId === b.id;
+            const isSelected = selectedIds.has(b.id);
             return (
               <div
                 key={b.id}
                 onClick={() => setExpandedId(isExpanded ? null : b.id)}
                 className={`
                   sf-card flex flex-col gap-4 border transition-all cursor-pointer select-none
-                  ${isExpanded ? 'border-accent ring-1 ring-accent-muted shadow-md' : 'border-sf-border hover:border-sf-border-2'}
+                  ${isExpanded ? 'border-accent ring-1 ring-accent-muted shadow-md' : isSelected ? 'border-accent/50 bg-accent/5' : 'border-sf-border hover:border-sf-border-2'}
                 `}
               >
                 {/* Header info (Always Visible) */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                   <div className="flex items-center gap-3">
+                    {/* Bulk select checkbox */}
+                    <button
+                      onClick={(e) => toggleSelect(b.id, e)}
+                      className="p-0.5 text-txt-muted hover:text-accent transition-colors cursor-pointer flex-shrink-0"
+                      title="Select for bulk export"
+                    >
+                      {isSelected ? <CheckSquare size={16} className="text-accent" /> : <Square size={16} />}
+                    </button>
                     <div className="w-10 h-10 rounded-xl bg-sf-surface-2 border border-sf-border flex items-center justify-center text-accent">
                       <FileText size={18} />
                     </div>
@@ -363,7 +485,7 @@ export function BorewellsPage() {
 
                       {/* Delete Action */}
                       <button
-                        onClick={(e) => handleDelete(b.id, e)}
+                        onClick={(e) => handleDelete(b.id, b.ownerName, e)}
                         title="Delete Record"
                         className="p-2 text-txt-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-all cursor-pointer"
                       >
@@ -422,6 +544,18 @@ export function BorewellsPage() {
           })
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteTarget !== null}
+        title="Delete Borewell Record"
+        message={`Are you sure you want to delete the record for "${deleteTarget?.name}"? It will be moved to the Recycle Bin.`}
+        confirmLabel="Move to Recycle Bin"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

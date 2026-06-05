@@ -27,7 +27,8 @@ export function validateCoordinates(lat: number | null, lng: number | null): str
 }
 
 /**
- * Validates borewell header metadata properties
+ * Validates borewell header metadata properties.
+ * Latitude and longitude are optional — GPS may not always be captured at logging time.
  */
 export function validateBorewell(b: Partial<Borewell>): string[] {
   const errors: string[] = [];
@@ -44,11 +45,19 @@ export function validateBorewell(b: Partial<Borewell>): string[] {
     errors.push('City / District is a mandatory field.');
   }
 
-  if (b.latitude === undefined || b.latitude === null || String(b.latitude).trim() === '') {
-    errors.push('Latitude is a mandatory field.');
+  // Latitude and longitude are optional — only validate range when provided
+  if (b.latitude !== undefined && b.latitude !== null && String(b.latitude).trim() !== '') {
+    const lat = Number(b.latitude);
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      errors.push('Latitude must be a valid number between -90 and 90 degrees.');
+    }
   }
-  if (b.longitude === undefined || b.longitude === null || String(b.longitude).trim() === '') {
-    errors.push('Longitude is a mandatory field.');
+
+  if (b.longitude !== undefined && b.longitude !== null && String(b.longitude).trim() !== '') {
+    const lng = Number(b.longitude);
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      errors.push('Longitude must be a valid number between -180 and 180 degrees.');
+    }
   }
 
   if (b.totalDepth !== undefined && b.totalDepth !== null) {
@@ -66,11 +75,61 @@ export function validateBorewell(b: Partial<Borewell>): string[] {
     }
   }
 
-  if (b.latitude !== undefined && b.latitude !== null && b.longitude !== undefined && b.longitude !== null) {
-    errors.push(...validateCoordinates(Number(b.latitude), Number(b.longitude)));
-  }
-
   return errors;
+}
+
+/**
+ * Per-field validation for borewell forms.
+ * Single source of truth used by both NewBorewellPage and BorewellDetailPage.
+ * Returns error message string (empty = valid).
+ */
+export function validateBorewellField(
+  name: string,
+  value: any,
+  formData?: { totalDepth?: string | number; waterLevel?: string | number }
+): string {
+  switch (name) {
+    case 'borewellId':
+      return !value || String(value).trim() === '' ? 'Borewell Name/ID is a mandatory field.' : '';
+    case 'project':
+      return !value || String(value).trim() === '' ? 'Project Name is a mandatory field.' : '';
+    case 'ownerName':
+      return !value || String(value).trim() === '' ? 'Owner / Client Name is a mandatory field.' : '';
+    case 'city':
+      return !value || String(value).trim() === '' ? 'City / District is a mandatory field.' : '';
+    case 'latitude': {
+      // Optional — only validate range when provided
+      if (value === '' || value === null || value === undefined) return '';
+      const lat = Number(value);
+      if (isNaN(lat) || lat < -90 || lat > 90) return 'Latitude must be a valid number between -90 and 90 degrees.';
+      return '';
+    }
+    case 'longitude': {
+      // Optional — only validate range when provided
+      if (value === '' || value === null || value === undefined) return '';
+      const lng = Number(value);
+      if (isNaN(lng) || lng < -180 || lng > 180) return 'Longitude must be a valid number between -180 and 180 degrees.';
+      return '';
+    }
+    case 'totalDepth':
+      if (value !== '' && value !== null && value !== undefined) {
+        const depth = Number(value);
+        if (isNaN(depth) || depth < 0) return 'Total depth cannot be a negative value.';
+      }
+      return '';
+    case 'waterLevel':
+      if (value !== '' && value !== null && value !== undefined) {
+        const wl = Number(value);
+        if (isNaN(wl) || wl < 0) return 'Water level depth cannot be a negative value.';
+        const td = formData?.totalDepth;
+        if (td !== '' && td !== null && td !== undefined && wl > Number(td)) {
+          return 'Water level depth cannot exceed the total borewell depth.';
+        }
+      }
+      return '';
+    default:
+      return '';
+  }
 }
 
 /**

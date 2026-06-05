@@ -17,7 +17,8 @@ const getDefaultSettings = (): AppSettings => ({
   theme: 'dark',
   databasePath: path.join(app.getPath('userData'), 'stratafield.db'),
   backupPath: path.join(app.getPath('home'), 'StrataFieldBackups'),
-  customMaterials: []
+  customMaterials: [],
+  recentExports: []
 });
 
 export function registerSettingsHandlers(): void {

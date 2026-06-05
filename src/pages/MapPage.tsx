@@ -10,6 +10,9 @@ import { useUIStore } from '@/stores/uiStore';
 import { MapPin, ArrowRight, Navigation, Search, Layers } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 export function MapPage() {
   const navigate = useNavigate();
@@ -56,7 +59,13 @@ export function MapPage() {
     // Add zoom control at bottom-right
     L.control.zoom({ position: 'bottomright' }).addTo(leafletMap.current);
 
-    markersGroup.current = L.layerGroup().addTo(leafletMap.current);
+    // Use marker cluster group instead of basic layer group
+    markersGroup.current = (L as any).markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 50,
+      showCoverageOnHover: false,
+    });
+    leafletMap.current.addLayer(markersGroup.current as L.Layer);
 
     // Initial render of markers
     renderMarkers();
@@ -114,7 +123,9 @@ export function MapPage() {
       if (b.latitude === null || b.longitude === null) return;
 
       const isSelected = selectedBorewell?.id === b.id;
-      const markerColor = theme === 'dark' ? '#4D8DFF' : '#2563EB';
+      // Shallow water highlighting (cyan) if waterLevel <= 50
+      const hasShallowWater = showWaterTable && b.waterLevel !== null && b.waterLevel !== undefined && b.waterLevel <= 50;
+      const markerColor = hasShallowWater ? '#06B6D4' : (theme === 'dark' ? '#4D8DFF' : '#2563EB');
 
       // Design technical pinpoint marker SVG
       const customIcon = L.divIcon({
@@ -127,8 +138,14 @@ export function MapPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
             </div>
             ${showDepthLabels && b.totalDepth ? `
-              <div class="absolute top-7 bg-sf-surface border border-sf-border text-txt-primary font-bold text-[9px] px-1.5 py-0.5 rounded shadow-sf whitespace-nowrap select-none pointer-events-none">
-                ${b.totalDepth} ft
+              <div class="absolute top-7 bg-sf-surface border border-sf-border text-txt-primary font-bold text-[9px] px-1.5 py-0.5 rounded shadow-sf whitespace-nowrap select-none pointer-events-none z-10">
+                Depth: ${b.totalDepth} ft
+              </div>
+            ` : ''}
+            ${showWaterTable && b.waterLevel ? `
+              <div class="absolute top-11 bg-sf-surface border border-cyan-500/30 text-cyan-500 font-bold text-[9px] px-1.5 py-0.5 rounded shadow-sf whitespace-nowrap select-none pointer-events-none z-10 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                WL: ${b.waterLevel} ft
               </div>
             ` : ''}
           </div>

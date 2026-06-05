@@ -84,6 +84,8 @@ export interface SearchFilters {
   city?: string;
   project?: string;
   material?: string;
+  minDepth?: number;         // minimum total_depth filter (feet)
+  maxDepth?: number;         // maximum total_depth filter (feet)
   showDeleted?: boolean;     // for Recycle Bin queries
 }
 
@@ -127,11 +129,19 @@ export interface GeocodeResult {
 
 export type ThemeMode = 'dark' | 'light';
 
+export interface ExportLogEntry {
+  filename: string;
+  recordCount: number;
+  format: string;
+  date: string;
+}
+
 export interface AppSettings {
   theme: ThemeMode;
   databasePath: string;
   backupPath: string;
   customMaterials: Material[];
+  recentExports: ExportLogEntry[];
 }
 
 // ─── IPC Channel Definitions ─────────────────────────────────────────────────

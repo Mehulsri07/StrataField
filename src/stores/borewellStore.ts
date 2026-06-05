@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Borewell, StrataLayer, PipeSegment, SearchFilters, Material } from '@shared/types';
+import { useUIStore } from './uiStore';
 
 interface BorewellState {
   // Data
@@ -78,35 +79,84 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
   },
 
   addBorewell: async (borewell) => {
+    const { setLoading } = useUIStore.getState();
+    setLoading(true);
+
+    // Optimistic update — apply locally before IPC round-trip
+    const prevBorewells = get().borewells;
+    const prevSearchResults = get().searchResults;
+    set(s => ({
+      borewells: [...s.borewells, borewell],
+      searchResults: [...s.searchResults, borewell]
+    }));
+
     try {
       await window.api.db.createBorewell(borewell);
-      await get().fetchAll();
+      // Background sync to get truth-of-record
+      get().fetchAll();
     } catch (err) {
+      // Roll back on failure
+      set({ borewells: prevBorewells, searchResults: prevSearchResults });
       console.error('Store: Failed to create borewell:', err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   },
 
   updateBorewell: async (id, updates) => {
+    const { setLoading } = useUIStore.getState();
+    setLoading(true);
+
+    // Optimistic update — patch local record immediately
+    const prevBorewells = get().borewells;
+    const prevSearchResults = get().searchResults;
+    set(s => ({
+      borewells: s.borewells.map(b => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b),
+      searchResults: s.searchResults.map(b => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b)
+    }));
+
     try {
       await window.api.db.updateBorewell(id, updates);
-      await get().fetchAll();
+      // Background sync
+      get().fetchAll();
     } catch (err) {
+      // Roll back on failure
+      set({ borewells: prevBorewells, searchResults: prevSearchResults });
       console.error(`Store: Failed to update borewell ${id}:`, err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   },
 
   deleteBorewell: async (id) => {
+    const { setLoading } = useUIStore.getState();
+    setLoading(true);
+
+    // Optimistic update — remove from local arrays immediately
+    const prevBorewells = get().borewells;
+    const prevSearchResults = get().searchResults;
+    set(s => ({
+      borewells: s.borewells.filter(b => b.id !== id),
+      searchResults: s.searchResults.filter(b => b.id !== id)
+    }));
+
+    if (get().activeBorewellId === id) {
+      set({ activeBorewellId: null });
+    }
+
     try {
       await window.api.db.deleteBorewell(id);
-      await get().fetchAll();
-      if (get().activeBorewellId === id) {
-        set({ activeBorewellId: null });
-      }
+      // Background sync
+      get().fetchAll();
     } catch (err) {
+      // Roll back on failure
+      set({ borewells: prevBorewells, searchResults: prevSearchResults });
       console.error(`Store: Failed to soft-delete borewell ${id}:`, err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   },
 
@@ -118,6 +168,8 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
     })),
 
   searchBorewells: async (query) => {
+    const { setLoading } = useUIStore.getState();
+    setLoading(true);
     const filters = { ...get().searchFilters, query };
     set({ searchFilters: filters });
     try {
@@ -125,6 +177,8 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
       set({ searchResults: results });
     } catch (err) {
       console.error('Store: Failed to search borewells:', err);
+    } finally {
+      setLoading(false);
     }
   },
 
@@ -248,6 +302,8 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
   },
 
   setStrataLayers: async (borewellId, layers) => {
+    const { setLoading } = useUIStore.getState();
+    setLoading(true);
     try {
       await window.api.db.saveStrata(borewellId, layers);
       set((s) => ({
@@ -256,6 +312,8 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
     } catch (err) {
       console.error(`Store: Failed to save strata for borewell ${borewellId}:`, err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   },
 
@@ -271,6 +329,8 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
   },
 
   setPipeSegments: async (borewellId, segments) => {
+    const { setLoading } = useUIStore.getState();
+    setLoading(true);
     try {
       await window.api.db.savePipes(borewellId, segments);
       set((s) => ({
@@ -279,6 +339,8 @@ export const useBorewellStore = create<BorewellState>((set, get) => ({
     } catch (err) {
       console.error(`Store: Failed to save pipes for borewell ${borewellId}:`, err);
       throw err;
+    } finally {
+      setLoading(false);
     }
   }
 }));

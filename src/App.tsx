@@ -83,6 +83,12 @@ export default function App() {
   useEffect(() => {
     fetchAll();
     fetchTrash();
+    // Load saved theme from settings.json
+    window.api.settings.get().then((settings) => {
+      if (settings?.theme) {
+        useUIStore.getState().setTheme(settings.theme);
+      }
+    });
   }, [fetchAll, fetchTrash]);
 
   return (

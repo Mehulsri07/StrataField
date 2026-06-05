@@ -253,6 +253,16 @@ export const borewellRepository = {
         params.push(`%${filters.material}%`);
       }
 
+      if (filters.minDepth != null) {
+        sql += ' AND total_depth >= ?';
+        params.push(filters.minDepth);
+      }
+
+      if (filters.maxDepth != null) {
+        sql += ' AND total_depth <= ?';
+        params.push(filters.maxDepth);
+      }
+
       if (filters.showDeleted) {
         sql += ' ORDER BY deleted_at DESC';
       } else {

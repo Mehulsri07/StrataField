@@ -3,12 +3,12 @@
  * Visual geological profile editor, vertical ruler ticks,plain/slotted casings, and dynamic material properties.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
 import { 
-  ArrowLeft, Save, Plus, Trash2, Sliders, Layers, HelpCircle, Check 
+  ArrowLeft, Save, Plus, Trash2, Sliders, Layers, HelpCircle, Check, Undo2, Redo2 
 } from 'lucide-react';
 import type { StrataLayer, PipeSegment } from '@shared/types';
 import { BorewellProfileDrawing } from '@/components/ui/BorewellProfileDrawing';
@@ -39,6 +39,11 @@ export function StrataEditorPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hoveredStrataId, setHoveredStrataId] = useState<string | null>(null);
   const [hoveredPipeId, setHoveredPipeId] = useState<string | null>(null);
+
+  // Undo / Redo Stack States
+  const [history, setHistory] = useState<{ layers: StrataLayer[]; pipes: PipeSegment[] }[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const skipHistoryRef = useRef(false);
 
   // States for creating custom material types inline
   const [isCreatingMaterial, setIsCreatingMaterial] = useState(false);
@@ -97,7 +102,7 @@ export function StrataEditorPage() {
     loadData();
   }, [id, fetchStrata, fetchPipes, fetchMaterials]);
 
-  // Sync to local states
+  // Sync to local states and initialize history
   useEffect(() => {
     if (id && !isLoaded) {
       const layersFromStore = strataStore[id];
@@ -105,10 +110,56 @@ export function StrataEditorPage() {
       if (layersFromStore !== undefined && pipesFromStore !== undefined) {
         setLocalLayers(layersFromStore);
         setLocalPipes(pipesFromStore);
+        setHistory([{ layers: layersFromStore, pipes: pipesFromStore }]);
+        setHistoryIndex(0);
         setIsLoaded(true);
       }
     }
   }, [id, strataStore, pipeStore, isLoaded]);
+
+  // Debounced History Push (Undo/Redo Tracking)
+  useEffect(() => {
+    if (!isLoaded || skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setHistory(prev => {
+        const nextHistory = prev.slice(0, historyIndex + 1);
+        const lastState = nextHistory[nextHistory.length - 1];
+        if (lastState && JSON.stringify(lastState.layers) === JSON.stringify(layers) && JSON.stringify(lastState.pipes) === JSON.stringify(pipes)) {
+          return prev; // No changes
+        }
+        nextHistory.push({ layers, pipes });
+        if (nextHistory.length > 50) nextHistory.shift(); // Keep max 50 states
+        setHistoryIndex(nextHistory.length - 1);
+        return nextHistory;
+      });
+    }, 600); // 600ms debounce
+
+    return () => clearTimeout(timer);
+  }, [layers, pipes, isLoaded, historyIndex]);
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      skipHistoryRef.current = true;
+      const prevIndex = historyIndex - 1;
+      setHistoryIndex(prevIndex);
+      setLocalLayers(history[prevIndex].layers);
+      setLocalPipes(history[prevIndex].pipes);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      skipHistoryRef.current = true;
+      const nextIndex = historyIndex + 1;
+      setHistoryIndex(nextIndex);
+      setLocalLayers(history[nextIndex].layers);
+      setLocalPipes(history[nextIndex].pipes);
+    }
+  };
 
   // Debounced auto-save (1.5s delay)
   useEffect(() => {
@@ -437,11 +488,18 @@ export function StrataEditorPage() {
           <div className="w-full max-w-2xl flex justify-between items-center mb-4 select-none font-mono text-xs">
             <span className="text-[10px] font-extrabold text-txt-muted uppercase tracking-wider">Drawing Board Canvas</span>
             <div className="flex gap-2">
-              <button onClick={handleAddLayer} className="text-3xs text-accent font-bold hover:underline flex items-center gap-0.5">
+              <button onClick={handleUndo} disabled={historyIndex <= 0} className={`text-3xs font-bold flex items-center gap-0.5 ${historyIndex > 0 ? 'text-accent hover:underline cursor-pointer' : 'text-txt-muted opacity-50'}`}>
+                <Undo2 size={11} /> Undo
+              </button>
+              <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`text-3xs font-bold flex items-center gap-0.5 ${historyIndex < history.length - 1 ? 'text-accent hover:underline cursor-pointer' : 'text-txt-muted opacity-50'}`}>
+                <Redo2 size={11} /> Redo
+              </button>
+              <span className="text-txt-muted text-3xs mx-1">|</span>
+              <button onClick={handleAddLayer} className="text-3xs text-accent font-bold hover:underline flex items-center gap-0.5 cursor-pointer">
                 <Plus size={11} /> Add Layer
               </button>
               <span className="text-txt-muted text-3xs">|</span>
-              <button onClick={handleAddPipe} className="text-3xs text-accent font-bold hover:underline flex items-center gap-0.5">
+              <button onClick={handleAddPipe} className="text-3xs text-accent font-bold hover:underline flex items-center gap-0.5 cursor-pointer">
                 <Plus size={11} /> Add Casing Pipe
               </button>
             </div>

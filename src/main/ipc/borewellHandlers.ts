@@ -1,6 +1,7 @@
 import { safeHandle } from './safeHandle';
 import { borewellRepository } from '../database/borewellRepository';
 import { IPC_CHANNELS } from '../../shared/types';
+import type { Borewell, SearchFilters } from '../../shared/types';
 import { getDb, saveDatabase } from '../database/db';
 
 export function registerBorewellHandlers(): void {
@@ -12,11 +13,11 @@ export function registerBorewellHandlers(): void {
     return borewellRepository.getById(id);
   });
 
-  safeHandle(IPC_CHANNELS.BOREWELL_CREATE, (_event, b: any) => {
+  safeHandle(IPC_CHANNELS.BOREWELL_CREATE, (_event, b: Borewell) => {
     return borewellRepository.create(b);
   });
 
-  safeHandle(IPC_CHANNELS.BOREWELL_UPDATE, (_event, id: string, updates: any) => {
+  safeHandle(IPC_CHANNELS.BOREWELL_UPDATE, (_event, id: string, updates: Partial<Borewell>) => {
     return borewellRepository.update(id, updates);
   });
 
@@ -24,7 +25,7 @@ export function registerBorewellHandlers(): void {
     return borewellRepository.delete(id);
   });
 
-  safeHandle(IPC_CHANNELS.BOREWELL_SEARCH, (_event, filters: any) => {
+  safeHandle(IPC_CHANNELS.BOREWELL_SEARCH, (_event, filters: SearchFilters) => {
     return borewellRepository.search(filters);
   });
 

@@ -27,48 +27,65 @@ export function DashboardPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
 
-  // Load recent exports from localStorage
+  // Load recent exports from settings
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('recent_exports') || '[]';
-      setRecentExports(JSON.parse(raw).slice(0, 5));
-    } catch (err) {
-      console.error('Failed to load recent exports:', err);
-    }
+    window.api.settings.get()
+      .then((settings) => setRecentExports((settings.recentExports || []).slice(0, 5)))
+      .catch((err) => console.error('Failed to load recent exports:', err));
   }, []);
 
   // Filter borewells with valid coordinates for the map preview
   const mappedBorewells = borewells.filter((b) => b.latitude !== null && b.longitude !== null);
 
-  // Initialize and Sync Mini Map Preview
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+
+  // 1. Initialize Map Canvas Once
   useEffect(() => {
-    if (borewells.length === 0 || !mapContainerRef.current) return;
+    if (!mapContainerRef.current || mapInstance.current) return;
 
-    // Destroy existing map if any
-    if (mapInstance.current) {
-      mapInstance.current.remove();
-      mapInstance.current = null;
-    }
-
-    // Set center coordinates: use first geotagged record or fallback to India center
     const centerLat = mappedBorewells.length > 0 ? (mappedBorewells[0].latitude as number) : 28.6139;
     const centerLon = mappedBorewells.length > 0 ? (mappedBorewells[0].longitude as number) : 77.2090;
     const zoomLevel = mappedBorewells.length > 0 ? 8 : 4;
 
-    const map = L.map(mapContainerRef.current, {
+    mapInstance.current = L.map(mapContainerRef.current, {
       zoomControl: true,
       scrollWheelZoom: false,
     }).setView([centerLat, centerLon], zoomLevel);
 
-    // Apply CartoDB Dark/Light Tiles depending on App Theme
+    markersLayerRef.current = L.layerGroup().addTo(mapInstance.current);
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []);
+
+  // 2. Sync Map Tiles with Theme
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+
     const tileUrl = theme === 'dark'
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
     const attribution = '&copy; OpenStreetMap contributors &copy; CARTO';
 
-    L.tileLayer(tileUrl, { attribution }).addTo(map);
+    tileLayerRef.current = L.tileLayer(tileUrl, { attribution });
+    tileLayerRef.current.addTo(mapInstance.current);
+  }, [theme]);
 
-    // Render Markers for Geotagged Borewells
+  // 3. Render Markers when data changes
+  useEffect(() => {
+    if (!mapInstance.current || !markersLayerRef.current) return;
+
+    markersLayerRef.current.clearLayers();
+
     mappedBorewells.forEach((b) => {
       if (b.latitude === null || b.longitude === null) return;
       const markerColor = theme === 'dark' ? '#4D8DFF' : '#2563EB';
@@ -87,9 +104,8 @@ export function DashboardPage() {
         iconAnchor: [8, 8],
       });
 
-      const marker = L.marker([b.latitude, b.longitude], { icon: customIcon }).addTo(map);
+      const marker = L.marker([b.latitude, b.longitude], { icon: customIcon });
       
-      // Bind descriptive popup and click handler
       marker.bindPopup(`
         <div style="font-family: inherit; font-size: 11px; padding: 2px;">
           <strong style="color: var(--txt-primary);">${b.ownerName}</strong><br/>
@@ -99,19 +115,12 @@ export function DashboardPage() {
       `);
 
       marker.on('click', () => {
-        map.setView([b.latitude as number, b.longitude as number], 10);
+        mapInstance.current?.setView([b.latitude as number, b.longitude as number], 10);
       });
+
+      markersLayerRef.current?.addLayer(marker);
     });
-
-    mapInstance.current = map;
-
-    return () => {
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
-  }, [borewells, theme]);
+  }, [borewells.length, theme]);
 
   // Group active imported borewells by filename (importSource)
   const importsGrouped = borewells.reduce((acc, b) => {
@@ -182,7 +191,7 @@ export function DashboardPage() {
 
   // ─── ACTIVE DASHBOARD VIEW ─────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 select-none">
+    <div className="p-6 max-w-[100rem] mx-auto space-y-6 select-none">
       {/* 1. Global Search Box */}
       <form onSubmit={handleGlobalSearchSubmit} className="relative w-full">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-txt-muted">
@@ -236,6 +245,30 @@ export function DashboardPage() {
             className="h-[280px] w-full rounded-xl border border-sf-border overflow-hidden z-10" 
           />
         )}
+      </div>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-down">
+        <div className="sf-panel p-4 shadow-sf border-l-4 border-l-accent flex flex-col justify-center">
+          <span className="text-3xs text-txt-muted uppercase font-bold tracking-wider mb-1">Total Records</span>
+          <span className="text-2xl font-black text-txt-primary">{borewells.length}</span>
+        </div>
+        <div className="sf-panel p-4 shadow-sf border-l-4 border-l-success flex flex-col justify-center">
+          <span className="text-3xs text-txt-muted uppercase font-bold tracking-wider mb-1">Geotagged</span>
+          <span className="text-2xl font-black text-txt-primary">{mappedBorewells.length}</span>
+        </div>
+        <div className="sf-panel p-4 shadow-sf border-l-4 border-l-warning flex flex-col justify-center">
+          <span className="text-3xs text-txt-muted uppercase font-bold tracking-wider mb-1">Avg Depth</span>
+          <span className="text-2xl font-black text-txt-primary">
+            {borewells.filter(b => b.totalDepth).length > 0
+              ? Math.round(borewells.reduce((acc, b) => acc + (b.totalDepth || 0), 0) / borewells.filter(b => b.totalDepth).length)
+              : 0} ft
+          </span>
+        </div>
+        <div className="sf-panel p-4 shadow-sf border-l-4 border-l-purple-500 flex flex-col justify-center">
+          <span className="text-3xs text-txt-muted uppercase font-bold tracking-wider mb-1">Active Projects</span>
+          <span className="text-2xl font-black text-txt-primary">{new Set(borewells.map(b => b.project || 'Default')).size}</span>
+        </div>
       </div>
 
       {/* 3. Three-Column Activity Grid */}

@@ -288,7 +288,7 @@ export function BorewellDetailPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 select-none">
+    <div className="p-6 max-w-[100rem] mx-auto space-y-6 select-none">
       {/* Detail Page Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">

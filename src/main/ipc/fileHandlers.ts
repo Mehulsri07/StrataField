@@ -3,11 +3,14 @@
  */
 
 import { dialog, BrowserWindow, shell } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
 import { safeHandle } from './safeHandle';
 import { photoRepository } from '../database/photoRepository';
 import { fileRepository } from '../database/fileRepository';
 import { excelParser } from '../services/excelParser';
 import { IPC_CHANNELS } from '../../shared/types';
+import type { Photo, BorewellFile } from '../../shared/types';
 
 export function registerFileHandlers(): void {
   // Photos CRUD
@@ -15,7 +18,7 @@ export function registerFileHandlers(): void {
     return photoRepository.getByBorewellId(borewellId);
   });
 
-  safeHandle(IPC_CHANNELS.PHOTO_ADD, (_event, photo: any) => {
+  safeHandle(IPC_CHANNELS.PHOTO_ADD, (_event, photo: Photo) => {
     return photoRepository.add(photo);
   });
 
@@ -28,12 +31,26 @@ export function registerFileHandlers(): void {
     return fileRepository.getByBorewellId(borewellId);
   });
 
-  safeHandle(IPC_CHANNELS.FILE_SAVE, (_event, borewellId: string, files: any) => {
+  safeHandle(IPC_CHANNELS.FILE_SAVE, (_event, borewellId: string, files: Omit<BorewellFile, 'id' | 'borewellId'>) => {
     return fileRepository.save(borewellId, files);
   });
 
-  safeHandle('file:openPath', (_event, filePath: string) => {
-    return shell.openPath(filePath);
+  safeHandle('file:openPath', async (_event, filePath: string) => {
+    // Security: validate the path before opening
+    try {
+      const fp = path.resolve(filePath);
+      if (!fs.existsSync(fp)) return '';
+      const stat = fs.statSync(fp);
+      if (stat.isDirectory()) return '';
+      // Block executable file types
+      const ext = path.extname(fp).toLowerCase();
+      const blockedExtensions = ['.exe', '.bat', '.cmd', '.msi', '.ps1', '.sh', '.com', '.vbs', '.wsf'];
+      if (blockedExtensions.includes(ext)) return '';
+      return await shell.openPath(fp);
+    } catch (err) {
+      console.error('file:openPath security check failed:', err);
+      return '';
+    }
   });
 
   // Native Electron Dialog handlers

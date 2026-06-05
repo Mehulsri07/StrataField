@@ -14,6 +14,7 @@ import { AdditionalInfoSection } from '@/components/forms/AdditionalInfoSection'
 import { Save, ArrowLeft, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { parse as parseExif } from 'exifr';
 import type { Borewell } from '@/shared/types';
+import { validateBorewellField } from '@/shared/validation';
 import { SCAN_KEYWORDS } from '@/shared/constants';
 import { BorewellProfileDrawing } from '@/components/ui/BorewellProfileDrawing';
 
@@ -59,49 +60,10 @@ export function NewBorewellPage() {
   const [previewSelectedEntity, setPreviewSelectedEntity] = useState<{ type: 'strata' | 'pipe'; id: string } | null>(null);
 
   const validateField = (name: string, value: any): string => {
-    switch (name) {
-      case 'borewellId':
-        return !value || String(value).trim() === '' ? 'Borewell Name/ID is a mandatory field.' : '';
-      case 'project':
-        return !value || String(value).trim() === '' ? 'Project Name is a mandatory field.' : '';
-      case 'ownerName':
-        return !value || String(value).trim() === '' ? 'Owner / Client Name is a mandatory field.' : '';
-      case 'city':
-        return !value || String(value).trim() === '' ? 'City / District is a mandatory field.' : '';
-      case 'latitude': {
-        if (value === '' || value === null || value === undefined) {
-          return 'Latitude is a mandatory field.';
-        }
-        const lat = Number(value);
-        if (isNaN(lat) || lat < -90 || lat > 90) return 'Latitude must be a valid number between -90 and 90 degrees.';
-        return '';
-      }
-      case 'longitude': {
-        if (value === '' || value === null || value === undefined) {
-          return 'Longitude is a mandatory field.';
-        }
-        const lng = Number(value);
-        if (isNaN(lng) || lng < -180 || lng > 180) return 'Longitude must be a valid number between -180 and 180 degrees.';
-        return '';
-      }
-      case 'totalDepth':
-        if (value !== '' && value !== null && value !== undefined) {
-          const depth = Number(value);
-          if (isNaN(depth) || depth < 0) return 'Total depth cannot be a negative value.';
-        }
-        return '';
-      case 'waterLevel':
-        if (value !== '' && value !== null && value !== undefined) {
-          const wl = Number(value);
-          if (isNaN(wl) || wl < 0) return 'Water level depth cannot be a negative value.';
-          if (formData.totalDepth !== '' && wl > Number(formData.totalDepth)) {
-            return 'Water level depth cannot exceed the total borewell depth.';
-          }
-        }
-        return '';
-      default:
-        return '';
-    }
+    return validateBorewellField(name, value, {
+      totalDepth: formData.totalDepth,
+      waterLevel: formData.waterLevel,
+    });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -560,7 +522,7 @@ export function NewBorewellPage() {
   const buildBorewellRecord = (customId?: string, isCopy = false): Borewell => {
     return {
       id: customId || crypto.randomUUID(),
-      borewellId: isCopy ? `${formData.borewellId} (Copy)` : formData.borewellId,
+      borewellId: isCopy ? `${formData.borewellId}-copy-${crypto.randomUUID().slice(0, 4)}` : formData.borewellId,
       project: formData.project || 'Default Project',
       ownerName: formData.ownerName,
       houseNo: formData.houseNo,
@@ -574,7 +536,7 @@ export function NewBorewellPage() {
       totalDepth: formData.totalDepth !== '' ? Number(formData.totalDepth) : null,
       waterLevel: formData.waterLevel !== '' ? Number(formData.waterLevel) : null,
       remarks: formData.remarks,
-      date: formData.date,
+      date: isCopy ? new Date().toISOString().split('T')[0] : formData.date,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       importSource: null,
@@ -600,6 +562,10 @@ export function NewBorewellPage() {
     if (Object.keys(allErrors).length > 0) {
       addToast({ message: 'Please correct the validation errors in the form.', type: 'error' });
       return;
+    }
+
+    if (!formData.latitude || !formData.longitude) {
+      addToast({ message: 'Warning: No GPS coordinates logged. Proceeding anyway.', type: 'warning' });
     }
 
     try {
@@ -695,7 +661,7 @@ export function NewBorewellPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-[100rem] mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button

@@ -110,15 +110,17 @@ export function ExportPage() {
 
       if (result.success) {
         try {
-          const raw = localStorage.getItem('recent_exports') || '[]';
-          const exportsList = JSON.parse(raw);
+          const settings = await window.api.settings.get();
+          const exportsList = settings.recentExports || [];
           const newEntry = {
             filename: dialogRes.filePath.split(/[\\/]/).pop() || dialogRes.filePath,
             recordCount: selectedIds.length,
             format: format,
             date: new Date().toISOString(),
           };
-          localStorage.setItem('recent_exports', JSON.stringify([newEntry, ...exportsList].slice(0, 10)));
+          await window.api.settings.save({
+            recentExports: [newEntry, ...exportsList].slice(0, 10)
+          });
         } catch (err) {
           console.error('Failed to log export:', err);
         }
@@ -146,7 +148,7 @@ export function ExportPage() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6 select-none">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 select-none">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button

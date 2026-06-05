@@ -2,44 +2,49 @@
  * TypeScript global window declarations for StrataField.
  */
 
+import type {
+  Borewell, StrataLayer, PipeSegment, Photo, BorewellFile,
+  Material, SearchFilters, AppSettings, GeocodeResult, ExportLogEntry
+} from './shared/types';
+
 export interface WindowApi {
   db: {
-    getAllBorewells: () => Promise<any[]>;
-    getBorewellById: (id: string) => Promise<any>;
-    createBorewell: (b: any) => Promise<void>;
-    updateBorewell: (id: string, updates: any) => Promise<void>;
+    getAllBorewells: () => Promise<Borewell[]>;
+    getBorewellById: (id: string) => Promise<Borewell | null>;
+    createBorewell: (b: Borewell) => Promise<void>;
+    updateBorewell: (id: string, updates: Partial<Borewell>) => Promise<void>;
     deleteBorewell: (id: string) => Promise<void>;
-    searchBorewells: (filters: any) => Promise<any[]>;
-    checkDuplicate: (borewellId: string, project: string, date: string) => Promise<any>;
+    searchBorewells: (filters: SearchFilters) => Promise<Borewell[]>;
+    checkDuplicate: (borewellId: string, project: string, date: string) => Promise<Borewell | null>;
     
     // Recycle Bin / Trash
-    getTrash: () => Promise<any[]>;
+    getTrash: () => Promise<Borewell[]>;
     restoreBorewell: (id: string) => Promise<void>;
     deleteBorewellPermanent: (id: string) => Promise<void>;
 
-    getStrata: (borewellId: string) => Promise<any[]>;
-    saveStrata: (borewellId: string, layers: any[]) => Promise<void>;
-    getPipes: (borewellId: string) => Promise<any[]>;
-    savePipes: (borewellId: string, segments: any[]) => Promise<void>;
+    getStrata: (borewellId: string) => Promise<StrataLayer[]>;
+    saveStrata: (borewellId: string, layers: StrataLayer[]) => Promise<void>;
+    getPipes: (borewellId: string) => Promise<PipeSegment[]>;
+    savePipes: (borewellId: string, segments: PipeSegment[]) => Promise<void>;
     
     // Central Materials Dictionary Table
-    getAllMaterials: () => Promise<any[]>;
-    createMaterial: (m: any) => Promise<void>;
-    updateMaterial: (id: string, updates: any) => Promise<void>;
+    getAllMaterials: () => Promise<Material[]>;
+    createMaterial: (m: Material) => Promise<void>;
+    updateMaterial: (id: string, updates: Partial<Material>) => Promise<void>;
     deleteMaterial: (id: string) => Promise<void>;
 
-    getPhotos: (borewellId: string) => Promise<any[]>;
-    addPhoto: (photo: any) => Promise<void>;
+    getPhotos: (borewellId: string) => Promise<Photo[]>;
+    addPhoto: (photo: Photo) => Promise<void>;
     deletePhoto: (id: string) => Promise<void>;
-    getFiles: (borewellId: string) => Promise<any>;
-    saveFiles: (borewellId: string, files: any) => Promise<void>;
+    getFiles: (borewellId: string) => Promise<BorewellFile | null>;
+    saveFiles: (borewellId: string, files: Omit<BorewellFile, 'id' | 'borewellId'>) => Promise<void>;
     openPath: (filePath: string) => Promise<string>;
     parseExcel: (filePath: string) => Promise<{ cells: Record<string, { v: any; w: string }>; rows: any[][] }>;
-    importSave: (data: { borewell: any; strata: any[]; pipes: any[] }) => Promise<{ success: boolean }>;
+    importSave: (data: { borewell: Borewell; strata: StrataLayer[]; pipes: PipeSegment[] }) => Promise<{ success: boolean }>;
   };
   settings: {
-    get: () => Promise<any>;
-    save: (updates: any) => Promise<any>;
+    get: () => Promise<AppSettings>;
+    save: (updates: Partial<AppSettings>) => Promise<AppSettings>;
     backupDatabase: () => Promise<{ success: boolean; error?: string }>;
     getBackupsList: () => Promise<any[]>;
     restoreBackup: (filename: string) => Promise<{ success: boolean; error?: string }>;
@@ -47,7 +52,7 @@ export interface WindowApi {
     getBackupStatus: () => Promise<{ lastBackupTime: string | null; status: 'success' | 'failed' | null; integrity: 'ok' | 'failed' | null }>;
   };
   geocode: {
-    address: (addressQuery: string) => Promise<any>;
+    address: (addressQuery: string) => Promise<GeocodeResult | null>;
   };
   export: {
     pdf: (borewellIds: string[], savePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -56,9 +61,9 @@ export interface WindowApi {
     onProgress: (callback: (current: number, total: number) => void) => () => void;
   };
   dialog: {
-    openFile: (options: any) => Promise<any>;
-    openDirectory: (options: any) => Promise<any>;
-    saveFile: (options: any) => Promise<any>;
+    openFile: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
+    openDirectory: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
+    saveFile: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>;
   };
 }
 

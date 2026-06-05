@@ -33,7 +33,7 @@ export const fileRepository = {
           [files.excelPath || null, files.pdfPath || null, borewellId]
         );
       } else {
-        const id = `file-${Date.now()}`;
+        const id = crypto.randomUUID();
         db.run(
           'INSERT INTO files (id, borewell_id, excel_path, pdf_path) VALUES (?, ?, ?, ?)',
           [id, borewellId, files.excelPath || null, files.pdfPath || null]
