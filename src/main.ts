@@ -43,6 +43,7 @@ app.on('ready', async () => {
     registerAllIpcHandlers();
   } catch (err) {
     console.error('Failed to initialize database during startup:', err);
+    // Still open the window — the renderer will show IPC errors rather than a blank crash
   }
   createWindow();
 });

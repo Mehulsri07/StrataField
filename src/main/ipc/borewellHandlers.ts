@@ -3,6 +3,7 @@ import { borewellRepository } from '../database/borewellRepository';
 import { IPC_CHANNELS } from '../../shared/types';
 import type { Borewell, SearchFilters } from '../../shared/types';
 import { getDb, saveDatabase } from '../database/db';
+import { smartParseExcel } from '../services/strataFieldParser';
 
 export function registerBorewellHandlers(): void {
   safeHandle(IPC_CHANNELS.BOREWELL_GET_ALL, () => {
@@ -62,36 +63,38 @@ export function registerBorewellHandlers(): void {
         INSERT INTO borewells (
           id, borewell_id, project, owner_name, house_no, area, city, address,
           latitude, longitude, bore_dia, pipe_dia, total_depth, water_level,
-          remarks, date, created_at, updated_at, import_source, import_method, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          remarks, date, created_at, updated_at, import_source, import_method, deleted_at,
+          drilling_method, depth_unit
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(bSql, [
         b.id, b.borewellId, b.project, b.ownerName, b.houseNo || null, b.area || null,
         b.city, b.address || null, b.latitude || null, b.longitude || null,
         b.boreDia || null, b.pipeDia || null, b.totalDepth || null, b.waterLevel || null,
         b.remarks || '', b.date, b.createdAt, b.updatedAt,
-        b.importSource || null, b.importMethod || 'excel', null
+        b.importSource || null, b.importMethod || 'excel', null,
+        b.drillingMethod || null, b.depthUnit || 'ft'
       ]);
 
       // 2. Insert Strata Layers
       const sSql = `
-        INSERT INTO strata_layers (id, borewell_id, start_depth, end_depth, material, color, pattern, remarks)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO strata_layers (id, borewell_id, start_depth, end_depth, material, material_id, color, pattern, remarks)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       data.strata.forEach((s) => {
         db.run(sSql, [
-          s.id, b.id, s.startDepth, s.endDepth, s.material, s.color, s.pattern, s.remarks || ''
+          s.id, b.id, s.startDepth, s.endDepth, s.material, s.materialId || null, s.color, s.pattern, s.remarks || ''
         ]);
       });
 
       // 3. Insert Pipe Assembly
       const pSql = `
-        INSERT INTO pipe_assemblies (id, borewell_id, start_depth, end_depth, pipe_type)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO pipe_assemblies (id, borewell_id, start_depth, end_depth, pipe_type, pipe_subtype)
+        VALUES (?, ?, ?, ?, ?, ?)
       `;
       data.pipes.forEach((p) => {
         db.run(pSql, [
-          p.id, b.id, p.startDepth, p.endDepth, p.pipeType
+          p.id, b.id, p.startDepth, p.endDepth, p.pipeType, p.pipeSubtype || null
         ]);
       });
 
@@ -107,5 +110,10 @@ export function registerBorewellHandlers(): void {
       console.error('Import save transaction failed, rolled back completely:', err);
       throw err;
     }
+  });
+
+  // Smart Excel auto-parser
+  safeHandle(IPC_CHANNELS.EXCEL_SMART_PARSE, (_event, filePath: string) => {
+    return smartParseExcel(filePath);
   });
 }

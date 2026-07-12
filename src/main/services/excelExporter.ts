@@ -191,7 +191,7 @@ export const excelExporter = {
         ];
 
         // Sheet name must not exceed 31 chars and contain restricted chars in Excel
-        const sanitizedSheetName = borewell.borewellId.replace(/[\\/?:*[\]]/g, '_').substring(0, 30);
+        const sanitizedSheetName = borewell.borewellId.replace(/[\\/?:*[\]]/g, '_').substring(0, 31);
         xlsx.utils.book_append_sheet(workbook, detailSheet, sanitizedSheetName);
         currentIdx++;
       }

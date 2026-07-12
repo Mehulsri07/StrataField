@@ -18,4 +18,12 @@ export function registerStrataHandlers(): void {
     const validated = (layers || []).map(l => validateStrataLayerInput(l));
     return strataRepository.save(borewellId, validated);
   });
+
+  safeHandle(IPC_CHANNELS.STRATA_GET_UNMAPPED, () => {
+    return strataRepository.getUnmappedMaterials();
+  });
+
+  safeHandle(IPC_CHANNELS.STRATA_REMAP_MATERIAL, (_event, oldMaterial: string, newMaterialId: string) => {
+    return strataRepository.remapMaterial(oldMaterial, newMaterialId);
+  });
 }

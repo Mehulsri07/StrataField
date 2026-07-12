@@ -4,7 +4,8 @@
 
 import type {
   Borewell, StrataLayer, PipeSegment, Photo, BorewellFile,
-  Material, SearchFilters, AppSettings, GeocodeResult, ExportLogEntry
+  Material, SearchFilters, AppSettings, GeocodeResult, ExportLogEntry,
+  ExcelParseResult, UnmappedMaterial
 } from './shared/types';
 
 export interface WindowApi {
@@ -24,6 +25,9 @@ export interface WindowApi {
 
     getStrata: (borewellId: string) => Promise<StrataLayer[]>;
     saveStrata: (borewellId: string, layers: StrataLayer[]) => Promise<void>;
+    getUnmappedMaterials: () => Promise<UnmappedMaterial[]>;
+    remapMaterial: (oldMaterial: string, newMaterialId: string) => Promise<number>;
+
     getPipes: (borewellId: string) => Promise<PipeSegment[]>;
     savePipes: (borewellId: string, segments: PipeSegment[]) => Promise<void>;
     
@@ -40,6 +44,7 @@ export interface WindowApi {
     saveFiles: (borewellId: string, files: Omit<BorewellFile, 'id' | 'borewellId'>) => Promise<void>;
     openPath: (filePath: string) => Promise<string>;
     parseExcel: (filePath: string) => Promise<{ cells: Record<string, { v: any; w: string }>; rows: any[][] }>;
+    smartParseExcel: (filePath: string) => Promise<ExcelParseResult>;
     importSave: (data: { borewell: Borewell; strata: StrataLayer[]; pipes: PipeSegment[] }) => Promise<{ success: boolean }>;
   };
   settings: {

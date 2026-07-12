@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
+  Database,
 } from 'lucide-react';
 
 interface NavItem {
@@ -28,77 +29,80 @@ interface NavItem {
   isActive: (pathname: string, state: any) => boolean;
 }
 
+// Moved outside component — NAV_ITEMS is static and was recreated on every render inside
+const NAV_ITEMS: NavItem[] = [
+  {
+    path: '/',
+    label: 'Dashboard',
+    icon: <LayoutDashboard size={18} />,
+    section: 'main',
+    isActive: (p) => p === '/',
+  },
+  {
+    path: '/new',
+    label: 'New Borewell',
+    icon: <PlusCircle size={18} />,
+    section: 'main',
+    isActive: (p) => p === '/new',
+  },
+  {
+    path: '/borewells',
+    label: 'Borewells',
+    icon: <Search size={18} />,
+    section: 'main',
+    isActive: (p) => p === '/borewells',
+  },
+  {
+    path: '/map',
+    label: 'Map',
+    icon: <Map size={18} />,
+    section: 'main',
+    isActive: (p) => p === '/map',
+  },
+  {
+    path: '/settings',
+    label: 'Materials',
+    icon: <Layers size={18} />,
+    section: 'data',
+    state: { tab: 'materials' },
+    isActive: (p, s) => p === '/settings' && s?.tab === 'materials',
+  },
+  {
+    path: '/import',
+    label: 'Import',
+    icon: <FileUp size={18} />,
+    section: 'data',
+    isActive: (p) => p === '/import',
+  },
+  {
+    path: '/cleanup',
+    label: 'Data Cleanup',
+    icon: <Database size={18} />,
+    section: 'data',
+    isActive: (p) => p === '/cleanup',
+  },
+  {
+    path: '/export',
+    label: 'Export',
+    icon: <FileDown size={18} />,
+    section: 'data',
+    isActive: (p) => p === '/export',
+  },
+  {
+    path: '/settings',
+    label: 'Settings',
+    icon: <Settings size={18} />,
+    section: 'system',
+    state: { tab: 'general' },
+    isActive: (p, s) => p === '/settings' && (!s?.tab || s?.tab === 'general'),
+  },
+];
+
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggle = useUIStore((s) => s.toggleSidebar);
-
-  const NAV_ITEMS: NavItem[] = [
-    // Main Navigation
-    {
-      path: '/',
-      label: 'Dashboard',
-      icon: <LayoutDashboard size={18} />,
-      section: 'main',
-      isActive: (p) => p === '/',
-    },
-    {
-      path: '/new',
-      label: 'New Borewell',
-      icon: <PlusCircle size={18} />,
-      section: 'main',
-      isActive: (p) => p === '/new',
-    },
-    {
-      path: '/borewells',
-      label: 'Borewells',
-      icon: <Search size={18} />,
-      section: 'main',
-      isActive: (p) => p === '/borewells',
-    },
-    {
-      path: '/map',
-      label: 'Map',
-      icon: <Map size={18} />,
-      section: 'main',
-      isActive: (p) => p === '/map',
-    },
-
-
-    {
-      path: '/settings',
-      label: 'Materials',
-      icon: <Layers size={18} />,
-      section: 'data',
-      state: { tab: 'materials' },
-      isActive: (p, s) => p === '/settings' && s?.tab === 'materials',
-    },
-    {
-      path: '/import',
-      label: 'Import',
-      icon: <FileUp size={18} />,
-      section: 'data',
-      isActive: (p) => p === '/import',
-    },
-    {
-      path: '/export',
-      label: 'Export',
-      icon: <FileDown size={18} />,
-      section: 'data',
-      isActive: (p) => p === '/export',
-    },
-
-    // System Section
-    {
-      path: '/settings',
-      label: 'Settings',
-      icon: <Settings size={18} />,
-      section: 'system',
-      state: { tab: 'general' },
-      isActive: (p, s) => p === '/settings' && (!s?.tab || s?.tab === 'general'),
-    },
-  ];
 
   const handleNavigate = (item: NavItem) => {
     navigate(item.path, { state: item.state });

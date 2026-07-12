@@ -17,6 +17,7 @@ import { ExportPage } from './pages/ExportPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { BorewellDetailPage } from './pages/BorewellDetailPage';
 import { StrataEditorPage } from './pages/StrataEditorPage';
+import { DataCleanupPage } from './pages/DataCleanupPage';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { useEffect } from 'react';
 import { useBorewellStore } from './stores/borewellStore';
@@ -118,6 +119,7 @@ export default function App() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/borewell/:id" element={<BorewellDetailPage />} />
               <Route path="/borewell/:id/strata" element={<StrataEditorPage />} />
+              <Route path="/cleanup" element={<DataCleanupPage />} />
             </Routes>
           </main>
         </div>

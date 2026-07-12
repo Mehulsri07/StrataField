@@ -12,7 +12,6 @@ export function StatusBar() {
   const borewells = useBorewellStore((s) => s.borewells);
   const isLoading = useUIStore((s) => s.isLoading);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [lastSaved] = useState<string>('All changes saved');
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -51,7 +50,7 @@ export function StatusBar() {
           </div>
         ) : (
           <div className="flex items-center gap-1.5 text-txt-secondary">
-            <span>{lastSaved}</span>
+            <span>All changes saved</span>
           </div>
         )}
       </div>

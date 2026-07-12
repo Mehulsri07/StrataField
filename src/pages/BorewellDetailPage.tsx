@@ -88,6 +88,8 @@ export function BorewellDetailPage() {
     totalDepth: '',
     waterLevel: '',
     remarks: '',
+    drillingMethod: '',
+    depthUnit: 'ft',
   });
 
   const handleEditMetadata = () => {
@@ -104,6 +106,8 @@ export function BorewellDetailPage() {
       totalDepth: borewell.totalDepth !== null ? String(borewell.totalDepth) : '',
       waterLevel: borewell.waterLevel !== null ? String(borewell.waterLevel) : '',
       remarks: borewell.remarks || '',
+      drillingMethod: borewell.drillingMethod || '',
+      depthUnit: borewell.depthUnit || 'ft',
     });
     setIsEditingMetadata(true);
   };
@@ -122,6 +126,8 @@ export function BorewellDetailPage() {
       totalDepth: metadataForm.totalDepth !== '' ? Number(metadataForm.totalDepth) : null,
       waterLevel: metadataForm.waterLevel !== '' ? Number(metadataForm.waterLevel) : null,
       remarks: metadataForm.remarks,
+      drillingMethod: (metadataForm.drillingMethod || null) as any,
+      depthUnit: (metadataForm.depthUnit || 'ft') as any,
     };
 
     const originalBorewell = { ...borewell };
@@ -145,6 +151,8 @@ export function BorewellDetailPage() {
         totalDepth: originalBorewell.totalDepth !== null ? String(originalBorewell.totalDepth) : '',
         waterLevel: originalBorewell.waterLevel !== null ? String(originalBorewell.waterLevel) : '',
         remarks: originalBorewell.remarks || '',
+        drillingMethod: originalBorewell.drillingMethod || '',
+        depthUnit: originalBorewell.depthUnit || 'ft',
       });
     }
   };
@@ -152,15 +160,15 @@ export function BorewellDetailPage() {
   const handleSeedDefaultData = async () => {
     if (!id || !borewell) return;
     const seedLayers: StrataLayer[] = [
-      { id: `l1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 40, material: 'clay', color: '#8D6E63', pattern: 'lines', remarks: 'Brown sticky clay' },
-      { id: `l2-${Date.now()}`, borewellId: id, startDepth: 40, endDepth: 110, material: 'Sand', color: '#E0C097', pattern: 'dots', remarks: 'Fine sand with water trace' },
-      { id: `l3-${Date.now()}`, borewellId: id, startDepth: 110, endDepth: 180, material: 'kankar', color: '#BCAAA4', pattern: 'crosses', remarks: 'Kankar layer' },
-      { id: `l4-${Date.now()}`, borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), material: 'clay kankar', color: '#6D4C41', pattern: 'bricks', remarks: 'Clay kankar mix bedrock' },
+      { id: `l1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 40, material: 'Clay', materialId: 'clay', color: '#8D6E63', pattern: 'lines', remarks: 'Brown sticky clay' },
+      { id: `l2-${Date.now()}`, borewellId: id, startDepth: 40, endDepth: 110, material: 'Sand', materialId: 'medium_sand', color: '#E0C097', pattern: 'dots', remarks: 'Fine sand with water trace' },
+      { id: `l3-${Date.now()}`, borewellId: id, startDepth: 110, endDepth: 180, material: 'Kankar', materialId: 'kankar', color: '#BCAAA4', pattern: 'crosses', remarks: 'Kankar layer' },
+      { id: `l4-${Date.now()}`, borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), material: 'clay kankar', materialId: null, color: '#6D4C41', pattern: 'bricks', remarks: 'Clay kankar mix bedrock' },
     ];
     const seedPipes: PipeSegment[] = [
-      { id: `p1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 110, pipeType: 'plain' },
-      { id: `p2-${Date.now()}`, borewellId: id, startDepth: 110, endDepth: 180, pipeType: 'slotted' },
-      { id: `p3-${Date.now()}`, borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), pipeType: 'plain' },
+      { id: `p1-${Date.now()}`, borewellId: id, startDepth: 0, endDepth: 110, pipeType: 'plain', pipeSubtype: 'PLAIN' },
+      { id: `p2-${Date.now()}`, borewellId: id, startDepth: 110, endDepth: 180, pipeType: 'slotted', pipeSubtype: 'SLOTTED' },
+      { id: `p3-${Date.now()}`, borewellId: id, startDepth: 180, endDepth: (borewell.totalDepth || 250), pipeType: 'plain', pipeSubtype: 'PLAIN' },
     ];
 
     try {
@@ -178,6 +186,24 @@ export function BorewellDetailPage() {
     layers,
     pipes
   );
+
+  // Logs an export entry to settings.json (same store ExportPage uses).
+  // Previously used localStorage — this was inconsistent with the Dashboard reader.
+  const logExport = async (filePath: string, format: string) => {
+    try {
+      const settings = await window.api.settings.get();
+      const existing = settings.recentExports || [];
+      const entry = {
+        filename: filePath.split(/[\\/]/).pop() || filePath,
+        recordCount: 1,
+        format,
+        date: new Date().toISOString(),
+      };
+      await window.api.settings.save({ recentExports: [entry, ...existing].slice(0, 10) });
+    } catch (err) {
+      console.error('Failed to log export:', err);
+    }
+  };
 
   if (!borewell) {
     return (
@@ -227,20 +253,7 @@ export function BorewellDetailPage() {
 
       const saveRes = await window.api.export.pdf([borewell.id], dialogRes.filePath);
       if (saveRes.success) {
-        try {
-          const raw = localStorage.getItem('recent_exports') || '[]';
-          const exportsList = JSON.parse(raw);
-          const newEntry = {
-            filename: dialogRes.filePath.split(/[\\/]/).pop() || dialogRes.filePath,
-            recordCount: 1,
-            format: 'pdf',
-            date: new Date().toISOString(),
-          };
-          localStorage.setItem('recent_exports', JSON.stringify([newEntry, ...exportsList].slice(0, 10)));
-        } catch (err) {
-          console.error('Failed to log export:', err);
-        }
-
+        await logExport(dialogRes.filePath, 'pdf');
         addToast({ message: 'Borewell PDF report generated successfully.', type: 'success' });
       } else {
         addToast({ message: `Failed to generate PDF: ${saveRes.error}`, type: 'error' });
@@ -263,20 +276,7 @@ export function BorewellDetailPage() {
 
       const saveRes = await window.api.export.excel([borewell.id], dialogRes.filePath);
       if (saveRes.success) {
-        try {
-          const raw = localStorage.getItem('recent_exports') || '[]';
-          const exportsList = JSON.parse(raw);
-          const newEntry = {
-            filename: dialogRes.filePath.split(/[\\/]/).pop() || dialogRes.filePath,
-            recordCount: 1,
-            format: 'excel',
-            date: new Date().toISOString(),
-          };
-          localStorage.setItem('recent_exports', JSON.stringify([newEntry, ...exportsList].slice(0, 10)));
-        } catch (err) {
-          console.error('Failed to log export:', err);
-        }
-
+        await logExport(dialogRes.filePath, 'excel');
         addToast({ message: 'Strata Excel workbook compiled successfully.', type: 'success' });
       } else {
         addToast({ message: `Failed to compile Excel: ${saveRes.error}`, type: 'error' });
@@ -513,7 +513,7 @@ export function BorewellDetailPage() {
                 )}
               </td>
               <td className="p-3">
-                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Total Drilled Depth</div>
+                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Total Drilled Depth ({borewell.depthUnit || 'ft'})</div>
                 {isEditingMetadata ? (
                   <input
                     type="number"
@@ -524,15 +524,24 @@ export function BorewellDetailPage() {
                     onChange={(e) => setMetadataForm({ ...metadataForm, totalDepth: e.target.value })}
                   />
                 ) : (
-                  <div className="font-extrabold text-accent mt-1 text-xs">
-                    {borewell.totalDepth ? `${borewell.totalDepth} ft` : 'N/A'}
+                  <div 
+                    className="font-extrabold text-accent mt-1 text-xs cursor-help"
+                    title={
+                      borewell.totalDepth 
+                        ? borewell.depthUnit === 'm' 
+                          ? `${(borewell.totalDepth * 3.28084).toFixed(1)} ft equivalent` 
+                          : `${(borewell.totalDepth / 3.28084).toFixed(1)} m equivalent`
+                        : ''
+                    }
+                  >
+                    {borewell.totalDepth ? `${borewell.totalDepth} ${borewell.depthUnit || 'ft'}` : 'N/A'}
                   </div>
                 )}
               </td>
             </tr>
-            <tr>
+            <tr className="border-b border-sf-border">
               <td className="p-3 border-r border-sf-border">
-                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Static Water Table</div>
+                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Static Water Table ({borewell.depthUnit || 'ft'})</div>
                 {isEditingMetadata ? (
                   <input
                     type="number"
@@ -543,18 +552,27 @@ export function BorewellDetailPage() {
                     onChange={(e) => setMetadataForm({ ...metadataForm, waterLevel: e.target.value })}
                   />
                 ) : (
-                  <div className="font-extrabold text-cyan-500 mt-1 text-xs">
-                    {borewell.waterLevel ? `${borewell.waterLevel} ft` : 'N/A'}
+                  <div 
+                    className="font-extrabold text-cyan-500 mt-1 text-xs cursor-help"
+                    title={
+                      borewell.waterLevel 
+                        ? borewell.depthUnit === 'm' 
+                          ? `${(borewell.waterLevel * 3.28084).toFixed(1)} ft equivalent` 
+                          : `${(borewell.waterLevel / 3.28084).toFixed(1)} m equivalent`
+                        : ''
+                    }
+                  >
+                    {borewell.waterLevel ? `${borewell.waterLevel} ${borewell.depthUnit || 'ft'}` : 'N/A'}
                   </div>
                 )}
               </td>
               <td className="p-3 border-r border-sf-border">
-                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Pump Lowering Depth</div>
+                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Pump Lowering Depth ({borewell.depthUnit || 'ft'})</div>
                 <div className="font-extrabold text-txt-primary mt-1 text-xs">
                   {metadataForm.waterLevel !== '' && !isNaN(Number(metadataForm.waterLevel)) 
-                    ? `${Number(metadataForm.waterLevel) + 50} ft (Calculated)` 
+                    ? `${Number(metadataForm.waterLevel) + (borewell.depthUnit === 'm' ? 15 : 50)} ${borewell.depthUnit || 'ft'} (Calculated)` 
                     : borewell.waterLevel 
-                      ? `${borewell.waterLevel + 50} ft (Calculated)` 
+                      ? `${borewell.waterLevel + (borewell.depthUnit === 'm' ? 15 : 50)} ${borewell.depthUnit || 'ft'} (Calculated)` 
                       : 'N/A'}
                 </div>
               </td>
@@ -562,6 +580,53 @@ export function BorewellDetailPage() {
                 <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Lowered Pump Specs</div>
                 <div className="font-extrabold text-txt-primary mt-1 text-xs">
                   3.0 HP Submersible / 12 Stage
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td className="p-3 border-r border-sf-border">
+                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Drilling Method</div>
+                {isEditingMetadata ? (
+                  <select
+                    className="bg-sf-void border border-sf-border rounded p-1 mt-1 w-full text-txt-primary font-bold text-xs"
+                    value={metadataForm.drillingMethod}
+                    onChange={(e) => setMetadataForm({ ...metadataForm, drillingMethod: e.target.value })}
+                  >
+                    <option value="">— Select —</option>
+                    <option value="ROTARY">ROTARY</option>
+                    <option value="DTH">DTH</option>
+                    <option value="MANUAL">MANUAL</option>
+                    <option value="UNKNOWN">UNKNOWN</option>
+                  </select>
+                ) : (
+                  <div className="font-extrabold text-txt-primary mt-1 text-xs">
+                    {borewell.drillingMethod || 'UNKNOWN'}
+                  </div>
+                )}
+              </td>
+              <td className="p-3 border-r border-sf-border">
+                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Depth Measurement Unit</div>
+                {isEditingMetadata ? (
+                  <select
+                    className="bg-sf-void border border-sf-border rounded p-1 mt-1 w-full text-txt-primary font-bold text-xs"
+                    value={metadataForm.depthUnit}
+                    onChange={(e) => setMetadataForm({ ...metadataForm, depthUnit: e.target.value as any })}
+                  >
+                    <option value="ft">Feet (ft)</option>
+                    <option value="m">Metres (m)</option>
+                  </select>
+                ) : (
+                  <div className="font-extrabold text-txt-primary mt-1 text-xs">
+                    {borewell.depthUnit === 'm' ? 'Metric (metres)' : 'Imperial (feet)'}
+                  </div>
+                )}
+              </td>
+              <td className="p-3">
+                <div className="text-[9px] uppercase text-txt-muted font-extrabold tracking-wider">Unit Conversion Quick Check</div>
+                <div className="font-semibold text-txt-secondary mt-1 text-xs">
+                  {borewell.depthUnit === 'm'
+                    ? `${borewell.totalDepth ? (borewell.totalDepth * 3.28084).toFixed(1) : 0} ft equivalent`
+                    : `${borewell.totalDepth ? (borewell.totalDepth / 3.28084).toFixed(1) : 0} m equivalent`}
                 </div>
               </td>
             </tr>
@@ -693,6 +758,7 @@ export function BorewellDetailPage() {
               {selectedEntity.type === 'strata' && (() => {
                 const layer = layers.find(l => l.id === selectedEntity.id);
                 if (!layer) return null;
+                const unit = borewell.depthUnit || 'ft';
                 return (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 font-mono text-[11px]">
                     <div>
@@ -701,11 +767,11 @@ export function BorewellDetailPage() {
                     </div>
                     <div>
                       <span className="text-txt-muted block uppercase text-[9px] font-bold">Depth Range</span>
-                      <span className="font-bold text-txt-primary">{layer.startDepth} - {layer.endDepth} ft</span>
+                      <span className="font-bold text-txt-primary">{layer.startDepth} - {layer.endDepth} {unit}</span>
                     </div>
                     <div>
                       <span className="text-txt-muted block uppercase text-[9px] font-bold">Layer Thickness</span>
-                      <span className="font-bold text-accent">{layer.endDepth - layer.startDepth} ft</span>
+                      <span className="font-bold text-accent">{layer.endDepth - layer.startDepth} {unit}</span>
                     </div>
                     <div>
                       <span className="text-txt-muted block uppercase text-[9px] font-bold">Hatch Type</span>
@@ -721,6 +787,7 @@ export function BorewellDetailPage() {
               {selectedEntity.type === 'pipe' && (() => {
                 const pipe = pipes.find(p => p.id === selectedEntity.id);
                 if (!pipe) return null;
+                const unit = borewell.depthUnit || 'ft';
                 return (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-[11px]">
                     <div>
@@ -729,11 +796,11 @@ export function BorewellDetailPage() {
                     </div>
                     <div>
                       <span className="text-txt-muted block uppercase text-[9px] font-bold">Lowered Depth Range</span>
-                      <span className="font-bold text-txt-primary">{pipe.startDepth} - {pipe.endDepth} ft</span>
+                      <span className="font-bold text-txt-primary">{pipe.startDepth} - {pipe.endDepth} {unit}</span>
                     </div>
                     <div>
                       <span className="text-txt-muted block uppercase text-[9px] font-bold">Casing Segment Length</span>
-                      <span className="font-bold text-success">{pipe.endDepth - pipe.startDepth} ft</span>
+                      <span className="font-bold text-success">{pipe.endDepth - pipe.startDepth} {unit}</span>
                     </div>
                     <div>
                       <span className="text-txt-muted block uppercase text-[9px] font-bold">Casing Nominal Diameter</span>

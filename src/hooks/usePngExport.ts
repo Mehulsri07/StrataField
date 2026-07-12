@@ -9,6 +9,7 @@ export function usePngExport(
   pipes: PipeSegment[]
 ) {
   const addToast = useUIStore((s) => s.addToast);
+  // ponytail: isPrintPreview branch kept as dead code — toggle not yet wired
   const isPrintPreview = false;
 
   const exportPNG = async () => {

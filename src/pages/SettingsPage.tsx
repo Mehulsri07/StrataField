@@ -211,7 +211,9 @@ export function SettingsPage() {
       name: nameClean,
       color: newMatColor,
       pattern: newMatPattern,
-      isCustom: true
+      isCustom: true,
+      lithologyClass: 'OTHER' as const,
+      lithologyFamily: 'OTHER' as const,
     };
 
     try {

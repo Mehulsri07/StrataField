@@ -1,4 +1,5 @@
-import { Settings2, ArrowDownCircle, Waves, AlertCircle } from 'lucide-react';
+import { Settings2, ArrowDownCircle, Waves, AlertCircle, Drill, Ruler } from 'lucide-react';
+import { DRILLING_METHOD_OPTIONS, DEPTH_UNIT_OPTIONS } from '@/shared/constants';
 
 interface BorewellInfoProps {
   formData: any;
@@ -13,11 +14,59 @@ export function BorewellInfoSection({ formData, onChange, errors, touched }: Bor
     return errors[name] ? 'sf-input-error' : 'sf-input-success';
   };
 
+  const depthUnit = formData.depthUnit || 'ft';
+  const unitLabel = depthUnit === 'm' ? 'm' : 'ft';
+
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-accent uppercase tracking-wider border-b border-sf-border pb-1.5">
         Borewell Engineering Specifications
       </h2>
+
+      {/* Drilling Method & Depth Unit Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Drilling Method */}
+        <div>
+          <label className="sf-label flex items-center gap-1.5">
+            <Drill size={14} className="text-txt-muted" /> Drilling Method
+          </label>
+          <select
+            name="drillingMethod"
+            value={formData.drillingMethod || ''}
+            onChange={onChange}
+            className="sf-input"
+          >
+            <option value="">— Select —</option>
+            {DRILLING_METHOD_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Depth Unit Toggle */}
+        <div>
+          <label className="sf-label flex items-center gap-1.5">
+            <Ruler size={14} className="text-txt-muted" /> Depth Unit
+          </label>
+          <div className="flex rounded-lg border border-sf-border overflow-hidden mt-0.5">
+            {DEPTH_UNIT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChange({ target: { name: 'depthUnit', value: opt.value } } as any)}
+                className={`flex-1 py-2 text-xs font-bold transition-all cursor-pointer ${
+                  depthUnit === opt.value
+                    ? 'bg-accent text-white'
+                    : 'bg-sf-surface text-txt-secondary hover:bg-sf-surface-2'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Bore Diameter */}
         <div>
@@ -54,7 +103,7 @@ export function BorewellInfoSection({ formData, onChange, errors, touched }: Bor
         {/* Total Depth */}
         <div>
           <label className="sf-label flex items-center gap-1.5">
-            <ArrowDownCircle size={14} className="text-accent" /> Total Depth (ft)
+            <ArrowDownCircle size={14} className="text-accent" /> Total Depth ({unitLabel})
           </label>
           <input
             type="number"
@@ -75,7 +124,7 @@ export function BorewellInfoSection({ formData, onChange, errors, touched }: Bor
         {/* Water Level */}
         <div>
           <label className="sf-label flex items-center gap-1.5">
-            <Waves size={14} className="text-water-level" /> Water Level (ft)
+            <Waves size={14} className="text-water-level" /> Water Level ({unitLabel})
           </label>
           <input
             type="number"

@@ -104,4 +104,3 @@ export function registerSettingsHandlers(): void {
     }
   });
 }
-export default registerSettingsHandlers;

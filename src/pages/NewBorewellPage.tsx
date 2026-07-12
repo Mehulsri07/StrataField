@@ -15,7 +15,7 @@ import { Save, ArrowLeft, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { parse as parseExif } from 'exifr';
 import type { Borewell } from '@/shared/types';
 import { validateBorewellField } from '@/shared/validation';
-import { SCAN_KEYWORDS } from '@/shared/constants';
+import { SCAN_KEYWORDS, colLetterToNum, numToColLetter } from '@/shared/constants';
 import { BorewellProfileDrawing } from '@/components/ui/BorewellProfileDrawing';
 
 export function NewBorewellPage() {
@@ -49,6 +49,8 @@ export function NewBorewellPage() {
     waterLevel: '' as string | number,
     remarks: '',
     date: new Date().toISOString().split('T')[0],
+    drillingMethod: '' as string,
+    depthUnit: 'ft' as string,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -336,24 +338,6 @@ export function NewBorewellPage() {
 
     // Fallback keyword scanning
     if (!newFormData.ownerName || !newFormData.city) {
-      const colLetterToNum = (val: string): number => {
-        let num = 0;
-        for (let i = 0; i < val.length; i++) {
-          num = num * 26 + (val.charCodeAt(i) - 64);
-        }
-        return num - 1;
-      };
-
-      const numToColLetter = (num: number): string => {
-        let temp = '';
-        let idx = num;
-        while (idx >= 0) {
-          temp = String.fromCharCode((idx % 26) + 65) + temp;
-          idx = Math.floor(idx / 26) - 1;
-        }
-        return temp;
-      };
-
       const assignedFields: Record<string, boolean> = {};
 
       Object.entries(cells).forEach(([key, cellObj]) => {
@@ -541,7 +525,9 @@ export function NewBorewellPage() {
       updatedAt: new Date().toISOString(),
       importSource: null,
       importMethod: 'manual',
-      deletedAt: null
+      deletedAt: null,
+      drillingMethod: (formData.drillingMethod || null) as any,
+      depthUnit: (formData.depthUnit || 'ft') as any,
     };
   };
 

@@ -80,8 +80,9 @@ export const borewellRepository = {
         INSERT INTO borewells (
           id, borewell_id, project, owner_name, house_no, area, city, address,
           latitude, longitude, bore_dia, pipe_dia, total_depth, water_level,
-          remarks, date, created_at, updated_at, import_source, import_method, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          remarks, date, created_at, updated_at, import_source, import_method, deleted_at,
+          drilling_method, depth_unit
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(sql, [
         b.id,
@@ -104,7 +105,9 @@ export const borewellRepository = {
         b.updatedAt,
         b.importSource || null,
         b.importMethod || 'manual',
-        b.deletedAt || null
+        b.deletedAt || null,
+        b.drillingMethod || null,
+        b.depthUnit || 'ft'
       ]);
       saveDatabase();
     } catch (err) {
@@ -222,7 +225,17 @@ export const borewellRepository = {
           )`;
           params.push(queryVal, queryVal, queryVal, queryVal, queryVal, queryVal, queryVal);
         } else {
-          const snakeField = filters.field.replace(/([A-Z])/g, '_$1').toLowerCase();
+          // Whitelist allowed column names to prevent SQL injection
+          const ALLOWED_FIELDS: Record<string, string> = {
+            borewellId: 'borewell_id',
+            ownerName:  'owner_name',
+            area:       'area',
+            city:       'city',
+            date:       'date',
+            project:    'project',
+          };
+          const snakeField = ALLOWED_FIELDS[filters.field];
+          if (!snakeField) throw new Error(`Invalid search field: ${filters.field}`);
           sql += ` AND ${snakeField} LIKE ?`;
           params.push(queryVal);
         }

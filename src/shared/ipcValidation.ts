@@ -44,6 +44,7 @@ export function validateStrataLayerInput(layer: unknown): StrataLayer {
     startDepth,
     endDepth,
     material: l.material,
+    materialId: typeof l.materialId === 'string' ? l.materialId : null,
     color: typeof l.color === 'string' ? l.color : '#8D6E63',
     pattern: typeof l.pattern === 'string' ? l.pattern : 'solid',
     remarks: typeof l.remarks === 'string' ? l.remarks : '',
@@ -83,12 +84,18 @@ export function validatePipeSegmentInput(segment: unknown): PipeSegment {
     throw new Error(`Pipe segment ${p.id}: pipeType must be 'plain' or 'slotted', got '${p.pipeType}'`);
   }
 
+  const validSubtypes = ['PLAIN', 'RIBBED_SCREEN', 'SLOTTED', 'MS_SLOTTED'] as const;
+  const pipeSubtype = typeof p.pipeSubtype === 'string' && validSubtypes.includes(p.pipeSubtype as any)
+    ? p.pipeSubtype as typeof validSubtypes[number]
+    : null;
+
   return {
     id: p.id,
     borewellId: p.borewellId,
     startDepth,
     endDepth,
     pipeType: p.pipeType as 'plain' | 'slotted',
+    pipeSubtype,
   };
 }
 
@@ -119,5 +126,7 @@ export function validateMaterialInput(data: unknown): Material {
     color: m.color,
     pattern: typeof m.pattern === 'string' ? m.pattern : 'solid',
     isCustom: typeof m.isCustom === 'boolean' ? m.isCustom : true,
+    lithologyClass: typeof m.lithologyClass === 'string' ? m.lithologyClass as any : null,
+    lithologyFamily: typeof m.lithologyFamily === 'string' ? m.lithologyFamily as any : null,
   };
 }

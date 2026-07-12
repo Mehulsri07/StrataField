@@ -6,27 +6,6 @@
 import type { Borewell, StrataLayer, PipeSegment } from './types';
 
 /**
- * Validates coordinate ranges (Latitude: -90 to 90, Longitude: -180 to 180)
- */
-export function validateCoordinates(lat: number | null, lng: number | null): string[] {
-  const errors: string[] = [];
-
-  if (lat !== null) {
-    if (isNaN(lat) || lat < -90 || lat > 90) {
-      errors.push('Latitude must be a valid number between -90 and 90 degrees.');
-    }
-  }
-
-  if (lng !== null) {
-    if (isNaN(lng) || lng < -180 || lng > 180) {
-      errors.push('Longitude must be a valid number between -180 and 180 degrees.');
-    }
-  }
-
-  return errors;
-}
-
-/**
  * Validates borewell header metadata properties.
  * Latitude and longitude are optional — GPS may not always be captured at logging time.
  */

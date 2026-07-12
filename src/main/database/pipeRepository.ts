@@ -36,8 +36,8 @@ export const pipeRepository = {
 
       // Bulk insert new segments
       const sql = `
-        INSERT INTO pipe_assemblies (id, borewell_id, start_depth, end_depth, pipe_type)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO pipe_assemblies (id, borewell_id, start_depth, end_depth, pipe_type, pipe_subtype)
+        VALUES (?, ?, ?, ?, ?, ?)
       `;
 
       segments.forEach((p) => {
@@ -46,7 +46,8 @@ export const pipeRepository = {
           borewellId,
           p.startDepth,
           p.endDepth,
-          p.pipeType
+          p.pipeType,
+          p.pipeSubtype || null
         ]);
       });
 

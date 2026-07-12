@@ -1,8 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
-import initSqlJs from 'sql.js';
 import { getDb, reloadDatabase } from '../database/db';
+
+// Load sql.js the same way db.ts does — dynamically from resources/ in packaged
+// builds so we don't depend on node_modules being in the asar.
+async function loadSqlJs() {
+  if (app.isPackaged) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require(path.join(process.resourcesPath, 'sql-wasm.js'));
+  }
+  return (await import('sql.js')).default;
+}
 
 export const backupService = {
   getSettings() {
@@ -170,6 +179,7 @@ export const backupService = {
         : require.resolve('sql.js/dist/sql-wasm.wasm');
       const wasmBinary = fs.readFileSync(wasmPath);
       
+      const initSqlJs = await loadSqlJs();
       const SQL = await initSqlJs({ wasmBinary: wasmBinary as any });
       const db = new SQL.Database(fileBuffer);
       const integrity = db.exec('PRAGMA integrity_check');

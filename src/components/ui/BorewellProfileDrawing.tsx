@@ -109,9 +109,8 @@ export const BorewellProfileDrawing: React.FC<BorewellProfileDrawingProps> = ({
   onMoveLayer,
   viewMode: propViewMode,
 }) => {
-  const isPrintPreview = false;
-  const [localViewMode] = useState<'engineering' | 'raw'>('engineering');
-  const viewMode = propViewMode !== undefined ? propViewMode : localViewMode;
+  const isPrintPreview = false; // ponytail: print preview branch kept as dead code — UI toggle not yet wired
+  const viewMode = propViewMode ?? 'engineering';
 
   const totalDepth = borewell.totalDepth || 250;
   const drawingHeight = totalDepth * scaleFactor;

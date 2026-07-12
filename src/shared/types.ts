@@ -3,6 +3,35 @@
  * Used by both the Electron main process and the React renderer.
  */
 
+// ─── Lithology Taxonomy ─────────────────────────────────────────────────────
+
+export type LithologyFamily = 'CLAY' | 'SAND' | 'OTHER';
+
+export type LithologyClass =
+  // CLAY family
+  | 'CLAY'
+  | 'SILTY_CLAY'
+  | 'SANDY_CLAY'
+  | 'SILT'
+  | 'KANKAR'         // "Kanker clay" / "Kankar" — calcium carbonate nodules
+  // SAND family
+  | 'FINE_SAND'      // "Sand (Fine)"
+  | 'MEDIUM_SAND'    // "Sand" (default)
+  | 'COARSE_SAND'
+  | 'YELLOW_SAND'    // "Sand (Y)" — oxidized, paleochannel indicator
+  | 'GRAVEL'
+  | 'SANDY_GRAVEL'
+  // OTHER
+  | 'FILL'
+  | 'ROCK'
+  | 'OTHER';
+
+export type DrillingMethod = 'ROTARY' | 'DTH' | 'MANUAL' | 'UNKNOWN';
+
+export type DepthUnit = 'ft' | 'm';
+
+export type PipeSubtype = 'PLAIN' | 'RIBBED_SCREEN' | 'SLOTTED' | 'MS_SLOTTED';
+
 // ─── Core Domain Models ──────────────────────────────────────────────────────
 
 export interface Borewell {
@@ -18,8 +47,8 @@ export interface Borewell {
   longitude: number | null;
   boreDia: number | null;   // inches
   pipeDia: number | null;   // inches
-  totalDepth: number | null; // feet
-  waterLevel: number | null; // feet
+  totalDepth: number | null; // feet (or metres if depthUnit='m')
+  waterLevel: number | null; // feet (or metres if depthUnit='m')
   remarks: string;
   date: string;             // ISO date string
   createdAt: string;        // ISO datetime
@@ -27,6 +56,8 @@ export interface Borewell {
   importSource: string | null; // file name or null
   importMethod: 'excel' | 'manual';
   deletedAt: string | null;  // ISO datetime if soft-deleted, else null
+  drillingMethod: DrillingMethod | null;
+  depthUnit: DepthUnit;
 }
 
 export interface StrataLayer {
@@ -35,6 +66,7 @@ export interface StrataLayer {
   startDepth: number;       // feet
   endDepth: number;         // feet
   material: string;
+  materialId: string | null; // FK → Material.id (canonical reference)
   color: string;            // hex
   pattern: string;          // pattern name (e.g. "dots", "lines", "solid")
   remarks: string;
@@ -48,6 +80,7 @@ export interface PipeSegment {
   startDepth: number;       // feet
   endDepth: number;         // feet
   pipeType: PipeType;
+  pipeSubtype: PipeSubtype | null;
 }
 
 export interface Photo {
@@ -72,6 +105,82 @@ export interface Material {
   color: string;            // hex color
   pattern: string;          // pattern type
   isCustom: boolean;
+  lithologyClass: LithologyClass | null;
+  lithologyFamily: LithologyFamily | null;
+}
+
+// ─── Smart Parser Types ─────────────────────────────────────────────────────
+
+export type AnomalyCode =
+  | 'MULTI_BOREWELL_SHEET'   // warning — only first parsed
+  | 'UNIT_AMBIGUOUS'         // warning — inferred from intervals
+  | 'UNIT_MIXED'             // warning — metadata vs intervals disagree
+  | 'MATERIAL_UNKNOWN'       // warning — kept as-is, needs mapping
+  | 'DEPTH_NON_MONOTONIC'    // warning — row skipped
+  | 'DEPTH_GAP'              // warning — gap > expected step
+  | 'DEPTH_OVERLAP'          // warning — layer end > next start
+  | 'WATER_LEVEL_MISSING'    // warning — enter manually
+  | 'DATE_MISSING'           // warning — enter manually
+  | 'SITE_NAME_MISSING'      // warning — enter manually
+  | 'NO_STRATA_FOUND'        // critical — triggers manual review
+  | 'NON_STANDARD_FORMAT'    // critical — triggers manual review
+  | 'PIPE_TYPE_UNKNOWN';     // warning — defaulted to plain
+
+export type AnomalySeverity = 'warning' | 'critical';
+
+export interface ParseAnomaly {
+  code: AnomalyCode;
+  severity: AnomalySeverity;
+  message: string;
+  row?: number;
+}
+
+export interface ParsedBoreholeMetadata {
+  siteName: string | null;
+  ownerName: string | null;
+  address: string | null;
+  city: string | null;
+  date: string | null;
+  boreDia: number | null;
+  pipeDia: number | null;
+  totalDepth: number | null;  // always in feet
+  waterLevel: number | null;  // always in feet
+  detectedUnit: DepthUnit;
+}
+
+export interface ParsedStrataLayer {
+  startDepth: number;   // always in feet
+  endDepth: number;     // always in feet
+  material: string;     // normalised name
+  materialId: string | null;
+  color: string;
+  pattern: string;
+}
+
+export interface ParsedPipeSegment {
+  startDepth: number;
+  endDepth: number;
+  pipeType: PipeType;
+  pipeSubtype: PipeSubtype | null;
+  originalLabel: string;
+}
+
+export interface ExcelParseResult {
+  success: boolean;
+  metadata: ParsedBoreholeMetadata;
+  strata: ParsedStrataLayer[];
+  pipes: ParsedPipeSegment[];
+  anomalies: ParseAnomaly[];
+  requiresManualReview: boolean;  // true if any CRITICAL anomaly
+}
+
+// ─── Unmapped Material (for data cleanup) ───────────────────────────────────
+
+export interface UnmappedMaterial {
+  material: string;       // free-text value in strata_layers
+  layerCount: number;     // how many layers use this value
+  suggestedMatch: string | null;  // best fuzzy match from materials dictionary
+  suggestedMatchId: string | null;
 }
 
 // ─── Search & Filters ────────────────────────────────────────────────────────
@@ -163,6 +272,8 @@ export const IPC_CHANNELS = {
   // Strata layers
   STRATA_GET: 'strata:get',
   STRATA_SAVE: 'strata:save',
+  STRATA_GET_UNMAPPED: 'strata:getUnmapped',
+  STRATA_REMAP_MATERIAL: 'strata:remapMaterial',
 
   // Pipe assembly
   PIPE_GET: 'pipe:get',
@@ -205,6 +316,7 @@ export const IPC_CHANNELS = {
 
   // Excel import
   EXCEL_PARSE: 'excel:parse',
+  EXCEL_SMART_PARSE: 'excel:smartParse',
 
   // Export
   EXPORT_PDF: 'export:pdf',

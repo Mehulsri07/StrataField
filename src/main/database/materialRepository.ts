@@ -17,15 +17,17 @@ export const materialRepository = {
     const db = getDb();
     try {
       const sql = `
-        INSERT INTO materials (id, name, color, pattern, is_custom)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO materials (id, name, color, pattern, is_custom, lithology_class, lithology_family)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `;
       db.run(sql, [
         m.id,
         m.name,
         m.color,
         m.pattern,
-        m.isCustom ? 1 : 0
+        m.isCustom ? 1 : 0,
+        m.lithologyClass || null,
+        m.lithologyFamily || null
       ]);
       saveDatabase();
     } catch (err) {
@@ -70,6 +72,8 @@ export const materialRepository = {
   delete(id: string): void {
     const db = getDb();
     try {
+      // Null out any strata layers referencing this material before deleting
+      db.run('UPDATE strata_layers SET material_id = NULL WHERE material_id = ?', [id]);
       db.run('DELETE FROM materials WHERE id = ?', [id]);
       saveDatabase();
     } catch (err) {

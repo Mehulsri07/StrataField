@@ -68,7 +68,9 @@ export function StrataEditorPage() {
       name: newMatName.trim(),
       color: newMatColor,
       pattern: newMatPattern,
-      isCustom: true
+      isCustom: true,
+      lithologyClass: 'OTHER' as const,
+      lithologyFamily: 'OTHER' as const,
     };
 
     try {
@@ -162,8 +164,10 @@ export function StrataEditorPage() {
   };
 
   // Debounced auto-save (1.5s delay)
+  // NOTE: previously bailed on empty layers/pipes, meaning "clear all" was never
+  // persisted. Now we always save once loaded so a deliberate clear is honoured.
   useEffect(() => {
-    if (!id || !isLoaded || (layers.length === 0 && pipes.length === 0)) return;
+    if (!id || !isLoaded) return;
 
     for (const layer of layers) {
       if (layer.startDepth >= layer.endDepth) return;
@@ -239,7 +243,8 @@ export function StrataEditorPage() {
       startDepth: start,
       endDepth: end,
       material: 'Sand',
-      color: '#E0C097',
+      materialId: 'medium_sand',
+      color: '#D4B862',
       pattern: 'dots',
       remarks: '',
     };
@@ -300,6 +305,7 @@ export function StrataEditorPage() {
       startDepth: start,
       endDepth: end,
       pipeType: 'plain',
+      pipeSubtype: 'PLAIN',
     };
 
     setLocalPipes((prev) => [...prev, newPipe]);
@@ -559,12 +565,104 @@ export function StrataEditorPage() {
 
                 <div>
                   <label className="sf-label">Material Name</label>
-                  <input
-                    type="text"
+                  <select
                     value={selectedLayer.material}
-                    onChange={(e) => handleUpdateLayer({ material: e.target.value })}
+                    onChange={(e) => {
+                      const matName = e.target.value;
+                      if (matName === '__create_custom__') {
+                        setIsCreatingMaterial(true);
+                        setNewMatName('');
+                        return;
+                      }
+                      const mat = materials.find(m => m.name === matName);
+                      if (mat) {
+                        handleUpdateLayer({
+                          material: mat.name,
+                          materialId: mat.id,
+                          color: mat.color,
+                          pattern: mat.pattern,
+                        });
+                      } else {
+                        handleUpdateLayer({ material: matName });
+                      }
+                    }}
                     className="sf-input text-xs"
-                  />
+                  >
+                    {/* If current value isn't in the list, show it as first option */}
+                    {!materials.some(m => m.name === selectedLayer.material) && (
+                      <option value={selectedLayer.material}>{selectedLayer.material} (unmapped)</option>
+                    )}
+                    {materials.map((mat) => (
+                      <option key={mat.id} value={mat.name}>
+                        {mat.name} {mat.lithologyFamily ? `[${mat.lithologyFamily}]` : ''}
+                      </option>
+                    ))}
+                    <option value="__create_custom__">+ Add Custom Material...</option>
+                  </select>
+                  {selectedLayer.materialId && (
+                    <span className="text-[9px] text-txt-muted mt-1 block">
+                      Linked: <span className="font-mono text-accent">{selectedLayer.materialId}</span>
+                    </span>
+                  )}
+
+                  {isCreatingMaterial && (
+                    <form onSubmit={handleCreateCustomMaterial} className="mt-3 p-3 bg-sf-surface-2 border border-sf-border rounded-lg space-y-2.5 animate-slide-down">
+                      <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">New Custom Material</h4>
+                      <div>
+                        <label className="text-[10px] text-txt-muted block mb-1">Material Name</label>
+                        <input
+                          type="text"
+                          value={newMatName}
+                          onChange={(e) => setNewMatName(e.target.value)}
+                          className="sf-input text-xs"
+                          placeholder="e.g. Fine Clay"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-txt-muted block mb-1">Color</label>
+                          <input
+                            type="color"
+                            value={newMatColor}
+                            onChange={(e) => setNewMatColor(e.target.value)}
+                            className="w-full h-8 rounded border border-sf-border cursor-pointer bg-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-txt-muted block mb-1">Pattern</label>
+                          <select
+                            value={newMatPattern}
+                            onChange={(e) => setNewMatPattern(e.target.value)}
+                            className="sf-input text-xs"
+                          >
+                            <option value="solid">Solid</option>
+                            <option value="dots">Dots</option>
+                            <option value="lines">Lines</option>
+                            <option value="crosses">Crosses</option>
+                            <option value="bricks">Bricks</option>
+                            <option value="diagonal">Diagonal</option>
+                            <option value="circles">Circles</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setIsCreatingMaterial(false)}
+                          className="sf-btn-secondary py-1 px-2.5 text-[10px]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="sf-btn-primary py-1 px-2.5 text-[10px]"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

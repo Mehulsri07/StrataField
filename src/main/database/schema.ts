@@ -28,7 +28,9 @@ export const CREATE_TABLES_SQL = `
     updated_at TEXT NOT NULL,
     import_source TEXT,
     import_method TEXT,
-    deleted_at TEXT
+    deleted_at TEXT,
+    drilling_method TEXT CHECK(drilling_method IN ('ROTARY','DTH','MANUAL','UNKNOWN') OR drilling_method IS NULL),
+    depth_unit TEXT NOT NULL DEFAULT 'ft' CHECK(depth_unit IN ('ft','m'))
   );
 
   -- Strata Layers Table
@@ -38,10 +40,12 @@ export const CREATE_TABLES_SQL = `
     start_depth REAL NOT NULL,
     end_depth REAL NOT NULL,
     material TEXT NOT NULL,
+    material_id TEXT,
     color TEXT NOT NULL,
     pattern TEXT NOT NULL,
     remarks TEXT,
-    FOREIGN KEY(borewell_id) REFERENCES borewells(id) ON DELETE CASCADE
+    FOREIGN KEY(borewell_id) REFERENCES borewells(id) ON DELETE CASCADE,
+    FOREIGN KEY(material_id) REFERENCES materials(id)
   );
 
   -- Pipe Assemblies Table
@@ -51,6 +55,7 @@ export const CREATE_TABLES_SQL = `
     start_depth REAL NOT NULL,
     end_depth REAL NOT NULL,
     pipe_type TEXT NOT NULL,
+    pipe_subtype TEXT CHECK(pipe_subtype IN ('PLAIN','RIBBED_SCREEN','SLOTTED','MS_SLOTTED') OR pipe_subtype IS NULL),
     FOREIGN KEY(borewell_id) REFERENCES borewells(id) ON DELETE CASCADE
   );
 
@@ -78,7 +83,13 @@ export const CREATE_TABLES_SQL = `
     name TEXT NOT NULL UNIQUE,
     color TEXT NOT NULL,
     pattern TEXT NOT NULL,
-    is_custom INTEGER NOT NULL DEFAULT 0
+    is_custom INTEGER NOT NULL DEFAULT 0,
+    lithology_class TEXT CHECK(lithology_class IN (
+      'CLAY','SILTY_CLAY','SANDY_CLAY','SILT','KANKAR',
+      'FINE_SAND','MEDIUM_SAND','COARSE_SAND','YELLOW_SAND','GRAVEL','SANDY_GRAVEL',
+      'FILL','ROCK','OTHER'
+    ) OR lithology_class IS NULL),
+    lithology_family TEXT CHECK(lithology_family IN ('CLAY','SAND','OTHER') OR lithology_family IS NULL)
   );
 
   -- Geocoding Cache Table
@@ -95,6 +106,7 @@ export const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_borewells_city ON borewells(city);
   CREATE INDEX IF NOT EXISTS idx_borewells_project ON borewells(project);
   CREATE INDEX IF NOT EXISTS idx_strata_borewell_id ON strata_layers(borewell_id);
+  CREATE INDEX IF NOT EXISTS idx_strata_material_id ON strata_layers(material_id);
   CREATE INDEX IF NOT EXISTS idx_pipe_borewell_id ON pipe_assemblies(borewell_id);
   CREATE INDEX IF NOT EXISTS idx_photos_borewell_id ON photos(borewell_id);
   CREATE INDEX IF NOT EXISTS idx_files_borewell_id ON files(borewell_id);

@@ -5,7 +5,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from './shared/types';
-import type { Borewell, SearchFilters, StrataLayer, PipeSegment, Material, Photo, BorewellFile, AppSettings } from './shared/types';
+import type { Borewell, SearchFilters, StrataLayer, PipeSegment, Material, Photo, BorewellFile, AppSettings, ExcelParseResult, UnmappedMaterial } from './shared/types';
 
 contextBridge.exposeInMainWorld('api', {
   db: {
@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('api', {
 
     getStrata: (borewellId: string): Promise<StrataLayer[]> => ipcRenderer.invoke(IPC_CHANNELS.STRATA_GET, borewellId),
     saveStrata: (borewellId: string, layers: StrataLayer[]): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.STRATA_SAVE, borewellId, layers),
+    getUnmappedMaterials: (): Promise<UnmappedMaterial[]> => ipcRenderer.invoke(IPC_CHANNELS.STRATA_GET_UNMAPPED),
+    remapMaterial: (oldMaterial: string, newMaterialId: string): Promise<number> => ipcRenderer.invoke(IPC_CHANNELS.STRATA_REMAP_MATERIAL, oldMaterial, newMaterialId),
     
     getPipes: (borewellId: string): Promise<PipeSegment[]> => ipcRenderer.invoke(IPC_CHANNELS.PIPE_GET, borewellId),
     savePipes: (borewellId: string, segments: PipeSegment[]): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.PIPE_SAVE, borewellId, segments),
@@ -42,6 +44,7 @@ contextBridge.exposeInMainWorld('api', {
     saveFiles: (borewellId: string, files: Omit<BorewellFile, 'id' | 'borewellId'>): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.FILE_SAVE, borewellId, files),
     openPath: (filePath: string): Promise<string> => ipcRenderer.invoke('file:openPath', filePath),
     parseExcel: (filePath: string): Promise<{ cells: Record<string, { v: any; w: string }>; rows: any[][] }> => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_PARSE, filePath),
+    smartParseExcel: (filePath: string): Promise<ExcelParseResult> => ipcRenderer.invoke(IPC_CHANNELS.EXCEL_SMART_PARSE, filePath),
     importSave: (data: { borewell: Borewell; strata: StrataLayer[]; pipes: PipeSegment[] }): Promise<{ success: boolean }> => ipcRenderer.invoke('import:save', data),
   },
 
