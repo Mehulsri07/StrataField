@@ -41,6 +41,18 @@ app.on('ready', async () => {
   try {
     await initDatabase();
     registerAllIpcHandlers();
+
+    // Periodic backup every 10 minutes — catches power cuts and task-kills that
+    // skip before-quit. The backup service runs integrity_check before writing
+    // so a bad DB is never silently backed up over a good one.
+    const TEN_MINUTES = 10 * 60 * 1000;
+    setInterval(() => {
+      try {
+        backupService.performBackup();
+      } catch (err) {
+        console.error('Periodic backup failed:', err);
+      }
+    }, TEN_MINUTES);
   } catch (err) {
     console.error('Failed to initialize database during startup:', err);
     // Still open the window — the renderer will show IPC errors rather than a blank crash

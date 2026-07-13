@@ -221,9 +221,17 @@ export const borewellRepository = {
             city LIKE ? OR
             project LIKE ? OR
             remarks LIKE ? OR
-            id IN (SELECT DISTINCT borewell_id FROM strata_layers WHERE material LIKE ?)
+            id IN (
+              SELECT DISTINCT borewell_id FROM strata_layers sl
+              WHERE sl.material LIKE ?
+                 OR EXISTS (
+                   SELECT 1 FROM materials m
+                   WHERE m.id = sl.material_id
+                     AND (m.name LIKE ? OR m.lithology_family LIKE ?)
+                 )
+            )
           )`;
-          params.push(queryVal, queryVal, queryVal, queryVal, queryVal, queryVal, queryVal);
+          params.push(queryVal, queryVal, queryVal, queryVal, queryVal, queryVal, queryVal, queryVal, queryVal);
         } else {
           // Whitelist allowed column names to prevent SQL injection
           const ALLOWED_FIELDS: Record<string, string> = {
@@ -262,8 +270,21 @@ export const borewellRepository = {
       }
 
       if (filters.material) {
-        sql += ' AND id IN (SELECT DISTINCT borewell_id FROM strata_layers WHERE material LIKE ?)';
-        params.push(`%${filters.material}%`);
+        // Match against both the free-text material column (legacy rows where
+        // material_id IS NULL) and the canonical lithology_family via the FK.
+        // This ensures analytical queries don't silently undercount records that
+        // were imported before material_id backfill ran.
+        sql += ` AND id IN (
+          SELECT DISTINCT borewell_id FROM strata_layers sl
+          WHERE sl.material LIKE ?
+             OR EXISTS (
+               SELECT 1 FROM materials m
+               WHERE m.id = sl.material_id
+                 AND (m.name LIKE ? OR m.lithology_family LIKE ? OR m.lithology_class LIKE ?)
+             )
+        )`;
+        const matVal = `%${filters.material}%`;
+        params.push(matVal, matVal, matVal, matVal);
       }
 
       if (filters.minDepth != null) {
