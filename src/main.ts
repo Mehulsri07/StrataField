@@ -21,6 +21,12 @@ const createWindow = () => {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      // Explicit security settings — do not rely on Electron defaults which
+      // could change between major versions without a visible compile error.
+      contextIsolation: true,   // renderer cannot access Node/Electron APIs directly
+      nodeIntegration: false,   // Node.js is not available in the renderer process
+      sandbox: false,           // required for preload script to use Node APIs (path, ipcRenderer)
+      webSecurity: true,        // enforces same-origin policy in the renderer
     },
   });
 

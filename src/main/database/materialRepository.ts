@@ -38,30 +38,29 @@ export const materialRepository = {
 
   update(id: string, m: Partial<Material>): void {
     const db = getDb();
+
+    const ALLOWED_UPDATE_KEYS = new Set([
+      'name', 'color', 'pattern', 'isCustom', 'lithologyClass', 'lithologyFamily',
+    ]);
+
     try {
       const sets: string[] = [];
       const params: any[] = [];
 
       Object.entries(m).forEach(([key, value]) => {
-        if (key !== 'id') {
-          // Convert key to snake_case
-          const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-          sets.push(`${snakeKey} = ?`);
-          
-          if (key === 'isCustom') {
-            params.push(value ? 1 : 0);
-          } else {
-            params.push(value);
-          }
+        if (key === 'id') return;
+        if (!ALLOWED_UPDATE_KEYS.has(key)) {
+          throw new Error(`Update rejected: field '${key}' is not an allowed material field.`);
         }
+        const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        sets.push(`${snakeKey} = ?`);
+        params.push(key === 'isCustom' ? (value ? 1 : 0) : value);
       });
 
       if (sets.length === 0) return;
 
       params.push(id);
-
-      const sql = `UPDATE materials SET ${sets.join(', ')} WHERE id = ?`;
-      db.run(sql, params);
+      db.run(`UPDATE materials SET ${sets.join(', ')} WHERE id = ?`, params);
       saveDatabase();
     } catch (err) {
       console.error(`Failed to update material ${id}:`, err);

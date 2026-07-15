@@ -129,17 +129,29 @@ export const borewellRepository = {
       }
     }
 
+    // Allowlist: only these camelCase keys may appear in an update payload.
+    // The regex-based snake_case conversion that follows is safe only when the
+    // key is known — an attacker-controlled key like "id; DROP TABLE" would
+    // otherwise land directly in the SET clause.
+    const ALLOWED_UPDATE_KEYS = new Set([
+      'borewellId', 'project', 'ownerName', 'houseNo', 'area', 'city',
+      'address', 'latitude', 'longitude', 'boreDia', 'pipeDia', 'totalDepth',
+      'waterLevel', 'remarks', 'date', 'updatedAt', 'importSource',
+      'importMethod', 'deletedAt', 'drillingMethod', 'depthUnit',
+    ]);
+
     try {
       const sets: string[] = [];
       const params: any[] = [];
 
       Object.entries(b).forEach(([key, value]) => {
-        if (key !== 'id' && key !== 'createdAt') {
-          // Convert camelCase key to snake_case column name
-          const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-          sets.push(`${snakeKey} = ?`);
-          params.push(value);
+        if (key === 'id' || key === 'createdAt') return;
+        if (!ALLOWED_UPDATE_KEYS.has(key)) {
+          throw new Error(`Update rejected: field '${key}' is not an allowed borewell field.`);
         }
+        const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        sets.push(`${snakeKey} = ?`);
+        params.push(value);
       });
 
       if (sets.length === 0) return;
@@ -147,11 +159,9 @@ export const borewellRepository = {
       const updatedAt = new Date().toISOString();
       sets.push('updated_at = ?');
       params.push(updatedAt);
-
       params.push(id);
 
-      const sql = `UPDATE borewells SET ${sets.join(', ')} WHERE id = ?`;
-      db.run(sql, params);
+      db.run(`UPDATE borewells SET ${sets.join(', ')} WHERE id = ?`, params);
       saveDatabase();
     } catch (err) {
       console.error(`Failed to update borewell ${id}:`, err);
