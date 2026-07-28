@@ -196,24 +196,28 @@ export const backupService = {
     try {
       const settings = this.getSettings();
       const backupDir = settings.backupPath || path.join(app.getPath('home'), 'StrataFieldBackups');
-      const backupFilePath = path.join(backupDir, filename);
+
+      // Strip any directory components — path.basename rejects ../../../etc
+      // so the resolved path is always inside backupDir, not wherever
+      // a crafted filename might point.
+      const safeFilename = path.basename(filename);
+      if (safeFilename !== filename) {
+        throw new Error(`Invalid backup filename: path traversal characters not allowed.`);
+      }
+      const backupFilePath = path.join(backupDir, safeFilename);
 
       if (!fs.existsSync(backupFilePath)) {
         throw new Error(`Backup file not found at: ${backupFilePath}`);
       }
 
-      // Verify integrity before restoring
       const isValid = await this.verifyBackupIntegrity(backupFilePath);
       if (!isValid) {
         throw new Error('Backup file is corrupted or not a valid SQLite database.');
       }
 
-      // Read backup file buffer
       const buffer = fs.readFileSync(backupFilePath);
-      
-      // Perform database reload
       await reloadDatabase(buffer);
-      console.log(`BackupService: Successfully restored database from backup file: ${filename}`);
+      console.log(`BackupService: Successfully restored database from backup file: ${safeFilename}`);
       return true;
     } catch (err) {
       console.error(`BackupService: Failed to restore backup ${filename}:`, err);

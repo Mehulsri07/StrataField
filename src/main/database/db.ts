@@ -83,7 +83,11 @@ export function saveDatabase(): void {
   if (!dbInstance || !dbPath) return;
   try {
     const binaryArray = dbInstance.export();
-    fs.writeFileSync(dbPath, Buffer.from(binaryArray));
+    // Write to a temp file then rename — rename is atomic on the same filesystem.
+    // A crash mid-write corrupts only .tmp, never the live .db file.
+    const tmpPath = `${dbPath}.tmp`;
+    fs.writeFileSync(tmpPath, Buffer.from(binaryArray));
+    fs.renameSync(tmpPath, dbPath);
   } catch (err) {
     console.error('Failed to save SQLite database file:', err);
   }
@@ -97,7 +101,10 @@ export async function reloadDatabase(buffer: Buffer): Promise<void> {
       }
     }
 
-    fs.writeFileSync(dbPath, buffer);
+    // Atomic write — write to temp then rename so a crash doesn't corrupt the live file
+    const tmpPath = `${dbPath}.tmp`;
+    fs.writeFileSync(tmpPath, buffer);
+    fs.renameSync(tmpPath, dbPath);
 
     const wasmPath = app.isPackaged
       ? path.join(process.resourcesPath, 'sql-wasm.wasm')
@@ -133,9 +140,11 @@ function populateDefaultMaterials(db: SqlJsType.Database): void {
   try {
     console.log('Database Sync: Syncing central materials dictionary with default geological values...');
     db.run('BEGIN TRANSACTION');
-    db.run('DELETE FROM materials WHERE is_custom = 0');
+    // INSERT OR REPLACE preserves existing rows' IDs so strata_layers.material_id FKs
+    // are never orphaned. The previous DELETE+INSERT approach would silently break FK
+    // references if the DEFAULT_MATERIALS array was ever reordered or an ID was renamed.
     const stmt = db.prepare(
-      'INSERT OR IGNORE INTO materials (id, name, color, pattern, is_custom, lithology_class, lithology_family) VALUES (?, ?, ?, ?, 0, ?, ?)'
+      'INSERT OR REPLACE INTO materials (id, name, color, pattern, is_custom, lithology_class, lithology_family) VALUES (?, ?, ?, ?, 0, ?, ?)'
     );
     for (const m of DEFAULT_MATERIALS) {
       stmt.run([m.id, m.name, m.color, m.pattern, m.lithologyClass || null, m.lithologyFamily || null]);
