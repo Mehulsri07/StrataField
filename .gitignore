@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+.kiro/
+stratafield_context.md
+.github/

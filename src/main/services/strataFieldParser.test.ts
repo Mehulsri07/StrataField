@@ -7,12 +7,17 @@
  * work fine in a Node/vitest environment.
  */
 
+import { describe, it, expect, afterAll } from 'vitest';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as xlsx from 'xlsx';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { smartParseExcel } from './strataFieldParser';
+
+// Hardcoded — intentionally NOT imported from constants.
+// If the constant changes, these tests must go red and force a conscious update.
+const EXPECTED_METRES_TO_FEET = 3.28084;
 import { METRES_TO_FEET } from '../../shared/constants';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -205,6 +210,9 @@ describe('unit conversion', () => {
 
     expect(result.metadata.detectedUnit).toBe('m');
 
+    // Each strata endDepth must equal the original metre value × 3.28084 (METRES_TO_FEET)
+    metreDepths.forEach((depthM, idx) => {
+      const expectedFt = depthM * EXPECTED_METRES_TO_FEET;
     // Each strata endDepth must equal the original metre value × METRES_TO_FEET
     metreDepths.forEach((depthM, idx) => {
       const expectedFt = depthM * METRES_TO_FEET;
@@ -242,6 +250,7 @@ describe('unit conversion', () => {
 
     // The metadata unit hint should have been picked up
     expect(result.metadata.detectedUnit).toBe('m');
+    expect(result.strata[0].endDepth).toBeCloseTo(3.28084, 4);  // 1m × 3.28084 ft/m
     expect(result.strata[0].endDepth).toBeCloseTo(METRES_TO_FEET, 4);  // ≈ 3.28084
   });
 });
