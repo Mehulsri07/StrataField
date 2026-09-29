@@ -71,6 +71,15 @@ export async function connect({ app, dataDir } = {}) {
     await sleep(500);
   }
   const db = dataDir && fs.existsSync(path.join(dataDir, "strata.db")) ? "exists" : "missing";
+  try {
+    // What the window's browser processes were started with, and which ports they listen on.
+    console.log(execFileSync("powershell", ["-NoProfile", "-Command", `
+      $p = Get-CimInstance Win32_Process -Filter "name='msedgewebview2.exe'"
+      "WebView2 processes: " + @($p).Count
+      $p | Select-Object -First 3 | ForEach-Object { $_.CommandLine.Substring(0, [Math]::Min(400, $_.CommandLine.Length)) }
+      $ids = @($p | ForEach-Object { $_.ProcessId })
+      "Listening: " + ((Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $ids -contains $_.OwningProcess } | ForEach-Object { "$($_.LocalAddress):$($_.LocalPort)" }) -join ', ')`], { encoding: "utf8" }));
+  } catch { /* diagnostics only */ }
   throw new Error(`Could not connect to the app window after 2 minutes (last: ${lastError}; app running: ${app ? app.exitCode === null : "?"}; database ${db})`);
 }
 
