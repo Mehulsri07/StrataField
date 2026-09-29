@@ -95,6 +95,7 @@ out/
 stratafield_context.md
 .github/*
 !.github/workflows/
+!.github/scripts/
 # Private sample data (real client files) - never commit
 private-fixtures/
 
