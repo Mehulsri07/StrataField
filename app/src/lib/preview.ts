@@ -4,7 +4,7 @@
  */
 import type { SearchFilters, StartupStatus } from "@strata/core";
 import { DEFAULT_MATERIALS } from "@strata/core";
-import { SAMPLE_BOREWELLS } from "./sample";
+import { SAMPLE_BOREWELLS, samplePipes } from "./sample";
 
 const startup: StartupStatus = {
   dataFolder: "Browser preview (sample data)",
@@ -35,7 +35,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   borewell_get: (args) => {
     const item = SAMPLE_BOREWELLS.find((i) => i.borewell.id === args.id);
     if (!item) throw new Error("This borewell was not found. It may have been deleted.");
-    return { ...item, pipes: [], waterReadings: [], photos: [], files: [], history: [] };
+    return { ...item, pipes: samplePipes(item), waterReadings: [], photos: [], files: [], history: [] };
   },
 };
 

@@ -54,23 +54,43 @@ export function MaterialSwatch({ color, pattern, size = 14, className }: { color
   );
 }
 
-/** Small horizontal strip of a borewell's layers, with the water level marked in blue. */
+/**
+ * Small horizontal strip of a borewell's layers, with the water level marked in blue.
+ * With `onLayerClick`, each layer can be clicked (or reached with Tab and opened with Enter).
+ */
 export function StrataStrip({
-  strata, totalDepth, waterLevel, width = 132, height = 12, className,
-}: { strata: StrataLayer[]; totalDepth: number | null; waterLevel: number | null; width?: number; height?: number; className?: string }) {
+  strata, totalDepth, waterLevel, width = 132, height = 12, className, onLayerClick,
+}: {
+  strata: StrataLayer[]; totalDepth: number | null; waterLevel: number | null; width?: number; height?: number; className?: string;
+  onLayerClick?: (layer: StrataLayer) => void;
+}) {
   const depth = totalDepth || Math.max(0, ...strata.map((l) => l.endDepth)) || 1;
   const x = (d: number) => Math.min(width, (d / depth) * width);
   const label = `${strata.length} layers${waterLevel != null ? `, water at ${waterLevel} ft` : ""}`;
   return (
     <svg width={width} height={height + 6} viewBox={`0 0 ${width} ${height + 6}`} role="img" aria-label={label} className={className}>
       <rect x="0" y="3" width={width} height={height} fill="var(--muted)" />
-      {strata.map((l) => (
-        <g key={l.id}>
-          <rect x={x(l.startDepth)} y="3" width={Math.max(0, x(l.endDepth) - x(l.startDepth))} height={height} fill={l.color} />
-          <rect x={x(l.startDepth)} y="3" width={Math.max(0, x(l.endDepth) - x(l.startDepth))} height={height} fill={patternFill(l.pattern)} />
-        </g>
-      ))}
-      {waterLevel != null && <path d={`M${x(waterLevel)} 0V${height + 6}`} stroke="var(--water)" strokeWidth="2" />}
+      {strata.map((l) => {
+        const w = Math.max(0, x(l.endDepth) - x(l.startDepth));
+        const open = onLayerClick && ((e: { stopPropagation: () => void }) => { e.stopPropagation(); onLayerClick(l); });
+        return (
+          <g
+            key={l.id}
+            className={open ? "group cursor-pointer outline-none" : undefined}
+            role={open ? "button" : undefined}
+            tabIndex={open ? 0 : undefined}
+            aria-label={open ? `${l.material}, ${l.startDepth} to ${l.endDepth} ft. Show details` : undefined}
+            onClick={open}
+            onKeyDown={open ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); } } : undefined}
+          >
+            <title>{`${l.material}, ${l.startDepth} to ${l.endDepth} ft`}</title>
+            <rect x={x(l.startDepth)} y="3" width={w} height={height} fill={l.color} />
+            <rect x={x(l.startDepth)} y="3" width={w} height={height} fill={patternFill(l.pattern)} />
+            {open && <rect x={x(l.startDepth) + 0.75} y="3.75" width={Math.max(0, w - 1.5)} height={height - 1.5} fill="none" stroke="var(--primary)" strokeWidth="1.5" className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />}
+          </g>
+        );
+      })}
+      {waterLevel != null && <path d={`M${x(waterLevel)} 0V${height + 6}`} stroke="var(--water)" strokeWidth="2" pointerEvents="none" />}
     </svg>
   );
 }

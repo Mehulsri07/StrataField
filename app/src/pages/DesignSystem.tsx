@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { BorewellListItem, LithologyFamily, Material } from "@strata/core";
+import type { BorewellListItem, BorewellRecord, LithologyFamily, Material, StrataLayer } from "@strata/core";
 import { toast } from "sonner";
 import { Download, Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Chip } from "@/components/app/Chip";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { MaterialSwatch, PipeSwatch, StrataStrip } from "@/components/geology/patterns";
+import { BorewellProfile } from "@/components/geology/BorewellProfile";
+import { LayerDialog, type LayerSelection } from "@/components/geology/LayerDialog";
 import { api } from "@/lib/api";
 import { text } from "@/text";
 
@@ -40,11 +42,33 @@ export function DesignSystem() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [rows, setRows] = useState<BorewellListItem[]>([]);
   const [distance, setDistance] = useState(2);
+  const [record, setRecord] = useState<BorewellRecord | null>(null);
+  const [selection, setSelection] = useState<LayerSelection | null>(null);
 
   useEffect(() => {
     api.materials.list().then(setMaterials).catch(() => {});
-    api.borewells.search().then((r) => setRows(r.slice(0, 5))).catch(() => {});
+    api.borewells.search().then((r) => {
+      setRows(r.filter((i) => ["Aliganj", "Chowk", "Hazratganj", "Aminabad", "Chinhat"].some((a) => i.borewell.area.includes(a))));
+      if (r[0]) api.borewells.get(r[0].borewell.id).then(setRecord).catch(() => {});
+    }).catch(() => {});
   }, []);
+
+  // Opens the layer popup for a layer measured at a borewell.
+  const showLayer = async (borewellId: string, layer: StrataLayer) => {
+    const r = record?.borewell.id === borewellId ? record : await api.borewells.get(borewellId);
+    setSelection({ kind: "measured", layer, borewell: r.borewell, strata: r.strata, pipes: r.pipes });
+  };
+
+  // An example estimated layer between two neighbouring borewells, as a cross-section shows it.
+  const showEstimate = () => {
+    const hz = rows.find((i) => i.borewell.area === "Hazratganj") ?? rows[0];
+    const am = rows.find((i) => i.borewell.area === "Aminabad") ?? rows[1];
+    if (!hz || !am) return;
+    setSelection({
+      kind: "estimated", family: "SAND", confidence: "estimate", distanceKm: 0.3,
+      sides: [{ borewell: hz.borewell, top: 37, bottom: 76 }, { borewell: am.borewell, top: 40, bottom: 81 }],
+    });
+  };
 
   const families: LithologyFamily[] = ["CLAY", "SAND", "ROCK", "NONE"];
 
@@ -175,6 +199,24 @@ export function DesignSystem() {
         </div>
       </Panel>
 
+      <Panel
+        title="Layer details"
+        actions={<Button variant="outline" onClick={showEstimate}>Show an estimated layer</Button>}
+        bodyClassName="grid gap-6 md:grid-cols-[380px_minmax(0,1fr)]"
+      >
+        {record ? (
+          <BorewellProfile
+            borewell={record.borewell} strata={record.strata} pipes={record.pipes} height={420}
+            selectedId={selection?.kind === "measured" ? selection.layer.id : null}
+            onLayerClick={(l) => showLayer(record.borewell.id, l)}
+          />
+        ) : <div />}
+        <div className="grid content-start gap-2 text-sm">
+          <p>Click any layer to see what it is and where it is: in this borewell drawing, in the small layer strips in the table below, and between borewells in a cross-section.</p>
+          <p className="text-muted-foreground">Layers can also be reached with the Tab key and opened with Enter.</p>
+        </div>
+      </Panel>
+
       <Panel title="Table" bodyClassName="p-0">
         <Tabs defaultValue="list">
           <div className="border-b border-border px-4 pt-2">
@@ -200,7 +242,7 @@ export function DesignSystem() {
                     <TableCell>{b.area}<div className="text-xs text-muted-foreground">{b.project}</div></TableCell>
                     <TableCell className="num text-right">{b.totalDepth}</TableCell>
                     <TableCell className="num text-right">{b.waterLevel}</TableCell>
-                    <TableCell><StrataStrip strata={strata} totalDepth={b.totalDepth} waterLevel={b.waterLevel} /></TableCell>
+                    <TableCell><StrataStrip strata={strata} totalDepth={b.totalDepth} waterLevel={b.waterLevel} onLayerClick={(l) => showLayer(b.id, l)} /></TableCell>
                     <TableCell>{b.latitude == null ? <Chip tone="warn">No location</Chip> : b.importMethod === "excel" ? <Chip>From Excel</Chip> : <Chip tone="ok">Complete</Chip>}</TableCell>
                   </TableRow>
                 ))}
@@ -212,6 +254,12 @@ export function DesignSystem() {
           </TabsContent>
         </Tabs>
       </Panel>
+      <LayerDialog
+        selection={selection}
+        onClose={() => setSelection(null)}
+        onOpenBorewell={() => { setSelection(null); toast("Opens the borewell screen (built in T3)"); }}
+        onEditLayers={() => { setSelection(null); toast("Opens the layer editor (built in T3)"); }}
+      />
     </Page>
   );
 }

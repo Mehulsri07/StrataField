@@ -2,7 +2,7 @@
  * Sample data for the browser preview (design reviews and screenshots outside the app).
  * Real Lucknow localities, fictional owners and water levels. Never used inside the installed app.
  */
-import type { Borewell, BorewellListItem, StrataLayer } from "@strata/core";
+import type { Borewell, BorewellListItem, PipeSegment, StrataLayer } from "@strata/core";
 import { DEFAULT_MATERIALS } from "@strata/core";
 
 type Raw = [code: string, owner: string, area: string, zone: string, lat: number | null, lon: number | null, date: string, depth: number, water: number, source: "excel" | "manual"];
@@ -66,6 +66,28 @@ function strataFor(id: string, depth: number, lat: number | null, lon: number | 
     } else {
       push(end, clays[Math.floor(r() * clays.length)]);
     }
+  }
+  return out;
+}
+
+/** Plain casing to just below the water, then alternating screen and plain pipe. */
+export function samplePipes(item: BorewellListItem): PipeSegment[] {
+  const { id, totalDepth, waterLevel } = item.borewell;
+  const depth = totalDepth ?? 0;
+  const r = rng(id.length * 31 + depth);
+  const out: PipeSegment[] = [];
+  const push = (start: number, end: number, pipeType: "plain" | "slotted") =>
+    out.push({ id: `${id}-p${out.length}`, borewellId: id, startDepth: start, endDepth: end, pipeType, pipeSubtype: pipeType === "plain" ? "PLAIN" : "RIBBED_SCREEN", diameter: item.borewell.pipeDia });
+  let d = Math.min(depth - 20, Math.round((waterLevel ?? 60) + 5 + r() * 10));
+  push(0, d, "plain");
+  while (d < depth - 15) {
+    const s = Math.min(depth - 10, d + Math.round(25 + r() * 25));
+    push(d, s, "slotted");
+    d = s;
+    if (d >= depth - 15) break;
+    const p = Math.min(depth - 10, d + Math.round(15 + r() * 20));
+    push(d, p, "plain");
+    d = p;
   }
   return out;
 }
