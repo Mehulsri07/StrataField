@@ -1,0 +1,18 @@
+[
+  { "id": "clay",         "name": "Clay",         "color": "#8B6914", "pattern": "lines",    "lithologyClass": "CLAY",         "lithologyFamily": "CLAY" },
+  { "id": "silty_clay",   "name": "Silty Clay",   "color": "#A0785A", "pattern": "lines",    "lithologyClass": "SILTY_CLAY",   "lithologyFamily": "CLAY" },
+  { "id": "sandy_clay",   "name": "Sandy Clay",   "color": "#B8956A", "pattern": "dots",     "lithologyClass": "SANDY_CLAY",   "lithologyFamily": "CLAY" },
+  { "id": "silt",         "name": "Silt",         "color": "#C4A882", "pattern": "diagonal", "lithologyClass": "SILT",         "lithologyFamily": "CLAY" },
+  { "id": "kankar",       "name": "Kankar",       "color": "#D4C5A0", "pattern": "circles",  "lithologyClass": "KANKAR",       "lithologyFamily": "CLAY" },
+  { "id": "clay_kankar",  "name": "Clay Kankar",  "color": "#B59A6A", "pattern": "circles",  "lithologyClass": "CLAY_KANKAR",  "lithologyFamily": "CLAY" },
+  { "id": "sandy_kankar", "name": "Sandy Kankar", "color": "#D9C68E", "pattern": "circles",  "lithologyClass": "SANDY_KANKAR", "lithologyFamily": "CLAY" },
+  { "id": "fine_sand",    "name": "Fine Sand",    "color": "#E8D5A3", "pattern": "dots",     "lithologyClass": "FINE_SAND",    "lithologyFamily": "SAND" },
+  { "id": "medium_sand",  "name": "Sand",         "color": "#D4B862", "pattern": "dots",     "lithologyClass": "MEDIUM_SAND",  "lithologyFamily": "SAND" },
+  { "id": "coarse_sand",  "name": "Coarse Sand",  "color": "#C49A3C", "pattern": "crosses",  "lithologyClass": "COARSE_SAND",  "lithologyFamily": "SAND" },
+  { "id": "yellow_sand",  "name": "Yellow Sand",  "color": "#E8C84A", "pattern": "dots",     "lithologyClass": "YELLOW_SAND",  "lithologyFamily": "SAND" },
+  { "id": "gravel",       "name": "Gravel",       "color": "#A67C2E", "pattern": "circles",  "lithologyClass": "GRAVEL",       "lithologyFamily": "SAND" },
+  { "id": "sandy_gravel", "name": "Sandy Gravel", "color": "#C49A3C", "pattern": "circles",  "lithologyClass": "SANDY_GRAVEL", "lithologyFamily": "SAND" },
+  { "id": "rock",         "name": "Rock",         "color": "#7A7F85", "pattern": "crosses",  "lithologyClass": "ROCK",         "lithologyFamily": "ROCK" },
+  { "id": "boulder",      "name": "Boulder",      "color": "#8E8A80", "pattern": "circles",  "lithologyClass": "BOULDER",      "lithologyFamily": "ROCK" },
+  { "id": "not_recorded", "name": "Not recorded", "color": "#C9CFD4", "pattern": "unrecorded", "lithologyClass": "NOT_RECORDED", "lithologyFamily": "NONE" }
+]

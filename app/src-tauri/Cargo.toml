@@ -1,0 +1,33 @@
+[package]
+name = "stratafield"
+version = "0.1.0"
+description = "StrataField: borewell logging and geological strata records"
+authors = ["Mehul"]
+license = "MIT"
+repository = "https://github.com/Mehulsri07/StrataField"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "stratafield_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+strata_db = { path = "../../core/db" }
+reqwest = { version = "0.13.5", default-features = false, features = ["native-tls", "json", "query"] }
+tokio = { version = "1", features = ["time", "sync"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+kamadak-exif = "0.6"
+tauri-plugin-fs = "2"
+

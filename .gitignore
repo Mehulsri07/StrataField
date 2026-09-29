@@ -91,6 +91,14 @@ typings/
 # Electron-Forge
 out/
 .kiro/
+.claude/
 stratafield_context.md
 .github/*
 !.github/workflows/
+# Private sample data (real client files) - never commit
+private-fixtures/
+
+# Tauri / Rust
+/target/
+app/src-tauri/target/
+app/src-tauri/gen/schemas
