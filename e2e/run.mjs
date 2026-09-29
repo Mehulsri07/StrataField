@@ -7,6 +7,7 @@
 //
 // Opens an app window. Everything runs on a scratch data folder with made-up data.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   answerSaveDialog, cancelSaveDialog, check, connect, disconnect, page, results, sleep, startApp, waitForFile, workFolder,
@@ -19,12 +20,28 @@ fs.mkdirSync(f.saved, { recursive: true });
 const realDialogs = process.env.E2E_REAL_DIALOGS === "1";
 const app = startApp(f);
 
+/** When a save does not arrive: the app's messages, and any recent PDF/Excel files in the usual folders. */
+async function exportDiagnostics() {
+  const toasts = await page(`return [...document.querySelectorAll('[data-sonner-toast]')].map(t => t.innerText).join(' | ')`).catch(() => "?");
+  const recent = [];
+  for (const dir of [path.join(os.homedir(), "Documents"), path.join(os.homedir(), "Downloads"), path.join(os.homedir(), "Desktop"), f.saved]) {
+    try {
+      for (const name of fs.readdirSync(dir)) {
+        const full = path.join(dir, name);
+        if (/[.](pdf|xlsx)$/i.test(name) && Date.now() - fs.statSync(full).mtimeMs < 10 * 60 * 1000) recent.push(full);
+      }
+    } catch { /* folder missing */ }
+  }
+  return `Export diagnostics. Messages: ${toasts || "none"}. Recent files: ${recent.join(", ") || "none"}`;
+}
+
 try {
   await connect({ app, dataDir: f.dataDir });
 
   // ── Start-up and the older app's data ──────────────────────────────────
   const notice = await page(`return (await __t.until(() => document.querySelector('[role="status"]'), 15000))?.innerText`);
-  check("A one-time notice says the older app's data was brought over", /brought over/.test(notice) && /1 borewell,/.test(notice), notice.replace(/\n/g, " | "));
+  // Both old borewells come over; the one that was in the old Recycle bin stays in the Recycle bin.
+  check("A one-time notice says the older app's data was brought over", /brought over/.test(notice) && notice.includes(`${1 + LEGACY.inRecycleBin} borewells,`), notice.replace(/\n/g, " | "));
   check("The notice reports rows left behind by long-deleted borewells",
     notice.includes(`${LEGACY.orphanLayers} soil layers and ${LEGACY.orphanPipes} pipe pieces belonged`));
   const status = await page(`return await __t.invoke('startup_status')`);
@@ -195,14 +212,14 @@ try {
     await page(`location.hash = '#/borewell/${manual.bwid}'; await __t.until(() => __t.btn('Make PDF report'), 8000); __t.btn('Make PDF report').click(); return true;`);
     const pdfAnswer = await answerSaveDialog(pdfPath);
     const pdf = await waitForFile(pdfPath);
-    if (!pdf) cancelSaveDialog();
+    if (!pdf) { cancelSaveDialog(); console.log(await exportDiagnostics()); }
     check("A PDF report is saved through the Save dialog", pdf?.subarray(0, 5).toString() === "%PDF-" && pdf.length > 20000, `${pdfAnswer}; ${pdf?.length ?? 0} bytes`);
 
     const xlsxPath = path.join(f.saved, "all-borewells.xlsx");
     await page(`location.hash = '#/export'; await __t.until(() => __t.btn('Excel workbook'), 8000); __t.btn('Excel workbook').click(); await __t.wait(200); __t.btn('Save Excel workbook').click(); return true;`);
     const xlsxAnswer = await answerSaveDialog(xlsxPath);
     const book = await waitForFile(xlsxPath);
-    if (!book) cancelSaveDialog();
+    if (!book) { cancelSaveDialog(); console.log(await exportDiagnostics()); }
     check("An Excel workbook of all borewells is saved through the Save dialog", book?.subarray(0, 2).toString() === "PK" && book.length > 5000, `${xlsxAnswer}; ${book?.length ?? 0} bytes`);
   } else {
     // Without the real dialog: the workbook is built, and writing to a path nobody picked is refused.
