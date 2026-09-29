@@ -1,64 +1,30 @@
-import { useEffect, useState } from "react";
-import type { StartupStatus } from "@strata/core";
-import { DEFAULT_MATERIALS } from "@strata/core";
-import { api, type AppInfo } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { Route, Routes } from "react-router-dom";
+import { AppShell } from "@/components/app/AppShell";
+import { ComingSoon } from "@/components/app/Page";
+import { DesignSystem } from "@/pages/DesignSystem";
+import { text } from "@/text";
 
-// Placeholder until the real app shell (T2): shows that the screen, the Rust backend and the
-// shared database are connected, and what start-up did with the user's data.
-function App() {
-  const [info, setInfo] = useState<AppInfo | null>(null);
-  const [status, setStatus] = useState<StartupStatus | null>(null);
-  const [count, setCount] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const p = text.pages;
 
-  useEffect(() => {
-    Promise.all([api.appInfo(), api.startupStatus()])
-      .then(([i, s]) => {
-        setInfo(i);
-        setStatus(s);
-        return s.error ? null : api.borewells.search();
-      })
-      .then((items) => items && setCount(items.length))
-      .catch((err) => setError(String(err)));
-  }, []);
-
-  const legacy = status?.legacyImport;
-
+/** Every screen. Screens marked ComingSoon are built in T3; the shell and menu work now. */
+export default function App() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-8 text-foreground">
-      <h1 className="text-2xl font-semibold">StrataField</h1>
-      <p className="text-muted-foreground">
-        The new app is being built. This screen checks that everything is connected.
-      </p>
-      {error && <p className="text-destructive">Something went wrong: {error}</p>}
-      <ul className="grid max-w-xl gap-1 text-sm">
-        <li>Version: {info ? `${info.name} ${info.version}` : "checking…"}</li>
-        <li>Soil types in the shared list: {DEFAULT_MATERIALS.length}</li>
-        {status?.error ? (
-          <li className="text-destructive">Your data could not be opened: {status.error}</li>
-        ) : (
-          <>
-            <li>Your data is saved in: {status?.dataFolder ?? "checking…"}</li>
-            <li>Borewells: {count ?? "checking…"}</li>
-          </>
-        )}
-        {legacy && (
-          <li>
-            Brought over from the older StrataField: {legacy.borewells} borewells, {legacy.strataLayers} soil layers,{" "}
-            {legacy.pipeSegments} pipe pieces.
-          </li>
-        )}
-        {status?.legacyImportError && (
-          <li className="text-destructive">Data from the older StrataField could not be brought over: {status.legacyImportError}</li>
-        )}
-        {status?.automaticBackup && <li>A backup of your data was saved today.</li>}
-      </ul>
-      <Button variant="outline" onClick={() => window.location.reload()}>
-        Check again
-      </Button>
-    </main>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<ComingSoon title={p.home.title} sub={p.home.sub(text.app.city)} />} />
+        <Route path="borewells" element={<ComingSoon title={p.borewells.title} sub={p.borewells.sub} />} />
+        <Route path="borewell/:id" element={<ComingSoon title={p.detail.title} sub="" />} />
+        <Route path="borewell/:id/layers" element={<ComingSoon title={p.editLayers.title} sub="" />} />
+        <Route path="map" element={<ComingSoon title={p.map.title} sub={p.map.sub} />} />
+        <Route path="section" element={<ComingSoon title={p.section.title} sub={p.section.sub} />} />
+        <Route path="new" element={<ComingSoon title={p.newBorewell.title} sub={p.newBorewell.sub} />} />
+        <Route path="import" element={<ComingSoon title={p.import.title} sub={p.import.sub} />} />
+        <Route path="export" element={<ComingSoon title={p.export.title} sub={p.export.sub} />} />
+        <Route path="recycle-bin" element={<ComingSoon title={p.recycleBin.title} sub={p.recycleBin.sub} />} />
+        <Route path="settings" element={<ComingSoon title={p.settings.title} sub={p.settings.sub} />} />
+        <Route path="design" element={<DesignSystem />} />
+        <Route path="*" element={<ComingSoon title={p.notFound.title} sub={p.notFound.sub} />} />
+      </Route>
+    </Routes>
   );
 }
-
-export default App;

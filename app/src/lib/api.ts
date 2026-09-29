@@ -3,7 +3,7 @@
  * Screens call these instead of `invoke` directly. Errors reject with a plain-language
  * message that can be shown to the user as-is.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke, isTauri } from "@tauri-apps/api/core";
 import type {
   Attachment, BackupInfo, Borewell, BorewellInput, BorewellListItem, BorewellRecord, ImportRequest,
   ImportResult, LegacyImportReport, Material, Photo, PipeSegment, Project, SearchFilters, Section,
@@ -13,6 +13,19 @@ import type {
 export interface AppInfo {
   name: string;
   version: string;
+}
+
+/** True when the screens run in a normal browser (design preview) instead of inside the app. */
+export const isPreview = !isTauri();
+
+/**
+ * Calls a Rust command. In the browser preview, answers from sample data instead, so screens can be
+ * reviewed without the app; commands the preview does not support reject with a clear message.
+ */
+async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isPreview) return tauriInvoke<T>(command, args);
+  const { previewCommand } = await import("./preview");
+  return previewCommand<T>(command, args);
 }
 
 export const api = {
