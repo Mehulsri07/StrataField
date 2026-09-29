@@ -18,7 +18,7 @@ export function activateOnKey(action: () => void) {
  * water level. Every layer can be clicked (or reached with Tab and opened with Enter) to see its details.
  */
 export function BorewellProfile({
-  borewell, strata, pipes, height = 520, selectedId, onLayerClick,
+  borewell, strata, pipes, height = 520, selectedId, onLayerClick, forPrint = false,
 }: {
   borewell: Borewell;
   strata: StrataLayer[];
@@ -26,6 +26,8 @@ export function BorewellProfile({
   height?: number;
   selectedId?: string | null;
   onLayerClick?: (layer: StrataLayer) => void;
+  /** For saved pictures and PDFs: leaves out the hover and selection outlines (stylesheets do not apply there). */
+  forPrint?: boolean;
 }) {
   const depth = borewell.totalDepth || Math.max(1, ...strata.map((l) => l.endDepth));
   const W = 380, top = 30, H = height, bottom = top + H;
@@ -87,10 +89,10 @@ export function BorewellProfile({
             <rect x={colX} y={y1} width={colW} height={h} fill={patternFill(l.pattern)} />
             <path d={`M${colX} ${y1}H${colX + colW}`} stroke="var(--pattern-ink)" />
             {/* Hover and keyboard focus outline; stays on for the selected layer. */}
-            <rect
+            {!forPrint && <rect
               x={colX + 1} y={y1 + 1} width={colW - 2} height={Math.max(0, h - 2)} fill="none" stroke="var(--primary)" strokeWidth="2.5"
               className={selected ? "" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}
-            />
+            />}
             {labelY(y1, h) != null && (
               <text x={labX} y={labelY(y1, h)!} fontSize="11.5" fill="var(--foreground)">
                 {l.material} <tspan fill="var(--muted-foreground)" fontSize="10" className="num">{l.startDepth}–{l.endDepth}</tspan>

@@ -98,6 +98,9 @@ export const api = {
   /** Approximate location for an address. Needs internet; resolves null when nothing is found. */
   geocode: (query: string) => invoke<GeocodeResult | null>("geocode_address", { query }),
 
+  /** The bytes of an Excel or CSV file the user chose. */
+  readSpreadsheet: (path: string) => invoke<ArrayBuffer>("read_spreadsheet", { path }),
+
   /** Date and GPS position saved inside a photo (empty when the camera saved none). */
   photoMetadata: (path: string) =>
     invoke<{ captureDate: string | null; latitude: number | null; longitude: number | null }>("photo_metadata", { path }),
@@ -107,6 +110,8 @@ export const api = {
 export const files = {
   /** Asks the user to choose files. Resolves to their paths ([] if they cancel). */
   async choose(options: { title: string; multiple?: boolean; filters?: { name: string; extensions: string[] }[] }): Promise<string[]> {
+    const testPick = (window as { __STRATA_TEST_CHOOSE__?: (title: string) => string[] }).__STRATA_TEST_CHOOSE__;
+    if (testPick) return testPick(options.title); // end-to-end tests stand in for the file picker
     if (isPreview) throw new Error("Choosing files works in the StrataField app, not in the browser preview.");
     const { open } = await import("@tauri-apps/plugin-dialog");
     const picked = await open({ title: options.title, multiple: options.multiple ?? false, filters: options.filters, directory: false });
@@ -123,4 +128,5 @@ export const files = {
   src: (path: string) => (isPreview ? "" : convertFileSrc(path)),
   photoFilters: [{ name: "Photos", extensions: ["jpg", "jpeg", "png", "heic", "webp"] }],
   documentFilters: [{ name: "Documents", extensions: ["pdf", "xlsx", "xls", "xlsm", "csv", "doc", "docx"] }],
+  excelFilters: [{ name: "Excel drilling logs", extensions: ["xlsx", "xls", "xlsm", "csv"] }],
 };

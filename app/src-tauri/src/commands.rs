@@ -314,3 +314,24 @@ pub async fn geocode_address(
 pub fn photo_metadata(path: String) -> Res<crate::photo::PhotoMetadata> {
     crate::photo::read(&PathBuf::from(path))
 }
+
+/// Reads a spreadsheet the user chose, so the screens can parse it. Only spreadsheet files are allowed.
+#[tauri::command]
+pub fn read_spreadsheet(path: String) -> Res<tauri::ipc::Response> {
+    let p = PathBuf::from(&path);
+    let ext = p
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    if !matches!(ext.as_str(), "xlsx" | "xls" | "xlsm" | "csv") {
+        return Err("Choose an Excel file (.xlsx, .xls, .xlsm) or a .csv file.".into());
+    }
+    std::fs::read(&p)
+        .map(tauri::ipc::Response::new)
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::PermissionDenied => {
+                "The file is open in another program or you do not have access. Close it and try again.".to_string()
+            }
+            _ => format!("The file could not be read: {e}"),
+        })
+}

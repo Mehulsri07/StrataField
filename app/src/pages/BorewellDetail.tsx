@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BorewellStatus, locationSourceText } from "@/components/app/BorewellStatus";
@@ -17,7 +16,8 @@ import { useConfirm } from "@/components/app/Confirm";
 import { BorewellProfile, activateOnKey } from "@/components/geology/BorewellProfile";
 import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
-import { api, files } from "@/lib/api";
+import { api, files, isPreview } from "@/lib/api";
+import { buildReport, drawingPng, fileName, saveFile } from "@/lib/exporting";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, formatWhen } from "@/lib/format";
 import { parseNumber } from "@strata/core";
@@ -62,6 +62,23 @@ export function BorewellDetail() {
 
   const open = (layer: StrataLayer) => showLayer(layer, r);
 
+  const makeReport = async () => {
+    try {
+      const path = await saveFile(`${fileName(b.borewellId)}.pdf`, "pdf", await buildReport([r]));
+      if (path) toast.success("Report saved", { action: { label: "Open", onClick: () => files.open(path).catch((e) => toast.error(String(e))) } });
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+  const savePicture = async () => {
+    try {
+      const path = await saveFile(`${fileName(b.borewellId)} drawing.png`, "png", (await drawingPng(r, 3)).bytes);
+      if (path) toast.success("Picture saved");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
   return (
     <Page>
       <PageHeader
@@ -72,10 +89,7 @@ export function BorewellDetail() {
             <>
               <Button variant="outline" render={<Link to={`/borewell/${b.id}/edit`} />}><Pencil />Edit details</Button>
               <Button variant="outline" render={<Link to={`/borewell/${b.id}/layers`} />}><Layers />Edit layers &amp; pipes</Button>
-              <Tooltip>
-                <TooltipTrigger render={<span />}><Button disabled>Make PDF report</Button></TooltipTrigger>
-                <TooltipContent>Arrives with the Export screen</TooltipContent>
-              </Tooltip>
+              <Button disabled={isPreview} onClick={makeReport}><FileText />Make PDF report</Button>
               <Button variant="ghost" className="text-destructive" onClick={moveToBin} aria-label="Move to Recycle bin"><Trash2 /></Button>
             </>
           )
@@ -150,7 +164,7 @@ export function BorewellDetail() {
               </Panel>
             </div>
 
-            <Panel title="Borewell drawing" bodyClassName="grid gap-3">
+            <Panel title="Borewell drawing" bodyClassName="grid gap-3" actions={(r.strata.length > 0 || r.pipes.length > 0) && !isPreview && <Button variant="ghost" onClick={savePicture}>Save as picture</Button>}>
               {r.strata.length === 0 && r.pipes.length === 0 ? (
                 <EmptyNote>
                   No layers or pipes yet. <Link className="text-primary hover:underline" to={`/borewell/${b.id}/layers`}>Add them</Link> to see the drawing.

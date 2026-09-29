@@ -6,6 +6,9 @@ import { Borewells } from "@/pages/Borewells";
 import { BorewellDetail } from "@/pages/BorewellDetail";
 import { BorewellForm } from "@/pages/BorewellForm";
 import { MapPage } from "@/pages/MapPage";
+import { EditLayers } from "@/pages/EditLayers";
+import { ImportPage } from "@/pages/ImportPage";
+import { ExportPage } from "@/pages/ExportPage";
 import { text } from "@/text";
 
 const p = text.pages;
@@ -19,12 +22,12 @@ export default function App() {
         <Route path="borewells" element={<Borewells />} />
         <Route path="borewell/:id" element={<BorewellDetail />} />
         <Route path="borewell/:id/edit" element={<BorewellForm key="edit" mode="edit" />} />
-        <Route path="borewell/:id/layers" element={<ComingSoon title={p.editLayers.title} sub="" />} />
+        <Route path="borewell/:id/layers" element={<EditLayers />} />
         <Route path="map" element={<MapPage />} />
         <Route path="section" element={<ComingSoon title={p.section.title} sub={p.section.sub} />} />
         <Route path="new" element={<BorewellForm key="new" mode="new" />} />
-        <Route path="import" element={<ComingSoon title={p.import.title} sub={p.import.sub} />} />
-        <Route path="export" element={<ComingSoon title={p.export.title} sub={p.export.sub} />} />
+        <Route path="import" element={<ImportPage />} />
+        <Route path="export" element={<ExportPage />} />
         <Route path="recycle-bin" element={<ComingSoon title={p.recycleBin.title} sub={p.recycleBin.sub} />} />
         <Route path="settings" element={<ComingSoon title={p.settings.title} sub={p.settings.sub} />} />
         <Route path="design" element={<DesignSystem />} />

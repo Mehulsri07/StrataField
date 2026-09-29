@@ -10,6 +10,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             // %APPDATA% (roaming). The shared database lives in %APPDATA%\Strata, and the older
             // Electron app's data (if any) in %APPDATA%\StrataField.
@@ -53,6 +54,7 @@ pub fn run() {
             commands::setting_set,
             commands::geocode_address,
             commands::photo_metadata,
+            commands::read_spreadsheet,
         ])
         .build(tauri::generate_context!())
         .expect("error while starting StrataField");
