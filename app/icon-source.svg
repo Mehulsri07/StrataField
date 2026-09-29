@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- StrataField app icon: a borewell's layer column with the water line, on the brand accent -->
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#0D6883"/>
+  <rect x="272" y="190" width="480" height="120" fill="#D4C5A0"/>
+  <rect x="272" y="310" width="480" height="150" fill="#8B6914"/>
+  <rect x="272" y="460" width="480" height="150" fill="#E8C84A"/>
+  <rect x="272" y="610" width="480" height="224" fill="#C49A3C"/>
+  <rect x="272" y="190" width="480" height="644" fill="none" stroke="#062630" stroke-width="16"/>
+  <path d="M200 505H824" stroke="#FFFFFF" stroke-width="30" stroke-dasharray="64 40"/>
+</svg>

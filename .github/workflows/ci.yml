@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, tauri-rebuild]
   pull_request:
 
 concurrency:
@@ -11,10 +11,8 @@ concurrency:
 
 jobs:
   check:
+    name: Typecheck, lint, tests
     runs-on: ubuntu-latest
-    env:
-      # Typecheck/lint/tests don't launch Electron, so skip the ~100MB binary download.
-      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v5
 
@@ -33,3 +31,67 @@ jobs:
 
       - name: Test
         run: npm test
+
+  windows:
+    name: Windows build and smoke test
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri -> target
+
+      - run: npm ci
+
+      # tauri::generate_context! needs the built frontend, even for clippy and tests.
+      - name: Build frontend
+        run: npm run build -w app
+
+      - name: Rust format
+        working-directory: app/src-tauri
+        run: cargo fmt --check
+
+      - name: Rust lint
+        working-directory: app/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: app/src-tauri
+        run: cargo test
+
+      - name: Build installer
+        run: npm run tauri -w app -- build
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: StrataField-windows-installer
+          path: app/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      # Install silently on the clean runner, launch the app, and make sure it stays open.
+      - name: Smoke test installer
+        run: |
+          $installer = Get-ChildItem app/src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          Start-Process $installer.FullName -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\StrataField" -Recurse -Filter 'stratafield.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'Installed StrataField.exe not found' }
+          Write-Host "Installed to $($exe.FullName)"
+          $app = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 15
+          if ($app.HasExited) { throw "StrataField exited early with code $($app.ExitCode)" }
+          Write-Host 'StrataField is running after 15 seconds'
+          Stop-Process -Id $app.Id -Force

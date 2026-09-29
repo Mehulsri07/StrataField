@@ -94,3 +94,9 @@ out/
 stratafield_context.md
 .github/*
 !.github/workflows/
+# Private sample data (real client files) - never commit
+private-fixtures/
+
+# Tauri / Rust
+app/src-tauri/target/
+app/src-tauri/gen/schemas
