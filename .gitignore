@@ -98,5 +98,6 @@ stratafield_context.md
 private-fixtures/
 
 # Tauri / Rust
+/target/
 app/src-tauri/target/
 app/src-tauri/gen/schemas

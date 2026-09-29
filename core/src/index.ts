@@ -6,5 +6,4 @@ export * from './types';
 export * from './constants';
 export * from './validation';
 export * from './profileUtils';
-export * from './payloadValidation';
 export { parseStrataWorkbook } from './parser/strataFieldParser';

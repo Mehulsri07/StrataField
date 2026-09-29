@@ -273,15 +273,31 @@ describe('material normalisation', () => {
     expect(result.strata[0].materialId).toBe('yellow_sand');
   });
 
-  it('normalises "kanker clay" to "Kankar"', () => {
+  // Decided 29 Sep 2026: Clay Kankar is its own material, not plain Kankar.
+  it('normalises "kanker clay" to "Clay Kankar"', () => {
     const rows = buildStandardRows([
       { depth: 10, material: 'kanker clay' },
     ]);
     const filePath = createTemp(rows);
     const result = smartParseExcel(filePath);
 
-    expect(result.strata[0].material).toBe('Kankar');
+    expect(result.strata[0].material).toBe('Clay Kankar');
+    expect(result.strata[0].materialId).toBe('clay_kankar');
+  });
+
+  it('keeps plain "kankar" as Kankar', () => {
+    const result = smartParseExcel(createTemp(buildStandardRows([{ depth: 10, material: 'Kanker' }])));
     expect(result.strata[0].materialId).toBe('kankar');
+  });
+
+  it('recognises sandy kankar, rock and boulders', () => {
+    const rows = buildStandardRows([
+      { depth: 10, material: 'Sandy Kankar' },
+      { depth: 20, material: 'Hard Rock' },
+      { depth: 30, material: 'Boulders' },
+    ]);
+    const result = smartParseExcel(createTemp(rows));
+    expect(result.strata.map(s => s.materialId)).toEqual(['sandy_kankar', 'rock', 'boulder']);
   });
 });
 

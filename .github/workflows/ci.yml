@@ -52,7 +52,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: app/src-tauri -> target
+          workspaces: . -> target
 
       - run: npm ci
 
@@ -61,16 +61,13 @@ jobs:
         run: npm run build -w app
 
       - name: Rust format
-        working-directory: app/src-tauri
-        run: cargo fmt --check
+        run: cargo fmt --all --check
 
       - name: Rust lint
-        working-directory: app/src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Rust tests
-        working-directory: app/src-tauri
-        run: cargo test
+      - name: Rust tests (database, migrations, backups, old-data import)
+        run: cargo test --workspace
 
       - name: Build installer
         run: npm run tauri -w app -- build
@@ -79,13 +76,13 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: StrataField-windows-installer
-          path: app/src-tauri/target/release/bundle/nsis/*.exe
+          path: target/release/bundle/nsis/*.exe
           if-no-files-found: error
 
       # Install silently on the clean runner, launch the app, and make sure it stays open.
       - name: Smoke test installer
         run: |
-          $installer = Get-ChildItem app/src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          $installer = Get-ChildItem target/release/bundle/nsis/*.exe | Select-Object -First 1
           Start-Process $installer.FullName -ArgumentList '/S' -Wait
           $exe = Get-ChildItem "$env:LOCALAPPDATA\StrataField" -Recurse -Filter 'stratafield.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $exe) { throw 'Installed StrataField.exe not found' }
@@ -94,4 +91,7 @@ jobs:
           Start-Sleep -Seconds 15
           if ($app.HasExited) { throw "StrataField exited early with code $($app.ExitCode)" }
           Write-Host 'StrataField is running after 15 seconds'
+          $db = Join-Path $env:APPDATA 'Strata\strata.db'
+          if (-not (Test-Path $db)) { throw "The app did not create its database at $db" }
+          Write-Host "Database created at $db"
           Stop-Process -Id $app.Id -Force

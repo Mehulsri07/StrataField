@@ -30,7 +30,8 @@ Handling raw geological data can be messy and inconsistent. StrataField solves t
 | Folder | Contents |
 |---|---|
 | `core/` | Shared logic used by every Strata app: data types, validation, material taxonomy, Excel parser, drawing maths. No Tauri, React or Node-only code. |
-| `app/` | The StrataField desktop app: React screens in `app/src`, Rust backend in `app/src-tauri`. |
+| `core/db/` | The shared Rust database layer (`strata_db`): schema and migrations, repositories, backups, and the one-time import from the older Electron app. |
+| `app/` | The StrataField desktop app: React screens in `app/src`, Rust commands in `app/src-tauri`. |
 
 ## 📦 Getting Started
 
@@ -58,9 +59,9 @@ Handling raw geological data can be messy and inconsistent. StrataField solves t
    npm run lint
    npm test
    ```
-   Rust checks run from `app/src-tauri`: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`.
+   Rust checks run from the repository root: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`.
 
-5. **Build the Windows installer** (output in `app/src-tauri/target/release/bundle/nsis`):
+5. **Build the Windows installer** (output in `target/release/bundle/nsis`):
    ```bash
    npm run build
    ```

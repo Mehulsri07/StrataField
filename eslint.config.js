@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default tseslint.config(
-  { ignores: ["**/node_modules/**", "**/dist/**", "app/src-tauri/**", "app/src/components/ui/**"] },
+  { ignores: ["**/node_modules/**", "**/dist/**", "target/**", "app/src-tauri/**", "app/src/components/ui/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

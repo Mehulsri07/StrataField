@@ -4,34 +4,24 @@
  */
 
 import type { Material, LithologyClass, LithologyFamily, PipeSubtype } from './types';
+import materialsJson from '../materials.json';
 
 // ─── Lithology Family Mapping ────────────────────────────────────────────────
 
 export const LITHOLOGY_FAMILY: Record<LithologyClass, LithologyFamily> = {
   CLAY: 'CLAY', SILTY_CLAY: 'CLAY', SANDY_CLAY: 'CLAY',
-  SILT: 'CLAY', KANKAR: 'CLAY',
+  SILT: 'CLAY', KANKAR: 'CLAY', CLAY_KANKAR: 'CLAY', SANDY_KANKAR: 'CLAY',
   FINE_SAND: 'SAND', MEDIUM_SAND: 'SAND', COARSE_SAND: 'SAND',
   YELLOW_SAND: 'SAND', GRAVEL: 'SAND', SANDY_GRAVEL: 'SAND',
-  FILL: 'OTHER', ROCK: 'OTHER', OTHER: 'OTHER',
+  ROCK: 'ROCK', BOULDER: 'ROCK',
+  FILL: 'OTHER', OTHER: 'OTHER', NOT_RECORDED: 'NONE',
 };
 
-// ─── Default Materials (10-material taxonomy from field analysis) ────────────
+// ─── Default Materials ───────────────────────────────────────────────────────
+// Single source of truth shared with the Rust database seed (core/materials.json).
 
-export const DEFAULT_MATERIALS: Material[] = [
-  // CLAY family — brown/earth spectrum
-  { id: 'clay',         name: 'Clay',        color: '#8B6914', pattern: 'lines',        isCustom: false, lithologyClass: 'CLAY',        lithologyFamily: 'CLAY' },
-  { id: 'silty_clay',   name: 'Silty Clay',  color: '#A0785A', pattern: 'lines',        isCustom: false, lithologyClass: 'SILTY_CLAY',  lithologyFamily: 'CLAY' },
-  { id: 'sandy_clay',   name: 'Sandy Clay',  color: '#B8956A', pattern: 'dots',         isCustom: false, lithologyClass: 'SANDY_CLAY',  lithologyFamily: 'CLAY' },
-  { id: 'silt',         name: 'Silt',        color: '#C4A882', pattern: 'diagonal',     isCustom: false, lithologyClass: 'SILT',        lithologyFamily: 'CLAY' },
-  { id: 'kankar',       name: 'Kankar',      color: '#D4C5A0', pattern: 'circles',      isCustom: false, lithologyClass: 'KANKAR',      lithologyFamily: 'CLAY' },
-  // SAND family — yellow/amber spectrum
-  { id: 'fine_sand',    name: 'Fine Sand',   color: '#E8D5A3', pattern: 'dots',         isCustom: false, lithologyClass: 'FINE_SAND',   lithologyFamily: 'SAND' },
-  { id: 'medium_sand',  name: 'Sand',        color: '#D4B862', pattern: 'dots',         isCustom: false, lithologyClass: 'MEDIUM_SAND', lithologyFamily: 'SAND' },
-  { id: 'coarse_sand',  name: 'Coarse Sand', color: '#C49A3C', pattern: 'crosses',      isCustom: false, lithologyClass: 'COARSE_SAND', lithologyFamily: 'SAND' },
-  { id: 'yellow_sand',  name: 'Yellow Sand', color: '#E8C84A', pattern: 'dots',         isCustom: false, lithologyClass: 'YELLOW_SAND', lithologyFamily: 'SAND' },
-  { id: 'gravel',       name: 'Gravel',      color: '#A67C2E', pattern: 'circles',      isCustom: false, lithologyClass: 'GRAVEL',       lithologyFamily: 'SAND' },
-  { id: 'sandy_gravel', name: 'Sandy Gravel', color: '#C49A3C', pattern: 'circles',     isCustom: false, lithologyClass: 'SANDY_GRAVEL', lithologyFamily: 'SAND' },
-];
+export const DEFAULT_MATERIALS: Material[] = (materialsJson as Omit<Material, 'isCustom'>[])
+  .map(m => ({ ...m, isCustom: false }));
 
 // ─── Material Normalisation Map (complete vocabulary from 6 field Excel files) ─
 
@@ -46,8 +36,18 @@ export const MATERIAL_NORMALISATION_MAP: Record<string, string> = {
   'sand ( y )':    'Yellow Sand',
   'sand(y)':       'Yellow Sand',
   'yellow sand':   'Yellow Sand',
-  'kanker clay':   'Kankar',
-  'kankar clay':   'Kankar',
+  'kanker clay':   'Clay Kankar',
+  'kankar clay':   'Clay Kankar',
+  'clay kankar':   'Clay Kankar',
+  'clay kanker':   'Clay Kankar',
+  'sandy kankar':  'Sandy Kankar',
+  'sandy kanker':  'Sandy Kankar',
+  'kankar sand':   'Sandy Kankar',
+  'kanker sand':   'Sandy Kankar',
+  'rock':          'Rock',
+  'hard rock':     'Rock',
+  'boulder':       'Boulder',
+  'boulders':      'Boulder',
   'kanker':        'Kankar',
   'kankar':        'Kankar',
   'kanker soil':   'Kankar',

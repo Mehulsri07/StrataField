@@ -1,0 +1,87 @@
+/**
+ * Typed wrappers around the Rust commands in `app/src-tauri/src/commands.rs`.
+ * Screens call these instead of `invoke` directly. Errors reject with a plain-language
+ * message that can be shown to the user as-is.
+ */
+import { invoke } from "@tauri-apps/api/core";
+import type {
+  Attachment, BackupInfo, Borewell, BorewellInput, BorewellListItem, BorewellRecord, ImportRequest,
+  ImportResult, LegacyImportReport, Material, Photo, PipeSegment, Project, SearchFilters, Section,
+  StartupStatus, StrataLayer, WaterReading, GeocodeResult,
+} from "@strata/core";
+
+export interface AppInfo {
+  name: string;
+  version: string;
+}
+
+export const api = {
+  appInfo: () => invoke<AppInfo>("app_info"),
+  startupStatus: () => invoke<StartupStatus>("startup_status"),
+  /** Changes when another Strata app writes to the shared database. */
+  dataVersion: () => invoke<number>("data_version"),
+
+  borewells: {
+    search: (filters: SearchFilters = {}) => invoke<BorewellListItem[]>("borewells_search", { filters }),
+    get: (id: string) => invoke<BorewellRecord>("borewell_get", { id }),
+    create: (input: BorewellInput) => invoke<Borewell>("borewell_create", { input }),
+    update: (id: string, input: BorewellInput) => invoke<Borewell>("borewell_update", { id, input }),
+    /** Moves to the Recycle bin. */
+    remove: (id: string) => invoke<void>("borewell_delete", { id }),
+    restore: (id: string) => invoke<void>("borewell_restore", { id }),
+    deletePermanently: (id: string) => invoke<void>("borewell_delete_permanently", { id }),
+  },
+
+  strata: {
+    save: (borewellId: string, layers: Partial<StrataLayer>[]) => invoke<StrataLayer[]>("strata_save", { borewellId, layers }),
+  },
+  pipes: {
+    save: (borewellId: string, pipes: Partial<PipeSegment>[]) => invoke<PipeSegment[]>("pipes_save", { borewellId, pipes }),
+  },
+  water: {
+    add: (borewellId: string, reading: Partial<WaterReading>) => invoke<WaterReading>("water_reading_add", { borewellId, reading }),
+    remove: (id: string) => invoke<void>("water_reading_delete", { id }),
+  },
+
+  materials: {
+    list: () => invoke<Material[]>("materials_list"),
+    create: (material: Material) => invoke<Material>("material_create", { material }),
+    update: (material: Material) => invoke<Material>("material_update", { material }),
+    remove: (id: string) => invoke<void>("material_delete", { id }),
+  },
+  projects: {
+    list: () => invoke<Project[]>("projects_list"),
+    rename: (id: string, name: string) => invoke<void>("project_rename", { id, name }),
+  },
+
+  attachments: {
+    addPhoto: (borewellId: string, sourcePath: string, extra: { captureDate?: string; latitude?: number; longitude?: number; caption?: string } = {}) =>
+      invoke<Photo>("photo_add", { borewellId, sourcePath, ...extra }),
+    addFile: (borewellId: string, sourcePath: string) => invoke<Attachment>("file_add", { borewellId, sourcePath }),
+    remove: (kind: "photo" | "file", id: string) => invoke<void>("attachment_remove", { kind, id }),
+  },
+
+  importExcel: (request: ImportRequest) => invoke<ImportResult>("import_save", { request }),
+
+  sections: {
+    list: () => invoke<Section[]>("sections_list"),
+    save: (section: Section) => invoke<Section>("section_save", { section }),
+    remove: (id: string) => invoke<void>("section_delete", { id }),
+  },
+
+  backups: {
+    list: () => invoke<BackupInfo[]>("backups_list"),
+    create: () => invoke<BackupInfo>("backup_create"),
+    /** Resolves with the safety backup taken before restoring. */
+    restore: (path: string) => invoke<BackupInfo>("backup_restore", { path }),
+    importFromOlderVersion: (path: string) => invoke<LegacyImportReport>("legacy_import", { path }),
+  },
+
+  settings: {
+    get: <T>(key: string) => invoke<T | null>("setting_get", { key }),
+    set: (key: string, value: unknown) => invoke<void>("setting_set", { key, value }),
+  },
+
+  /** Approximate location for an address. Needs internet; resolves null when nothing is found. */
+  geocode: (query: string) => invoke<GeocodeResult | null>("geocode_address", { query }),
+};

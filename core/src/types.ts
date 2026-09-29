@@ -5,7 +5,8 @@
 
 // ─── Lithology Taxonomy ─────────────────────────────────────────────────────
 
-export type LithologyFamily = 'CLAY' | 'SAND' | 'OTHER';
+// NONE is for "Not recorded" depths: a known gap, never matched or interpolated.
+export type LithologyFamily = 'CLAY' | 'SAND' | 'ROCK' | 'OTHER' | 'NONE';
 
 export type LithologyClass =
   // CLAY family
@@ -13,7 +14,9 @@ export type LithologyClass =
   | 'SILTY_CLAY'
   | 'SANDY_CLAY'
   | 'SILT'
-  | 'KANKAR'         // "Kanker clay" / "Kankar" — calcium carbonate nodules
+  | 'KANKAR'         // "Kankar" — calcium carbonate nodules
+  | 'CLAY_KANKAR'    // "Kanker clay" — clay with kankar nodules
+  | 'SANDY_KANKAR'
   // SAND family
   | 'FINE_SAND'      // "Sand (Fine)"
   | 'MEDIUM_SAND'    // "Sand" (default)
@@ -21,10 +24,13 @@ export type LithologyClass =
   | 'YELLOW_SAND'    // "Sand (Y)" — oxidized, paleochannel indicator
   | 'GRAVEL'
   | 'SANDY_GRAVEL'
-  // OTHER
-  | 'FILL'
+  // ROCK family
   | 'ROCK'
-  | 'OTHER';
+  | 'BOULDER'
+  // OTHER / NONE
+  | 'FILL'
+  | 'OTHER'
+  | 'NOT_RECORDED';
 
 export type DrillingMethod = 'ROTARY' | 'DTH' | 'MANUAL' | 'UNKNOWN';
 
@@ -34,10 +40,15 @@ export type PipeSubtype = 'PLAIN' | 'RIBBED_SCREEN' | 'SLOTTED' | 'MS_SLOTTED';
 
 // ─── Core Domain Models ──────────────────────────────────────────────────────
 
+export type LocationSource = 'gps' | 'photo' | 'map' | 'typed' | 'address' | 'imported' | 'unknown';
+export type ElevationSource = 'survey' | 'gps' | 'dem' | 'typed' | 'unknown';
+export type RecordQuality = 'good' | 'fair' | 'poor' | 'unknown';
+
 export interface Borewell {
   id: string;
+  projectId: string | null;
+  project: string;          // project name, e.g. "Zone 1 · Old City"
   borewellId: string;       // user-assigned identifier (e.g. "BW-2024-001")
-  project: string;          // project grouping (e.g. "Default Project")
   ownerName: string;
   houseNo: string;
   area: string;
@@ -45,20 +56,34 @@ export interface Borewell {
   address: string;
   latitude: number | null;
   longitude: number | null;
+  locationSource: LocationSource;   // address lookups are approximate
+  locationAccuracyM: number | null;
+  groundElevationM: number | null;  // metres
+  elevationSource: ElevationSource | null;
   boreDia: number | null;   // inches
   pipeDia: number | null;   // inches
   totalDepth: number | null; // feet (or metres if depthUnit='m')
-  waterLevel: number | null; // feet (or metres if depthUnit='m')
+  waterLevel: number | null; // current static level; follows the newest water reading
+  dynamicWaterLevel: number | null;
+  depthUnit: DepthUnit;
+  drillingMethod: DrillingMethod | null;
+  recordQuality: RecordQuality;
   remarks: string;
   date: string;             // ISO date string
   createdAt: string;        // ISO datetime
   updatedAt: string;        // ISO datetime
+  importBatchId: string | null;
   importSource: string | null; // file name or null
-  importMethod: 'excel' | 'manual';
-  deletedAt: string | null;  // ISO datetime if soft-deleted, else null
-  drillingMethod: DrillingMethod | null;
-  depthUnit: DepthUnit;
+  importMethod: 'excel' | 'manual' | 'legacy';
+  deletedAt: string | null;  // ISO datetime if in the Recycle bin, else null
 }
+
+/** What screens send to create or update a borewell. A new project name creates the project. */
+export type BorewellInput = Partial<Omit<Borewell,
+  'id' | 'projectId' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'importMethod'>> & {
+  borewellId: string;
+  importMethod?: 'excel' | 'manual';
+};
 
 export interface StrataLayer {
   id: string;
@@ -70,6 +95,7 @@ export interface StrataLayer {
   color: string;            // hex
   pattern: string;          // pattern name (e.g. "dots", "lines", "solid")
   remarks: string;
+  waterBearing: boolean;
 }
 
 export type PipeType = 'plain' | 'slotted';
@@ -81,6 +107,17 @@ export interface PipeSegment {
   endDepth: number;         // feet
   pipeType: PipeType;
   pipeSubtype: PipeSubtype | null;
+  diameter: number | null;  // inches
+}
+
+export interface WaterReading {
+  id: string;
+  borewellId: string;
+  measuredOn: string;       // ISO date
+  staticLevel: number | null;
+  dynamicLevel: number | null;
+  source: string;
+  remarks: string;
 }
 
 export interface Photo {
@@ -88,13 +125,65 @@ export interface Photo {
   borewellId: string;       // FK → Borewell.id
   filePath: string;         // absolute path on disk
   captureDate: string | null; // ISO date from EXIF or user input
+  latitude: number | null;
+  longitude: number | null;
+  caption: string;
+  createdAt: string;
 }
 
-export interface BorewellFile {
+export interface Attachment {
   id: string;
-  borewellId: string;       // FK → Borewell.id
-  excelPath: string | null;
-  pdfPath: string | null;
+  borewellId: string;
+  kind: 'excel' | 'pdf' | 'other';
+  filePath: string;         // absolute path on disk
+  originalName: string;
+  createdAt: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  borewellCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HistoryEntry {
+  id: number;
+  entity: string;
+  entityId: string;
+  action: 'create' | 'update' | 'delete' | 'restore' | 'import' | 'purge';
+  changedAt: string;
+  summary: string;           // plain-language description, e.g. "Saved 9 soil layers for BW-2026-024"
+}
+
+/** Everything the detail screen shows for one borewell. */
+export interface BorewellRecord {
+  borewell: Borewell;
+  strata: StrataLayer[];
+  pipes: PipeSegment[];
+  waterReadings: WaterReading[];
+  photos: Photo[];
+  files: Attachment[];
+  history: HistoryEntry[];
+}
+
+/** One row of the Borewells list, with its layers for the layer strip. */
+export interface BorewellListItem {
+  borewell: Borewell;
+  strata: StrataLayer[];
+}
+
+/** A saved cross-section, reproducible from its line and settings. */
+export interface Section {
+  id: string;
+  name: string;
+  line: [number, number][];  // [latitude, longitude] points
+  corridorHalfKm: number;
+  settings: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Material System ─────────────────────────────────────────────────────────
@@ -187,16 +276,19 @@ export interface UnmappedMaterial {
 // ─── Search & Filters ────────────────────────────────────────────────────────
 
 export interface SearchFilters {
-  query: string;
-  field: SearchField;
+  query?: string;
+  field?: SearchField;
   dateFrom?: string;
   dateTo?: string;
   city?: string;
   project?: string;
-  material?: string;
-  minDepth?: number;         // minimum total_depth filter (feet)
-  maxDepth?: number;         // maximum total_depth filter (feet)
-  showDeleted?: boolean;     // for Recycle Bin queries
+  materialId?: string;
+  minDepth?: number;
+  maxDepth?: number;
+  minWaterLevel?: number;
+  maxWaterLevel?: number;
+  noLocation?: boolean;      // only borewells without coordinates
+  showDeleted?: boolean;     // list the Recycle bin instead
 }
 
 export type SearchField =
@@ -205,7 +297,6 @@ export type SearchField =
   | 'ownerName'
   | 'area'
   | 'city'
-  | 'date'
   | 'project'
   | 'material';
 
@@ -239,90 +330,61 @@ export interface GeocodeResult {
 
 export type ThemeMode = 'dark' | 'light';
 
-export interface ExportLogEntry {
-  filename: string;
-  recordCount: number;
-  format: string;
-  date: string;
+// ─── Backups, start-up and import ────────────────────────────────────────────
+
+export interface BackupInfo {
+  fileName: string;
+  path: string;
+  createdAt: string;
+  kind: 'auto' | 'manual' | 'before-update' | 'before-restore' | 'before-legacy-import';
+  label: string;             // plain-language, e.g. "Made by you"
+  sizeBytes: number;
+  borewellCount: number | null;
+  readable: boolean;
 }
 
-export interface AppSettings {
-  theme: ThemeMode;
-  databasePath: string;
-  backupPath: string;
-  customMaterials: Material[];
-  recentExports: ExportLogEntry[];
+export interface LegacyImportReport {
+  source: string;
+  borewells: number;
+  inRecycleBin: number;
+  strataLayers: number;
+  pipeSegments: number;
+  photos: number;
+  files: number;
+  waterReadings: number;
+  customMaterialsAdded: number;
+  alreadyPresent: number;
+  unmatchedMaterialNames: string[];
+  orphanedLayers: number;
+  orphanedPipes: number;
+  orphanedAttachments: number;
+  safetyBackup: string | null;
 }
 
-// ─── Legacy Electron IPC channel names (replaced by Tauri commands in T1) ─────
+export interface StartupStatus {
+  dataFolder: string;
+  open: { path: string; schemaVersion: number; previousVersion: number; created: boolean; upgradeBackup: string | null } | null;
+  legacyImport: LegacyImportReport | null;
+  legacyImportError: string | null;
+  automaticBackup: string | null;
+  error: string | null;       // set when the database could not be opened
+}
 
-export const IPC_CHANNELS = {
-  // Borewell CRUD
-  BOREWELL_GET_ALL: 'borewell:getAll',
-  BOREWELL_GET_BY_ID: 'borewell:getById',
-  BOREWELL_CREATE: 'borewell:create',
-  BOREWELL_UPDATE: 'borewell:update',
-  BOREWELL_DELETE: 'borewell:delete', // soft delete
-  BOREWELL_SEARCH: 'borewell:search',
-  
-  // Recycle Bin (Trash)
-  BOREWELL_GET_TRASH: 'borewell:getTrash',
-  BOREWELL_RESTORE: 'borewell:restore',
-  BOREWELL_DELETE_PERMANENT: 'borewell:deletePermanent',
+export interface ImportedBorewell {
+  borewell: BorewellInput;
+  strata: Partial<StrataLayer>[];
+  pipes: Partial<PipeSegment>[];
+}
 
-  // Strata layers
-  STRATA_GET: 'strata:get',
-  STRATA_SAVE: 'strata:save',
-  STRATA_GET_UNMAPPED: 'strata:getUnmapped',
-  STRATA_REMAP_MATERIAL: 'strata:remapMaterial',
+export interface ImportRequest {
+  fileName: string;
+  sourcePath?: string;
+  unrecognisedNames: string[];
+  resolutions: Record<string, string>;
+  borewells: ImportedBorewell[];
+}
 
-  // Pipe assembly
-  PIPE_GET: 'pipe:get',
-  PIPE_SAVE: 'pipe:save',
-
-  // Materials Dictionary CRUD
-  MATERIAL_GET_ALL: 'material:getAll',
-  MATERIAL_CREATE: 'material:create',
-  MATERIAL_UPDATE: 'material:update',
-  MATERIAL_DELETE: 'material:delete',
-
-  // Photos
-  PHOTO_GET: 'photo:get',
-  PHOTO_ADD: 'photo:add',
-  PHOTO_DELETE: 'photo:delete',
-  PHOTO_EXTRACT_EXIF: 'photo:extractExif',
-
-  // Files
-  FILE_GET: 'file:get',
-  FILE_SAVE: 'file:save',
-
-  // Geocoding
-  GEOCODE_ADDRESS: 'geocode:address',
-
-  // Settings
-  SETTINGS_GET: 'settings:get',
-  SETTINGS_SAVE: 'settings:save',
-
-  // File dialogs
-  DIALOG_OPEN_FILE: 'dialog:openFile',
-  DIALOG_OPEN_DIRECTORY: 'dialog:openDirectory',
-  DIALOG_SAVE_FILE: 'dialog:saveFile',
-
-  // Database
-  DB_GET_STATS: 'db:getStats',
-  DB_BACKUP: 'db:backup',
-  DB_BACKUP_LIST: 'db:backupList',
-  DB_BACKUP_RESTORE: 'db:backupRestore',
-  DB_BACKUP_RESTORE_EXTERNAL: 'db:backupRestoreExternal',
-
-  // Excel import
-  EXCEL_PARSE: 'excel:parse',
-  EXCEL_SMART_PARSE: 'excel:smartParse',
-
-  // Export
-  EXPORT_PDF: 'export:pdf',
-  EXPORT_EXCEL: 'export:excel',
-  EXPORT_PNG: 'export:png',
-} as const;
-
-export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
+export interface ImportResult {
+  batchId: string;
+  borewellIds: string[];
+}
