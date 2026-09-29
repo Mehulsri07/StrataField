@@ -210,11 +210,13 @@ $env:STRATA_DATA_DIR = "$env:TEMP\strata-dev"; npm run dev
 - **Rust tests** (`core/db/tests`): creating and upgrading the database, every kind of record,
   Recycle bin and history, backups and restore (including bringing back removed photos), and
   importing a real database from the older app.
-- **CI** (`.github/workflows/ci.yml`, on every push and pull request): typecheck, lint and tests on
-  Linux; Rust format, lint and tests on Windows; then the installer is built and a **clean-machine
-  test** (`.github/scripts/installer-test.ps1`) installs it on a fresh Windows runner, starts it
-  twice, installs over the top, and uninstalls, checking the data survives. Sizes, start-up time and
-  memory appear in the run summary.
+- **CI** (`.github/workflows/ci.yml`). Every pull request gets the fast checks, which take about
+  2-3 minutes: typecheck, lint, tests and a frontend build on Linux, plus Rust format, lint and
+  tests on Windows. The slow part builds the optimised installer and runs a **clean-machine test**
+  (`.github/scripts/installer-test.ps1`). That test installs the app on a fresh Windows runner,
+  starts it twice, installs over the top and uninstalls, checking the data survives. The slow part
+  runs after merging to `main`, and on pull requests that touch packaging or start-up code.
+  Documentation-only changes skip CI. Sizes, start-up time and memory appear in the run summary.
 - **Releases** (`.github/workflows/release.yml`): pushing a tag like `v1.0.1` checks it matches the
   version in `app/src-tauri/tauri.conf.json`, builds and tests the installer, and attaches it to a
   **draft** GitHub release to be published by hand.

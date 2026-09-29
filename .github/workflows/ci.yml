@@ -1,9 +1,17 @@
 name: CI
 
+# Fast checks on every pull request (about 2-3 minutes). The slow part, building the optimised
+# installer and testing it on a clean machine, runs after merging to main, and on pull requests
+# only when they touch something that can break installing or starting the app.
+# Changes to documentation alone skip CI. The Release workflow always builds and tests the installer.
+
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
   pull_request:
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -11,7 +19,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, lint, tests
+    name: Typecheck, lint, tests, frontend build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -32,8 +40,85 @@ jobs:
       - name: Test
         run: npm test
 
-  windows:
-    name: Windows build and smoke test
+      - name: Build frontend
+        run: npm run build -w app
+
+  rust:
+    name: Rust format, lint, tests
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          # One cache shared by all branches, refreshed from main.
+          shared-key: rust-checks
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # tauri::generate_context! needs the frontend folder to exist. The real frontend is built and
+      # checked in the other job, so a placeholder page is enough here (saves installing Node).
+      - name: Placeholder frontend
+        run: |
+          New-Item -ItemType Directory -Force app/dist | Out-Null
+          Set-Content app/dist/index.html '<!doctype html><title>StrataField</title>'
+
+      - name: Rust format
+        run: cargo fmt --all --check
+
+      - name: Rust lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Rust tests (database, migrations, backups, old-data import)
+        run: cargo test --workspace
+
+  # Decides whether a pull request needs the installer build and clean-machine test.
+  changes:
+    name: Does this change packaging or start-up?
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      installer: ${{ steps.filter.outputs.installer }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            installer:
+              - 'app/src-tauri/tauri.conf.json'
+              - 'app/src-tauri/capabilities/**'
+              - 'app/src-tauri/icons/**'
+              - 'app/src-tauri/Cargo.toml'
+              - 'app/src-tauri/build.rs'
+              - 'app/src-tauri/src/lib.rs'
+              - 'app/src-tauri/src/main.rs'
+              - 'app/src-tauri/src/state.rs'
+              - 'core/db/src/db.rs'
+              - 'core/db/src/schema.rs'
+              - 'core/db/src/legacy.rs'
+              - 'core/db/Cargo.toml'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'app/package.json'
+              - '.github/**'
+
+  installer:
+    name: Installer build and clean-machine test
+    needs: [check, rust, changes]
+    # Runs on main and when started by hand; on pull requests only when `changes` says so.
+    if: >-
+      always() && needs.check.result == 'success' && needs.rust.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.installer == 'true')
     runs-on: windows-latest
     defaults:
       run:
@@ -47,27 +132,14 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
+          shared-key: rust-release
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - run: npm ci
-
-      # tauri::generate_context! needs the built frontend, even for clippy and tests.
-      - name: Build frontend
-        run: npm run build -w app
-
-      - name: Rust format
-        run: cargo fmt --all --check
-
-      - name: Rust lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Rust tests (database, migrations, backups, old-data import)
-        run: cargo test --workspace
 
       - name: Build installer
         run: npm run tauri -w app -- build
