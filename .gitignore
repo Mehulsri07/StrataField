@@ -92,4 +92,5 @@ typings/
 out/
 .kiro/
 stratafield_context.md
-.github/
+.github/*
+!.github/workflows/

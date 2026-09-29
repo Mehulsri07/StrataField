@@ -4,7 +4,7 @@
 
 import type {
   Borewell, StrataLayer, PipeSegment, Photo, BorewellFile,
-  Material, SearchFilters, AppSettings, GeocodeResult, ExportLogEntry,
+  Material, SearchFilters, AppSettings, GeocodeResult,
   ExcelParseResult, UnmappedMaterial
 } from './shared/types';
 

@@ -25,4 +25,28 @@ Handling raw geological data can be messy and inconsistent. StrataField solves t
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/Mehulsri07/StrataField.git](https://github.com/Mehulsri07/StrataField.git)
+   git clone https://github.com/Mehulsri07/StrataField.git
+   cd StrataField
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Run the app in development mode:**
+   ```bash
+   npm start
+   ```
+
+4. **Checks:**
+   ```bash
+   npm run typecheck
+   npm run lint
+   npm test
+   ```
+
+5. **Build installers** (output in `out/make`):
+   ```bash
+   npm run make
+   ```

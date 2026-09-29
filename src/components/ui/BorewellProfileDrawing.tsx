@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { StrataLayer, PipeSegment } from '@shared/types';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { mergeStrataLayers, mergePipeSegments } from '@/shared/profileUtils';

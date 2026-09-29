@@ -254,7 +254,7 @@ export function NewBorewellPage() {
     };
 
     // Extract values from cells by scanning for keyword/regex patterns
-    Object.entries(cells).forEach(([key, cellObj]) => {
+    Object.entries(cells).forEach(([, cellObj]) => {
       if (!cellObj || !cellObj.w) return;
       const cellText = cellObj.w.trim();
 

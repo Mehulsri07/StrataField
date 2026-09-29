@@ -111,7 +111,7 @@ export function smartParseExcel(filePath: string): ExcelParseResult {
   const dataStartIdx = glRowIdx >= 0 ? glRowIdx + 1 : headerRowIdx + 2;
 
   // 4. Extract metadata from rows above the header
-  const metadata = extractMetadata(rows, headerRowIdx, anomalies);
+  const metadata = extractMetadata(rows, headerRowIdx);
 
   // 5. Detect units from metadata text + interval sizes
   const detectedUnit = detectUnit(rows, headerRowIdx, dataStartIdx, searchEnd, anomalies);
@@ -232,7 +232,7 @@ export function smartParseExcel(filePath: string): ExcelParseResult {
 
 // ─── Metadata Extraction ────────────────────────────────────────────────────
 
-function extractMetadata(rows: any[][], headerRowIdx: number, anomalies: ParseAnomaly[]): ParsedBoreholeMetadata {
+function extractMetadata(rows: any[][], headerRowIdx: number): ParsedBoreholeMetadata {
   const meta: ParsedBoreholeMetadata = {
     siteName: null,
     ownerName: null,
@@ -374,22 +374,19 @@ function normaliseMaterial(raw: string): {
     };
   }
 
-  // Fallback: try partial matching
-  if (key.includes('sand')) {
-    const sandMat = DEFAULT_MATERIALS.find(m => m.id === 'medium_sand')!;
-    return { normalised: sandMat.name, materialId: sandMat.id, color: sandMat.color, pattern: sandMat.pattern, unknown: false };
-  }
-  if (key.includes('clay')) {
-    const clayMat = DEFAULT_MATERIALS.find(m => m.id === 'clay')!;
-    return { normalised: clayMat.name, materialId: clayMat.id, color: clayMat.color, pattern: clayMat.pattern, unknown: false };
-  }
-  if (key.includes('kankar') || key.includes('kanker')) {
-    const kankarMat = DEFAULT_MATERIALS.find(m => m.id === 'kankar')!;
-    return { normalised: kankarMat.name, materialId: kankarMat.id, color: kankarMat.color, pattern: kankarMat.pattern, unknown: false };
-  }
-  if (key.includes('gravel')) {
-    const gravelMat = DEFAULT_MATERIALS.find(m => m.id === 'gravel')!;
-    return { normalised: gravelMat.name, materialId: gravelMat.id, color: gravelMat.color, pattern: gravelMat.pattern, unknown: false };
+  // Fallback: try partial matching (order matters — first hit wins)
+  const partialMatches: [string[], string][] = [
+    [['sand'], 'medium_sand'],
+    [['clay'], 'clay'],
+    [['kankar', 'kanker'], 'kankar'],
+    [['gravel'], 'gravel'],
+  ];
+  for (const [needles, materialId] of partialMatches) {
+    if (!needles.some(n => key.includes(n))) continue;
+    const fallback = DEFAULT_MATERIALS.find(m => m.id === materialId);
+    if (fallback) {
+      return { normalised: fallback.name, materialId: fallback.id, color: fallback.color, pattern: fallback.pattern, unknown: false };
+    }
   }
 
   // Truly unknown
