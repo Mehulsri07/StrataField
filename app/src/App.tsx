@@ -1,21 +1,25 @@
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/app/AppShell";
 import { ComingSoon } from "@/components/app/Page";
-import { DesignSystem } from "@/pages/DesignSystem";
-import { Borewells } from "@/pages/Borewells";
-import { BorewellDetail } from "@/pages/BorewellDetail";
-import { BorewellForm } from "@/pages/BorewellForm";
-import { MapPage } from "@/pages/MapPage";
-import { EditLayers } from "@/pages/EditLayers";
-import { ImportPage } from "@/pages/ImportPage";
-import { ExportPage } from "@/pages/ExportPage";
 import { text } from "@/text";
+
+const DesignSystem = lazy(() => import("@/pages/DesignSystem").then((m) => ({ default: m.DesignSystem })));
+const Borewells = lazy(() => import("@/pages/Borewells").then((m) => ({ default: m.Borewells })));
+const BorewellDetail = lazy(() => import("@/pages/BorewellDetail").then((m) => ({ default: m.BorewellDetail })));
+const BorewellForm = lazy(() => import("@/pages/BorewellForm").then((m) => ({ default: m.BorewellForm })));
+const MapPage = lazy(() => import("@/pages/MapPage").then((m) => ({ default: m.MapPage })));
+const EditLayers = lazy(() => import("@/pages/EditLayers").then((m) => ({ default: m.EditLayers })));
+const ImportPage = lazy(() => import("@/pages/ImportPage").then((m) => ({ default: m.ImportPage })));
+const ExportPage = lazy(() => import("@/pages/ExportPage").then((m) => ({ default: m.ExportPage })));
 
 const p = text.pages;
 
 /** Every screen. Screens marked ComingSoon are built in T3; the shell and menu work now. */
 export default function App() {
   return (
+    // Each screen loads the first time it is opened, so the app starts quickly.
+    <Suspense fallback={<p className="p-6 text-muted-foreground">Loading…</p>}>
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<ComingSoon title={p.home.title} sub={p.home.sub(text.app.city)} />} />
@@ -34,5 +38,6 @@ export default function App() {
         <Route path="*" element={<ComingSoon title={p.notFound.title} sub={p.notFound.sub} />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }

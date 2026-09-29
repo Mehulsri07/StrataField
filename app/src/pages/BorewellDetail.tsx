@@ -17,7 +17,6 @@ import { BorewellProfile, activateOnKey } from "@/components/geology/BorewellPro
 import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, files, isPreview } from "@/lib/api";
-import { buildReport, drawingPng, fileName, saveFile } from "@/lib/exporting";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, formatWhen } from "@/lib/format";
 import { parseNumber } from "@strata/core";
@@ -64,6 +63,7 @@ export function BorewellDetail() {
 
   const makeReport = async () => {
     try {
+      const { buildReport, fileName, saveFile } = await import("@/lib/exporting");
       const path = await saveFile(`${fileName(b.borewellId)}.pdf`, "pdf", await buildReport([r]));
       if (path) toast.success("Report saved", { action: { label: "Open", onClick: () => files.open(path).catch((e) => toast.error(String(e))) } });
     } catch (e) {
@@ -72,6 +72,7 @@ export function BorewellDetail() {
   };
   const savePicture = async () => {
     try {
+      const { drawingPng, fileName, saveFile } = await import("@/lib/exporting");
       const path = await saveFile(`${fileName(b.borewellId)} drawing.png`, "png", (await drawingPng(r, 3)).bytes);
       if (path) toast.success("Picture saved");
     } catch (e) {
