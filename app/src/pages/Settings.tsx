@@ -18,6 +18,7 @@ import { useDataVersion, useLoad } from "@/lib/data";
 import { useStartup } from "@/lib/hooks";
 import { formatWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
+import { checkForUpdate, type AvailableUpdate } from "@/lib/updates";
 import { text } from "@/text";
 import { cn } from "@/lib/utils";
 
@@ -364,6 +365,25 @@ function Appearance() {
 function About() {
   const status = useStartup();
   const info = useLoad("app-info", () => api.appInfo());
+  const [update, setUpdate] = useState<{ state: "idle" | "checking" | "none" | "failed" } | { state: "found"; found: AvailableUpdate; progress?: number | null }>({ state: "idle" });
+  const check = async () => {
+    setUpdate({ state: "checking" });
+    try {
+      const found = await checkForUpdate();
+      setUpdate(found ? { state: "found", found } : { state: "none" });
+    } catch {
+      setUpdate({ state: "failed" });
+    }
+  };
+  const install = async (found: AvailableUpdate) => {
+    setUpdate({ state: "found", found, progress: null });
+    try {
+      await found.install((p) => setUpdate({ state: "found", found, progress: p }));
+    } catch (e) {
+      setUpdate({ state: "found", found });
+      toast.error(`The update could not be installed. ${String(e)}`);
+    }
+  };
   return (
     <Panel title="About" bodyClassName="grid gap-3">
       <dl className="grid grid-cols-[160px_1fr] gap-x-4 gap-y-2 text-[13px]">
@@ -371,7 +391,21 @@ function About() {
         <dt className="text-muted-foreground">Your data is kept in</dt><dd className="num break-all">{status?.dataFolder ?? "…"}</dd>
         <dt className="text-muted-foreground">Shared with</dt><dd>StrataVision, when it is installed, uses the same data. Anything added in one shows up in the other.</dd>
       </dl>
-      <div><Button variant="ghost" onClick={() => api.backups.openFolder("data").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open data folder</Button></div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={check} disabled={isPreview || update.state === "checking" || (update.state === "found" && update.progress !== undefined)}>
+          {update.state === "checking" ? text.updates.checking : text.updates.check}
+        </Button>
+        {update.state === "found" && (
+          <Button onClick={() => install(update.found)} disabled={update.progress !== undefined}>
+            {update.progress === undefined ? `${text.updates.install} (${update.found.version})`
+              : update.progress === null ? text.updates.downloading : text.updates.downloadingPct(Math.round(update.progress * 100))}
+          </Button>
+        )}
+        <Button variant="ghost" onClick={() => api.backups.openFolder("data").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open data folder</Button>
+      </div>
+      {update.state === "none" && info.data && <p className="text-sm text-muted-foreground" role="status">{text.updates.upToDate(info.data.version)}</p>}
+      {update.state === "failed" && <p className="text-sm text-destructive" role="status">{text.updates.offline}</p>}
+      {update.state === "found" && update.progress === undefined && <p className="text-sm text-muted-foreground">{text.updates.howItWorks}</p>}
     </Panel>
   );
 }

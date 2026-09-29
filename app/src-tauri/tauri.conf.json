@@ -62,5 +62,16 @@
     },
     "copyright": "© 2026 Mehul",
     "longDescription": "Record borewells, soil layers, pipes and water levels; see them on a map and in cross-sections. Works offline; data stays on this computer."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIwOTIwNkREQ0VGQjhFMzAKUldRd2p2dk8zUWFTSUtReC96S2g2OVlFNEh3dnh1NEl2blEzMzJsNG1adVlXUmUzZGFsQUtydkQK",
+      "endpoints": [
+        "https://github.com/Mehulsri07/StrataField/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
