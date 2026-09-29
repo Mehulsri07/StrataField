@@ -1,29 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useDataVersion } from "./data";
 import type { BackupInfo, BorewellListItem, StartupStatus } from "@strata/core";
 import { api } from "./api";
-
-/** How often screens check whether another Strata app changed the shared database. */
-const DATA_POLL_MS = 5000;
-
-/**
- * Bumps whenever the shared database changes underneath us (another Strata app wrote to it).
- * Screens add it to their effect dependencies to reload.
- */
-export function useDataVersion(): number {
-  const [version, setVersion] = useState(0);
-  const last = useRef<number | null>(null);
-  useEffect(() => {
-    const tick = () =>
-      api.dataVersion().then((v) => {
-        if (last.current !== null && v !== last.current) setVersion((n) => n + 1);
-        last.current = v;
-      }).catch(() => {});
-    tick();
-    const id = window.setInterval(tick, DATA_POLL_MS);
-    return () => window.clearInterval(id);
-  }, []);
-  return version;
-}
 
 export function useStartup() {
   const [status, setStatus] = useState<StartupStatus | null>(null);
@@ -43,7 +21,7 @@ export interface Summary {
 
 /** Counts for the sidebar and status bar; reloads when data changes. */
 export function useSummary(enabled: boolean) {
-  const version = useDataVersion();
+  const { version } = useDataVersion();
   const [summary, setSummary] = useState<Summary | null>(null);
   useEffect(() => {
     if (!enabled) return;

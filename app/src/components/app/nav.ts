@@ -25,7 +25,9 @@ export const NAV: NavItem[] = [
 /** Page title for the top bar, from the current path. */
 export function titleFor(pathname: string): string {
   if (pathname.startsWith("/borewell/")) {
-    return pathname.endsWith("/layers") ? text.pages.editLayers.title : text.pages.detail.title;
+    if (pathname.endsWith("/layers")) return text.pages.editLayers.title;
+    if (pathname.endsWith("/edit")) return "Edit details";
+    return text.pages.detail.title;
   }
   if (pathname === "/design") return "Design system";
   return NAV.find((n) => n.to === pathname)?.label ?? text.pages.notFound.title;

@@ -91,7 +91,13 @@ jobs:
           Start-Sleep -Seconds 15
           if ($app.HasExited) { throw "StrataField exited early with code $($app.ExitCode)" }
           Write-Host 'StrataField is running after 15 seconds'
+          # Start-up opens (or creates) the shared database; slow runners can take a while.
           $db = Join-Path $env:APPDATA 'Strata\strata.db'
-          if (-not (Test-Path $db)) { throw "The app did not create its database at $db" }
+          $deadline = (Get-Date).AddSeconds(60)
+          while (-not (Test-Path $db) -and (Get-Date) -lt $deadline -and -not $app.HasExited) { Start-Sleep -Seconds 2 }
+          if (-not (Test-Path $db)) {
+            Write-Host "Contents of $env:APPDATA :"; Get-ChildItem $env:APPDATA | Select-Object Name | Format-Table | Out-String | Write-Host
+            throw "The app did not create its database at $db within 60 seconds (app exited: $($app.HasExited))"
+          }
           Write-Host "Database created at $db"
           Stop-Process -Id $app.Id -Force

@@ -26,16 +26,39 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   borewells_search: (args) => {
     const f = (args.filters ?? {}) as SearchFilters;
     const q = (f.query ?? "").trim().toLowerCase();
-    return SAMPLE_BOREWELLS.filter(({ borewell: b }) =>
+    const within = (v: number | null, min?: number, max?: number) => (min == null || (v != null && v >= min)) && (max == null || (v != null && v <= max));
+    return SAMPLE_BOREWELLS.filter(({ borewell: b, strata }) =>
       (!q || [b.borewellId, b.ownerName, b.area, b.project].join(" ").toLowerCase().includes(q)) &&
+      (!f.project || b.project === f.project) &&
+      (!f.materialId || strata.some((l) => l.materialId === f.materialId)) &&
+      within(b.totalDepth, f.minDepth, f.maxDepth) &&
+      within(b.waterLevel, f.minWaterLevel, f.maxWaterLevel) &&
+      (!f.dateFrom || b.date >= f.dateFrom) && (!f.dateTo || b.date <= f.dateTo) &&
       (!f.noLocation || b.latitude == null) &&
       !f.showDeleted,
     );
   },
+  projects_list: () => [...new Set(SAMPLE_BOREWELLS.map((i) => i.borewell.project))].sort().map((name) => ({
+    id: name, name, description: "", createdAt: "", updatedAt: "",
+    borewellCount: SAMPLE_BOREWELLS.filter((i) => i.borewell.project === name).length,
+  })),
   borewell_get: (args) => {
     const item = SAMPLE_BOREWELLS.find((i) => i.borewell.id === args.id);
     if (!item) throw new Error("This borewell was not found. It may have been deleted.");
-    return { ...item, pipes: samplePipes(item), waterReadings: [], photos: [], files: [], history: [] };
+    const b = item.borewell;
+    return {
+      ...item,
+      pipes: samplePipes(item),
+      waterReadings: b.waterLevel == null ? [] : [
+        { id: `${b.id}-w1`, borewellId: b.id, measuredOn: b.date, staticLevel: b.waterLevel, dynamicLevel: null, source: "When drilled", remarks: "" },
+      ],
+      photos: [],
+      files: b.importMethod === "excel" ? [{ id: `${b.id}-f1`, borewellId: b.id, kind: "excel", filePath: "", originalName: "field-logs.xlsx", createdAt: b.createdAt }] : [],
+      history: [
+        { id: 2, entity: "borewell", entityId: b.id, action: "update", changedAt: b.updatedAt, summary: `Saved ${item.strata.length} soil layers for ${b.borewellId}` },
+        { id: 1, entity: "borewell", entityId: b.id, action: b.importMethod === "excel" ? "import" : "create", changedAt: b.createdAt, summary: `Added ${b.borewellId} (${b.ownerName})` },
+      ],
+    };
   },
 };
 

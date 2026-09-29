@@ -1,208 +1,124 @@
 /**
- * StrataField — Shared data validation engine.
- * Runs on both the frontend (Zustand & forms) and the main process (before SQLite transactions).
+ * Checks for borewell details, soil layers and pipes, written in plain language for the screens.
+ *
+ * - A "problem" must be fixed before saving (the database would refuse it anyway).
+ * - A "warning" is worth a look but may be correct. Gaps between layers are warnings, never
+ *   errors: a depth nobody logged is marked "Not recorded" rather than guessed.
  */
+import type { BorewellInput, PipeSegment, StrataLayer } from './types';
 
-import type { Borewell, StrataLayer, PipeSegment } from './types';
+export type Severity = 'problem' | 'warning';
 
-/**
- * Validates borewell header metadata properties.
- * Latitude and longitude are optional — GPS may not always be captured at logging time.
- */
-export function validateBorewell(b: Partial<Borewell>): string[] {
-  const errors: string[] = [];
-
-  if (!b.borewellId || b.borewellId.trim() === '') {
-    errors.push('Borewell Name/ID is a mandatory field.');
-  }
-
-  if (!b.ownerName || b.ownerName.trim() === '') {
-    errors.push('Owner / Client Name is a mandatory field.');
-  }
-
-  if (!b.city || b.city.trim() === '') {
-    errors.push('City / District is a mandatory field.');
-  }
-
-  // Latitude and longitude are optional — only validate range when provided
-  if (b.latitude !== undefined && b.latitude !== null && String(b.latitude).trim() !== '') {
-    const lat = Number(b.latitude);
-    if (isNaN(lat) || lat < -90 || lat > 90) {
-      errors.push('Latitude must be a valid number between -90 and 90 degrees.');
-    }
-  }
-
-  if (b.longitude !== undefined && b.longitude !== null && String(b.longitude).trim() !== '') {
-    const lng = Number(b.longitude);
-    if (isNaN(lng) || lng < -180 || lng > 180) {
-      errors.push('Longitude must be a valid number between -180 and 180 degrees.');
-    }
-  }
-
-  if (b.totalDepth !== undefined && b.totalDepth !== null) {
-    if (isNaN(b.totalDepth) || b.totalDepth < 0) {
-      errors.push('Total depth cannot be a negative value.');
-    }
-  }
-
-  if (b.waterLevel !== undefined && b.waterLevel !== null) {
-    if (isNaN(b.waterLevel) || b.waterLevel < 0) {
-      errors.push('Water level depth cannot be a negative value.');
-    }
-    if (b.totalDepth !== undefined && b.totalDepth !== null && b.waterLevel > b.totalDepth) {
-      errors.push('Water level depth cannot exceed the total borewell depth.');
-    }
-  }
-
-  return errors;
+export interface Issue {
+  severity: Severity;
+  message: string;
+  /** Form field the issue belongs to, when there is one. */
+  field?: string;
+  /** For gaps between layers: the missing depth range, so the screen can offer "Mark as not recorded". */
+  gap?: [number, number];
 }
 
-/**
- * Per-field validation for borewell forms.
- * Single source of truth used by both NewBorewellPage and BorewellDetailPage.
- * Returns error message string (empty = valid).
- */
-export function validateBorewellField(
-  name: string,
-  value: any,
-  formData?: { totalDepth?: string | number; waterLevel?: string | number }
-): string {
-  switch (name) {
-    case 'borewellId':
-      return !value || String(value).trim() === '' ? 'Borewell Name/ID is a mandatory field.' : '';
-    case 'project':
-      return !value || String(value).trim() === '' ? 'Project Name is a mandatory field.' : '';
-    case 'ownerName':
-      return !value || String(value).trim() === '' ? 'Owner / Client Name is a mandatory field.' : '';
-    case 'city':
-      return !value || String(value).trim() === '' ? 'City / District is a mandatory field.' : '';
-    case 'latitude': {
-      // Optional — only validate range when provided
-      if (value === '' || value === null || value === undefined) return '';
-      const lat = Number(value);
-      if (isNaN(lat) || lat < -90 || lat > 90) return 'Latitude must be a valid number between -90 and 90 degrees.';
-      return '';
-    }
-    case 'longitude': {
-      // Optional — only validate range when provided
-      if (value === '' || value === null || value === undefined) return '';
-      const lng = Number(value);
-      if (isNaN(lng) || lng < -180 || lng > 180) return 'Longitude must be a valid number between -180 and 180 degrees.';
-      return '';
-    }
-    case 'totalDepth':
-      if (value !== '' && value !== null && value !== undefined) {
-        const depth = Number(value);
-        if (isNaN(depth) || depth < 0) return 'Total depth cannot be a negative value.';
-      }
-      return '';
-    case 'waterLevel':
-      if (value !== '' && value !== null && value !== undefined) {
-        const wl = Number(value);
-        if (isNaN(wl) || wl < 0) return 'Water level depth cannot be a negative value.';
-        const td = formData?.totalDepth;
-        if (td !== '' && td !== null && td !== undefined && wl > Number(td)) {
-          return 'Water level depth cannot exceed the total borewell depth.';
-        }
-      }
-      return '';
-    default:
-      return '';
-  }
-}
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
-/**
- * Enforces strict strata layers continuity validation.
- * Rules:
- * 1. Non-negative depths.
- * 2. startDepth < endDepth for each layer.
- * 3. First layer must start at 0.
- * 4. Layer N+1 start depth must exactly equal Layer N end depth.
- * 5. Strata depths cannot exceed the borewell's total depth.
- */
-export function validateStrata(layers: StrataLayer[], totalDepth: number | null): string[] {
-  const errors: string[] = [];
+export function checkBorewell(b: BorewellInput): Issue[] {
+  const issues: Issue[] = [];
+  const problem = (field: string, message: string) => issues.push({ severity: 'problem', field, message });
+  const warning = (field: string, message: string) => issues.push({ severity: 'warning', field, message });
 
-  if (!layers || layers.length === 0) return errors;
+  if (!b.borewellId?.trim()) problem('borewellId', 'Enter a borewell ID, for example BW-2026-025.');
+  if (!b.ownerName?.trim()) warning('ownerName', "The owner's name is empty.");
 
-  // Sort by start depth to check sequence integrity
-  const sorted = [...layers].sort((a, b) => a.startDepth - b.startDepth);
-
-  for (let i = 0; i < sorted.length; i++) {
-    const l = sorted[i];
-
-    if (isNaN(l.startDepth) || l.startDepth < 0) {
-      errors.push(`Layer ${i + 1} (${l.material}): Start depth cannot be negative.`);
-    }
-
-    if (isNaN(l.endDepth) || l.endDepth < 0) {
-      errors.push(`Layer ${i + 1} (${l.material}): End depth cannot be negative.`);
-    }
-
-    if (l.startDepth >= l.endDepth) {
-      errors.push(`Layer ${i + 1} (${l.material}): End depth (${l.endDepth} ft) must be greater than start depth (${l.startDepth} ft).`);
-    }
-
-    if (i === 0 && l.startDepth !== 0) {
-      errors.push(`First strata layer must start at 0 ft (currently starts at ${l.startDepth} ft).`);
-    }
-
-    if (i > 0) {
-      const prev = sorted[i - 1];
-      if (l.startDepth !== prev.endDepth) {
-        errors.push(`Gaps or overlaps detected: Layer ${i + 1} (${l.material}) starts at ${l.startDepth} ft, but previous layer (${prev.material}) ends at ${prev.endDepth} ft.`);
-      }
-    }
-
-    if (totalDepth !== null && l.endDepth > totalDepth) {
-      errors.push(`Layer ${i + 1} (${l.material}) end depth (${l.endDepth} ft) exceeds total borewell depth (${totalDepth} ft).`);
-    }
+  const hasLat = b.latitude != null, hasLon = b.longitude != null;
+  if (hasLat !== hasLon) {
+    problem(hasLat ? 'longitude' : 'latitude', 'Enter both latitude and longitude, or neither.');
+  } else if (hasLat && hasLon) {
+    if (!isNum(b.latitude) || b.latitude! < -90 || b.latitude! > 90) problem('latitude', 'Latitude must be between -90 and 90.');
+    if (!isNum(b.longitude) || b.longitude! < -180 || b.longitude! > 180) problem('longitude', 'Longitude must be between -180 and 180.');
   }
 
-  return errors;
+  const nonNegative: [keyof BorewellInput, string][] = [
+    ['totalDepth', 'Total depth'], ['waterLevel', 'Water level'], ['dynamicWaterLevel', 'Pumping water level'],
+    ['boreDia', 'Hole size'], ['pipeDia', 'Pipe size'],
+  ];
+  for (const [field, label] of nonNegative) {
+    const v = b[field];
+    if (v != null && (!isNum(v) || v < 0)) problem(field, `${label} must be a number of zero or more.`);
+  }
+  if (isNum(b.totalDepth) && isNum(b.waterLevel) && b.waterLevel > b.totalDepth) {
+    problem('waterLevel', `The water level (${b.waterLevel} ft) is deeper than the borewell (${b.totalDepth} ft).`);
+  }
+  if (isNum(b.boreDia) && isNum(b.pipeDia) && b.pipeDia > b.boreDia) {
+    warning('pipeDia', `The pipe (${b.pipeDia}") is wider than the hole (${b.boreDia}"). Check both sizes.`);
+  }
+  return issues;
 }
 
-/**
- * Validates pipe assembly segments.
- * Rules:
- * 1. Non-negative depths.
- * 2. startDepth < endDepth.
- * 3. Segments must not overlap (but gaps are allowed, since pipes don't have to cover the whole well).
- * 4. Segments cannot exceed the total borewell depth.
- */
-export function validatePipeSegments(segments: PipeSegment[], totalDepth: number | null): string[] {
-  const errors: string[] = [];
+type LayerLike = Pick<StrataLayer, 'startDepth' | 'endDepth' | 'material'> & { materialId?: string | null };
 
-  if (!segments || segments.length === 0) return errors;
+export function checkLayers(layers: LayerLike[], totalDepth: number | null | undefined): Issue[] {
+  const issues: Issue[] = [];
+  if (layers.length === 0) return issues;
+  const sorted = [...layers].sort((a, b) => a.startDepth - b.startDepth || a.endDepth - b.endDepth);
+  const name = (l: LayerLike) => l.material || 'A layer';
 
-  const sorted = [...segments].sort((a, b) => a.startDepth - b.startDepth);
-
-  for (let i = 0; i < sorted.length; i++) {
-    const p = sorted[i];
-
-    if (isNaN(p.startDepth) || p.startDepth < 0) {
-      errors.push(`Segment ${i + 1} (${p.pipeType}): Start depth cannot be negative.`);
+  sorted.forEach((l, i) => {
+    if (!isNum(l.startDepth) || !isNum(l.endDepth) || l.startDepth < 0) {
+      issues.push({ severity: 'problem', message: `${name(l)} has a depth that is not a valid number.` });
+      return;
     }
-
-    if (isNaN(p.endDepth) || p.endDepth < 0) {
-      errors.push(`Segment ${i + 1} (${p.pipeType}): End depth cannot be negative.`);
+    if (l.endDepth <= l.startDepth) {
+      issues.push({ severity: 'problem', message: `${name(l)} ends at ${l.endDepth} ft, which is not deeper than where it starts (${l.startDepth} ft).` });
     }
-
-    if (p.startDepth >= p.endDepth) {
-      errors.push(`Segment ${i + 1} (${p.pipeType}): End depth (${p.endDepth} ft) must be greater than start depth (${p.startDepth} ft).`);
+    if (!l.material?.trim() && !l.materialId) {
+      issues.push({ severity: 'problem', message: `The layer from ${l.startDepth} to ${l.endDepth} ft needs a soil type.` });
     }
-
-    if (i > 0) {
-      const prev = sorted[i - 1];
-      if (p.startDepth < prev.endDepth) {
-        errors.push(`Overlapping pipe segments: Segment ${i + 1} starts at ${p.startDepth} ft, which overlaps with segment ${i} ending at ${prev.endDepth} ft.`);
-      }
+    const prev = sorted[i - 1];
+    if (i === 0 && l.startDepth > 0) {
+      issues.push({ severity: 'warning', message: `Nothing is filled in from 0 to ${l.startDepth} ft.`, gap: [0, l.startDepth] });
     }
+    if (prev && l.startDepth > prev.endDepth) {
+      issues.push({ severity: 'warning', message: `Nothing is filled in from ${prev.endDepth} to ${l.startDepth} ft.`, gap: [prev.endDepth, l.startDepth] });
+    }
+    if (prev && l.startDepth < prev.endDepth) {
+      issues.push({ severity: 'problem', message: `${name(prev)} and ${name(l)} both cover ${l.startDepth} to ${Math.min(prev.endDepth, l.endDepth)} ft. Change one of the depths.` });
+    }
+  });
 
-    if (totalDepth !== null && p.endDepth > totalDepth) {
-      errors.push(`Pipe segment ${i + 1} (${p.pipeType}) end depth (${p.endDepth} ft) exceeds total borewell depth (${totalDepth} ft).`);
+  const last = sorted[sorted.length - 1];
+  if (isNum(totalDepth) && totalDepth > 0) {
+    const deepest = Math.max(...sorted.map(l => l.endDepth));
+    if (deepest < totalDepth) {
+      issues.push({ severity: 'warning', message: `Layers stop at ${deepest} ft, but the borewell is ${totalDepth} ft deep.`, gap: [deepest, totalDepth] });
+    } else if (deepest > totalDepth) {
+      issues.push({ severity: 'warning', message: `${name(last)} goes down to ${deepest} ft, deeper than the borewell's ${totalDepth} ft. Check the total depth.` });
     }
   }
-
-  return errors;
+  return issues;
 }
+
+type PipeLike = Pick<PipeSegment, 'startDepth' | 'endDepth' | 'pipeType'>;
+
+export function checkPipes(pipes: PipeLike[], totalDepth: number | null | undefined): Issue[] {
+  const issues: Issue[] = [];
+  const sorted = [...pipes].sort((a, b) => a.startDepth - b.startDepth);
+  const kind = (p: PipeLike) => (p.pipeType === 'slotted' ? 'Screen pipe' : 'Plain pipe');
+  sorted.forEach((p, i) => {
+    if (!isNum(p.startDepth) || !isNum(p.endDepth) || p.startDepth < 0) {
+      issues.push({ severity: 'problem', message: `${kind(p)} has a depth that is not a valid number.` });
+      return;
+    }
+    if (p.endDepth <= p.startDepth) {
+      issues.push({ severity: 'problem', message: `${kind(p)} ends at ${p.endDepth} ft, which is not deeper than where it starts (${p.startDepth} ft).` });
+    }
+    const prev = sorted[i - 1];
+    if (prev && p.startDepth < prev.endDepth) {
+      issues.push({ severity: 'problem', message: `Two pipe pieces both cover ${p.startDepth} to ${Math.min(prev.endDepth, p.endDepth)} ft. Change one of the depths.` });
+    }
+    if (isNum(totalDepth) && totalDepth > 0 && p.endDepth > totalDepth) {
+      issues.push({ severity: 'warning', message: `${kind(p)} goes down to ${p.endDepth} ft, deeper than the borewell's ${totalDepth} ft.` });
+    }
+  });
+  return issues;
+}
+
+export const hasProblems = (issues: Issue[]) => issues.some(i => i.severity === 'problem');

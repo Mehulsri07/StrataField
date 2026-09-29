@@ -1,5 +1,6 @@
 mod commands;
 mod geocode;
+mod photo;
 mod state;
 
 use tauri::Manager;
@@ -7,11 +8,13 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // %APPDATA% (roaming). The shared database lives in %APPDATA%\Strata, and the older
             // Electron app's data (if any) in %APPDATA%\StrataField.
             let roaming = app.path().data_dir()?;
-            app.manage(state::start(&roaming));
+            app.manage(state::start(&state::Locations::from_env_or(&roaming)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -49,6 +52,7 @@ pub fn run() {
             commands::setting_get,
             commands::setting_set,
             commands::geocode_address,
+            commands::photo_metadata,
         ])
         .build(tauri::generate_context!())
         .expect("error while starting StrataField");
@@ -91,7 +95,7 @@ mod tests {
             .unwrap();
         }
 
-        let first = state::start(&roaming);
+        let first = state::start(&state::Locations::standard(&roaming));
         assert!(first.startup.error.is_none(), "{:?}", first.startup.error);
         assert!(roaming.join("Strata").join("strata.db").exists());
         assert_eq!(
@@ -104,7 +108,7 @@ mod tests {
         );
         drop(first);
 
-        let second = state::start(&roaming);
+        let second = state::start(&state::Locations::standard(&roaming));
         assert!(
             second.startup.legacy_import.is_none(),
             "old data is brought over only once"

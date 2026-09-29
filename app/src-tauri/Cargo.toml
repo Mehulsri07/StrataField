@@ -20,10 +20,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 strata_db = { path = "../../core/db" }
 reqwest = { version = "0.13.5", default-features = false, features = ["native-tls", "json", "query"] }
 tokio = { version = "1", features = ["time", "sync"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+kamadak-exif = "0.6"
 

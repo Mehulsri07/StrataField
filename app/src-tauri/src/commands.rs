@@ -308,3 +308,9 @@ pub async fn geocode_address(
 ) -> Res<Option<misc::GeocodeHit>> {
     geocode::lookup(&state, &query).await
 }
+
+/// Date and GPS position saved inside a photo, if any. Works for photos anywhere on the computer.
+#[tauri::command]
+pub fn photo_metadata(path: String) -> Res<crate::photo::PhotoMetadata> {
+    crate::photo::read(&PathBuf::from(path))
+}

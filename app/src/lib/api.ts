@@ -3,7 +3,7 @@
  * Screens call these instead of `invoke` directly. Errors reject with a plain-language
  * message that can be shown to the user as-is.
  */
-import { invoke as tauriInvoke, isTauri } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke as tauriInvoke, isTauri } from "@tauri-apps/api/core";
 import type {
   Attachment, BackupInfo, Borewell, BorewellInput, BorewellListItem, BorewellRecord, ImportRequest,
   ImportResult, LegacyImportReport, Material, Photo, PipeSegment, Project, SearchFilters, Section,
@@ -97,4 +97,30 @@ export const api = {
 
   /** Approximate location for an address. Needs internet; resolves null when nothing is found. */
   geocode: (query: string) => invoke<GeocodeResult | null>("geocode_address", { query }),
+
+  /** Date and GPS position saved inside a photo (empty when the camera saved none). */
+  photoMetadata: (path: string) =>
+    invoke<{ captureDate: string | null; latitude: number | null; longitude: number | null }>("photo_metadata", { path }),
+};
+
+/** Files on this computer: choosing, opening and showing them. */
+export const files = {
+  /** Asks the user to choose files. Resolves to their paths ([] if they cancel). */
+  async choose(options: { title: string; multiple?: boolean; filters?: { name: string; extensions: string[] }[] }): Promise<string[]> {
+    if (isPreview) throw new Error("Choosing files works in the StrataField app, not in the browser preview.");
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const picked = await open({ title: options.title, multiple: options.multiple ?? false, filters: options.filters, directory: false });
+    if (!picked) return [];
+    return Array.isArray(picked) ? picked : [picked];
+  },
+  /** Opens a stored file (PDF, Excel…) in its usual program. */
+  async open(path: string): Promise<void> {
+    if (isPreview) throw new Error("Opening files works in the StrataField app, not in the browser preview.");
+    const { openPath } = await import("@tauri-apps/plugin-opener");
+    await openPath(path);
+  },
+  /** URL for showing a stored photo in the app. */
+  src: (path: string) => (isPreview ? "" : convertFileSrc(path)),
+  photoFilters: [{ name: "Photos", extensions: ["jpg", "jpeg", "png", "heic", "webp"] }],
+  documentFilters: [{ name: "Documents", extensions: ["pdf", "xlsx", "xls", "xlsm", "csv", "doc", "docx"] }],
 };

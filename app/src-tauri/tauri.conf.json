@@ -21,12 +21,20 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; img-src 'self' data: blob: asset: http://asset.localhost https://tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$DATA/Strata/attachments/**"
+        ]
+      }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "StrataField",
     "shortDescription": "Borewell logging and geological strata records",
     "category": "Utility",

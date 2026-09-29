@@ -43,11 +43,40 @@ impl AppState {
     }
 }
 
-/// Opens `<roaming app data>/Strata/strata.db`. On the very first run it brings over the older
-/// Electron app's data, if any. Failures are captured in `StartupStatus` so the app can still
-/// open and explain what went wrong.
-pub fn start(roaming_app_data: &Path) -> AppState {
-    let data_dir = roaming_app_data.join(SHARED_FOLDER);
+/// Where the shared data lives, and where to look for the older Electron app's data.
+pub struct Locations {
+    pub data_dir: PathBuf,
+    /// Folder that contains `StrataField\stratafield.db` from the older app; `None` skips the import.
+    pub legacy_root: Option<PathBuf>,
+}
+
+impl Locations {
+    /// `%APPDATA%\Strata`, with old data looked for in `%APPDATA%\StrataField`.
+    pub fn standard(roaming_app_data: &Path) -> Self {
+        Self {
+            data_dir: roaming_app_data.join(SHARED_FOLDER),
+            legacy_root: Some(roaming_app_data.to_path_buf()),
+        }
+    }
+
+    /// For development and automated testing only: `STRATA_DATA_DIR` puts the database somewhere
+    /// else (so tests never touch real data), and `STRATA_LEGACY_ROOT` says where to look for old data.
+    pub fn from_env_or(roaming_app_data: &Path) -> Self {
+        match std::env::var_os("STRATA_DATA_DIR") {
+            Some(dir) => Self {
+                data_dir: PathBuf::from(dir),
+                legacy_root: std::env::var_os("STRATA_LEGACY_ROOT").map(PathBuf::from),
+            },
+            None => Self::standard(roaming_app_data),
+        }
+    }
+}
+
+/// Opens `<data folder>/strata.db`. On the very first run it brings over the older Electron app's
+/// data, if any. Failures are captured in `StartupStatus` so the app can still open and explain
+/// what went wrong.
+pub fn start(locations: &Locations) -> AppState {
+    let data_dir = locations.data_dir.clone();
     let mut status = StartupStatus {
         data_folder: data_dir.to_string_lossy().into_owned(),
         ..Default::default()
@@ -64,8 +93,10 @@ pub fn start(roaming_app_data: &Path) -> AppState {
         }
     };
 
+    if let (Some(db), Some(legacy_root)) = (&db, &locations.legacy_root) {
+        bring_over_legacy_data(db, legacy_root, &mut status);
+    }
     if let Some(db) = &db {
-        bring_over_legacy_data(db, roaming_app_data, &mut status);
         status.automatic_backup = automatic_backup_if_due(db).ok().flatten();
     }
     AppState {
