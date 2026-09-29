@@ -128,7 +128,7 @@ pub fn remove(conn: &Connection, data_dir: &Path, table: &str, id: &str) -> Resu
         )
         .map_err(|_| DbError::NotFound("This attachment".into()))?;
     conn.execute(&format!("DELETE FROM {table} WHERE id = ?1"), [id])?;
-    remove_managed_file(data_dir, &stored);
+    release_file(conn, data_dir, &stored)?;
     let what = if table == "photos" {
         "a photo"
     } else {
@@ -145,11 +145,100 @@ pub fn remove(conn: &Connection, data_dir: &Path, table: &str, id: &str) -> Resu
     )
 }
 
-/// Deletes a file only if it lives inside the data folder (relative stored path).
-pub fn remove_managed_file(data_dir: &Path, stored: &str) {
-    if Path::new(stored).is_relative() {
-        let _ = std::fs::remove_file(data_dir.join(stored));
+/// Folder inside the data folder where removed photos and files wait, so that restoring a backup
+/// made before they were removed can bring them back. One subfolder per removal time.
+pub const PARKED_DIR: &str = "removed-files";
+
+/// Called after a photo or file row is deleted. If nothing else still uses the stored file (an
+/// Excel import's original is shared by every borewell in that file), it is moved to
+/// [`PARKED_DIR`] rather than deleted. Files outside the data folder are never touched.
+pub fn release_file(conn: &Connection, data_dir: &Path, stored: &str) -> Result<()> {
+    if !Path::new(stored).is_relative() {
+        return Ok(());
     }
+    let still_used: i64 = conn.query_row(
+        "SELECT (SELECT COUNT(*) FROM photos WHERE file_path = ?1)
+              + (SELECT COUNT(*) FROM files WHERE file_path = ?1)
+              + (SELECT COUNT(*) FROM import_batches WHERE stored_path = ?1)",
+        [stored],
+        |r| r.get(0),
+    )?;
+    if still_used == 0 {
+        park_file(data_dir, stored);
+    }
+    Ok(())
+}
+
+fn park_file(data_dir: &Path, stored: &str) {
+    let from = data_dir.join(stored);
+    if !from.is_file() {
+        return;
+    }
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    let to = data_dir.join(PARKED_DIR).join(stamp).join(stored);
+    if let Some(parent) = to.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    // If the move fails the file simply stays where it was; it is never deleted here.
+    let _ = std::fs::rename(&from, &to);
+}
+
+/// After a restore: puts back any removed photos and files that the restored data uses again.
+/// Returns how many were brought back.
+pub fn bring_back_parked(conn: &Connection, data_dir: &Path) -> Result<usize> {
+    let parked_root = data_dir.join(PARKED_DIR);
+    if !parked_root.is_dir() {
+        return Ok(0);
+    }
+    let mut batches: Vec<PathBuf> = std::fs::read_dir(&parked_root)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_dir())
+        .collect();
+    batches.sort();
+    batches.reverse(); // newest first
+    let mut stmt = conn.prepare(
+        "SELECT file_path FROM photos UNION SELECT file_path FROM files
+         UNION SELECT stored_path FROM import_batches WHERE stored_path IS NOT NULL",
+    )?;
+    let used: Vec<String> = stmt
+        .query_map([], |r| r.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut brought = 0;
+    for stored in used.iter().filter(|s| Path::new(s).is_relative()) {
+        let dest = data_dir.join(stored);
+        if dest.exists() {
+            continue;
+        }
+        if let Some(src) = batches.iter().map(|b| b.join(stored)).find(|p| p.is_file()) {
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            if std::fs::rename(&src, &dest).is_ok() {
+                brought += 1;
+            }
+        }
+    }
+    Ok(brought)
+}
+
+/// Deletes removed files that no kept backup can refer to any more: those removed before the
+/// oldest backup was made (all of them when there are no backups).
+pub fn clean_parked(data_dir: &Path, oldest_backup_stamp: Option<&str>) -> Result<()> {
+    let parked_root = data_dir.join(PARKED_DIR);
+    if !parked_root.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(&parked_root)?.filter_map(|e| e.ok()) {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let expired = match oldest_backup_stamp {
+            Some(oldest) => name.as_str() < oldest,
+            None => true,
+        };
+        if expired && entry.path().is_dir() {
+            std::fs::remove_dir_all(entry.path())?;
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn copy_in(data_dir: &Path, borewell_id: &str, source: &Path) -> Result<String> {

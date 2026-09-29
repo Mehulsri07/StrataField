@@ -99,6 +99,14 @@ pub fn import_batch(
         if !item.pipes.is_empty() {
             layers::replace_pipes(conn, &b.id, &item.pipes)?;
         }
+        // The original workbook is listed under each borewell's Files (one shared copy).
+        if let Some(stored) = &stored_path {
+            conn.execute(
+                "INSERT INTO files (id, borewell_id, kind, file_path, original_name, created_at)
+                 VALUES (?1, ?2, 'excel', ?3, ?4, ?5)",
+                params![new_id(), b.id, stored, req.file_name, now()],
+            )?;
+        }
         ids.push(b.id);
     }
     record_history(
