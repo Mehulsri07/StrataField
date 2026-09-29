@@ -39,6 +39,9 @@ export function startApp({ dataDir, legacyRoot }) {
       ...process.env,
       STRATA_DATA_DIR: dataDir,
       STRATA_LEGACY_ROOT: legacyRoot,
+      // Development builds open the window's debugging port when asked (see open_main_window in
+      // app/src-tauri/src/lib.rs); the WebView2 variable covers other builds where Windows allows it.
+      STRATA_E2E_DEBUG_PORT: String(PORT),
       WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}`,
     },
     stdio: "ignore",

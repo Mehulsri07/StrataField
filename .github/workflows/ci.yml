@@ -106,14 +106,6 @@ jobs:
       - name: Build the app (debug, no installer)
         run: npm run tauri -w app -- build --debug --no-bundle
 
-      # The test talks to the app window through WebView2's debugging port. On the CI runner the
-      # environment variable for that is ignored, so use WebView2's per-app setting instead
-      # (this throwaway machine only).
-      - name: Let the test reach the app window
-        run: |
-          New-Item -Path 'HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments' -Force | Out-Null
-          New-ItemProperty -Path 'HKCU:\Software\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments' -Name 'stratafield.exe' -Value '--remote-debugging-port=9333' -PropertyType String -Force | Out-Null
-
       # Drives every screen of the real app on a scratch data folder, including saving through
       # the real Windows Save dialog (safe here: nobody is using the runner's desktop).
       - name: End-to-end test
