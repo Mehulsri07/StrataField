@@ -48,8 +48,11 @@ export function startApp({ dataDir, legacyRoot }) {
 let ws, nextId = 0;
 const pending = new Map();
 
-export async function connect() {
-  for (let i = 0; i < 120; i++) {
+/** Connects to the app window. `app` (the started process) and `dataDir` only improve the error message. */
+export async function connect({ app, dataDir } = {}) {
+  let lastError = "no answer yet";
+  for (let i = 0; i < 240; i++) {
+    if (app && app.exitCode !== null) throw new Error(`The app closed during start-up (exit code ${app.exitCode})`);
     try {
       const pages = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json();
       const page = pages.find((p) => p.type === "page");
@@ -61,10 +64,14 @@ export async function connect() {
         await page_(HELPERS);
         return;
       }
-    } catch { /* not up yet */ }
+      lastError = `debugging port answered with ${pages.length} targets: ${pages.map((p) => p.type).join(", ")}`;
+    } catch (e) {
+      lastError = String(e?.cause?.code ?? e);
+    }
     await sleep(500);
   }
-  throw new Error("Could not connect to the app window");
+  const db = dataDir && fs.existsSync(path.join(dataDir, "strata.db")) ? "exists" : "missing";
+  throw new Error(`Could not connect to the app window after 2 minutes (last: ${lastError}; app running: ${app ? app.exitCode === null : "?"}; database ${db})`);
 }
 
 export function disconnect() {

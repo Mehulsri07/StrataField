@@ -20,7 +20,7 @@ const realDialogs = process.env.E2E_REAL_DIALOGS === "1";
 const app = startApp(f);
 
 try {
-  await connect();
+  await connect({ app, dataDir: f.dataDir });
 
   // ── Start-up and the older app's data ──────────────────────────────────
   const notice = await page(`return (await __t.until(() => document.querySelector('[role="status"]'), 15000))?.innerText`);
