@@ -78,6 +78,8 @@ export async function connect({ app, dataDir } = {}) {
       "WebView2 processes: " + @($p).Count
       $main = $p | Where-Object { $_.CommandLine -notmatch '--type=' } | Select-Object -First 1
       "Main process has the debugging option: " + ($main.CommandLine -match 'remote-debugging-port')
+      "Main process started with: " + $main.CommandLine
+      "Parent of main process: " + (Get-CimInstance Win32_Process -Filter "ProcessId=$($main.ParentProcessId)").Name
       "Environment variable seen by this test: " + [bool]$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
       foreach ($k in 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge', 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\WebView2', 'HKCU:\\SOFTWARE\\Policies\\Microsoft\\Edge') {
         if (Test-Path $k) { "Policy " + $k + ": " + ((Get-ItemProperty $k | Select-Object * -ExcludeProperty PS* | ConvertTo-Json -Compress)) }
