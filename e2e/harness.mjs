@@ -63,7 +63,13 @@ export async function connect({ app, dataDir } = {}) {
         ws = new WebSocket(page.webSocketDebuggerUrl);
         await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
         ws.onmessage = (m) => { const d = JSON.parse(m.data); pending.get(d.id)?.(d); pending.delete(d.id); };
-        await sleep(2500);
+        // Wait until the app has drawn its screens, then add the helpers.
+        for (let j = 0; j < 120; j++) {
+          const ready = await raw("document.readyState === 'complete' && !!document.querySelector('main') && !!window.__TAURI_INTERNALS__").catch(() => false);
+          if (ready) break;
+          await sleep(500);
+        }
+        await sleep(1000);
         await page_(HELPERS);
         return;
       }
@@ -103,11 +109,25 @@ function send(method, params = {}) {
   return new Promise((r) => pending.set(i, r));
 }
 
-/** Runs JavaScript (may use await and `__t` helpers) in the app window and returns its result. */
-async function page_(code) {
-  const r = await send("Runtime.evaluate", { expression: `(async () => { ${code} })()`, awaitPromise: true, returnByValue: true });
+/** Evaluates one expression in the window. Rejects if the page went away while evaluating. */
+async function raw(expression) {
+  const r = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+  if (r.error) throw new Error(`The window did not answer: ${r.error.message}`);
   if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? JSON.stringify(r.result.exceptionDetails));
   return r.result?.result?.value;
+}
+
+/** Runs JavaScript (may use await and `__t` helpers) in the app window and returns its result. */
+async function page_(code) {
+  try {
+    return await raw(`(async () => { ${code} })()`);
+  } catch (e) {
+    // If the page reloaded while answering, wait for it, put the helpers back and ask once more.
+    if (!/did not answer|__t is not defined/.test(String(e))) throw e;
+    await sleep(2000);
+    await raw(`(async () => { ${HELPERS} })()`);
+    return await raw(`(async () => { ${code} })()`);
+  }
 }
 export const page = page_;
 
