@@ -4,6 +4,9 @@ import { AppShell } from "@/components/app/AppShell";
 import { ComingSoon } from "@/components/app/Page";
 import { text } from "@/text";
 
+const Home = lazy(() => import("@/pages/Home").then((m) => ({ default: m.Home })));
+const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })));
+const RecycleBin = lazy(() => import("@/pages/RecycleBin").then((m) => ({ default: m.RecycleBin })));
 const DesignSystem = lazy(() => import("@/pages/DesignSystem").then((m) => ({ default: m.DesignSystem })));
 const Borewells = lazy(() => import("@/pages/Borewells").then((m) => ({ default: m.Borewells })));
 const BorewellDetail = lazy(() => import("@/pages/BorewellDetail").then((m) => ({ default: m.BorewellDetail })));
@@ -16,14 +19,14 @@ const ExportPage = lazy(() => import("@/pages/ExportPage").then((m) => ({ defaul
 
 const p = text.pages;
 
-/** Every screen. Screens marked ComingSoon are built in T3; the shell and menu work now. */
+/** Every screen. */
 export default function App() {
   return (
     // Each screen loads the first time it is opened, so the app starts quickly.
     <Suspense fallback={<p className="p-6 text-muted-foreground">Loading…</p>}>
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<ComingSoon title={p.home.title} sub={p.home.sub(text.app.city)} />} />
+        <Route index element={<Home />} />
         <Route path="borewells" element={<Borewells />} />
         <Route path="borewell/:id" element={<BorewellDetail />} />
         <Route path="borewell/:id/edit" element={<BorewellForm key="edit" mode="edit" />} />
@@ -33,8 +36,8 @@ export default function App() {
         <Route path="new" element={<BorewellForm key="new" mode="new" />} />
         <Route path="import" element={<ImportPage />} />
         <Route path="export" element={<ExportPage />} />
-        <Route path="recycle-bin" element={<ComingSoon title={p.recycleBin.title} sub={p.recycleBin.sub} />} />
-        <Route path="settings" element={<ComingSoon title={p.settings.title} sub={p.settings.sub} />} />
+        <Route path="recycle-bin" element={<RecycleBin />} />
+        <Route path="settings" element={<Settings />} />
         <Route path="design" element={<DesignSystem />} />
         <Route path="*" element={<ComingSoon title={p.notFound.title} sub={p.notFound.sub} />} />
       </Route>

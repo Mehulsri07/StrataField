@@ -282,6 +282,23 @@ pub fn backup_restore(state: State<AppState>, path: String) -> Res<BackupInfo> {
     backup::restore(state.db()?, &PathBuf::from(path)).map_err(|e| e.to_string())
 }
 
+/// Opens the backups folder (or the whole data folder) in File Explorer. Only these two
+/// fixed folders can be opened this way.
+#[tauri::command]
+pub fn open_folder(app: tauri::AppHandle, state: State<AppState>, which: String) -> Res<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let data = PathBuf::from(&state.startup.data_folder);
+    let dir = match which.as_str() {
+        "backups" => data.join("backups"),
+        "data" => data,
+        _ => return Err("This folder cannot be opened.".into()),
+    };
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener()
+        .open_path(dir.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Could not open the folder: {e}"))
+}
+
 /// Imports data from the older StrataField app. Start-up does this automatically once;
 /// this lets the user bring in another old database file.
 #[tauri::command]

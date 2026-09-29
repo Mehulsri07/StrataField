@@ -94,6 +94,8 @@ export const api = {
     /** Resolves with the safety backup taken before restoring. */
     restore: (path: string) => invoke<BackupInfo>("backup_restore", { path }),
     importFromOlderVersion: (path: string) => invoke<LegacyImportReport>("legacy_import", { path }),
+    /** Opens the backups folder or the whole data folder in File Explorer. */
+    openFolder: (which: "backups" | "data") => invoke<void>("open_folder", { which }),
   },
 
   settings: {

@@ -27,6 +27,8 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   ],
   borewells_search: (args) => {
     const f = (args.filters ?? {}) as SearchFilters;
+    // The preview's Recycle bin shows two sample borewells as if they had been deleted.
+    if (f.showDeleted) return SAMPLE_BOREWELLS.slice(-2).map((i, k) => ({ ...i, borewell: { ...i.borewell, deletedAt: `2026-09-2${k + 5}T11:4${k}:00` } }));
     const q = (f.query ?? "").trim().toLowerCase();
     const within = (v: number | null, min?: number, max?: number) => (min == null || (v != null && v >= min)) && (max == null || (v != null && v <= max));
     return SAMPLE_BOREWELLS.filter(({ borewell: b, strata }) =>
@@ -36,8 +38,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
       within(b.totalDepth, f.minDepth, f.maxDepth) &&
       within(b.waterLevel, f.minWaterLevel, f.maxWaterLevel) &&
       (!f.dateFrom || b.date >= f.dateFrom) && (!f.dateTo || b.date <= f.dateTo) &&
-      (!f.noLocation || b.latitude == null) &&
-      !f.showDeleted,
+      (!f.noLocation || b.latitude == null),
     );
   },
   projects_list: () => [...new Set(SAMPLE_BOREWELLS.map((i) => i.borewell.project))].sort().map((name) => ({

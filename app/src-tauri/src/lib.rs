@@ -50,6 +50,7 @@ pub fn run() {
             commands::backup_create,
             commands::backup_restore,
             commands::legacy_import,
+            commands::open_folder,
             commands::setting_get,
             commands::setting_set,
             commands::geocode_address,
