@@ -208,3 +208,29 @@
         }
     }
 }
+
+/* ── Map ────────────────────────────────────────────────────────── */
+.strata-map {
+    font-family: var(--font-sans);
+}
+.strata-map .leaflet-control-attribution {
+    font-size: 10px;
+}
+/* Dim the street tiles in dark mode so pins and water colours stay readable. */
+.dark .strata-map .leaflet-tile-pane {
+    filter: brightness(0.62) contrast(1.15) saturate(0.7);
+}
+.strata-cluster {
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font: 600 13px/1 var(--font-sans);
+    border: 3px solid var(--card);
+    box-shadow: var(--shadow-panel);
+}
+/* SVG stroke attributes cannot use CSS variables; a class can. */
+.strata-pin-selected {
+    stroke: var(--primary);
+}

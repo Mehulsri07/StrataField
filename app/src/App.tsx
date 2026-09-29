@@ -5,6 +5,7 @@ import { DesignSystem } from "@/pages/DesignSystem";
 import { Borewells } from "@/pages/Borewells";
 import { BorewellDetail } from "@/pages/BorewellDetail";
 import { BorewellForm } from "@/pages/BorewellForm";
+import { MapPage } from "@/pages/MapPage";
 import { text } from "@/text";
 
 const p = text.pages;
@@ -19,7 +20,7 @@ export default function App() {
         <Route path="borewell/:id" element={<BorewellDetail />} />
         <Route path="borewell/:id/edit" element={<BorewellForm key="edit" mode="edit" />} />
         <Route path="borewell/:id/layers" element={<ComingSoon title={p.editLayers.title} sub="" />} />
-        <Route path="map" element={<ComingSoon title={p.map.title} sub={p.map.sub} />} />
+        <Route path="map" element={<MapPage />} />
         <Route path="section" element={<ComingSoon title={p.section.title} sub={p.section.sub} />} />
         <Route path="new" element={<BorewellForm key="new" mode="new" />} />
         <Route path="import" element={<ComingSoon title={p.import.title} sub={p.import.sub} />} />

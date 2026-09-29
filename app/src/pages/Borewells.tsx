@@ -31,7 +31,7 @@ export function Borewells() {
   const [debounced, setDebounced] = useState("");
   const [zone, setZone] = useState(ALL);
   const [soil, setSoil] = useState(ALL);
-  const [noLocation, setNoLocation] = useState(false);
+  const [noLocation, setNoLocation] = useState(() => params.get("noLocation") === "1");
   const [more, setMore] = useState(false);
   const [range, setRange] = useState({ minDepth: "", maxDepth: "", minWater: "", maxWater: "", from: "", to: "" });
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "date", desc: true });

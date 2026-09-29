@@ -121,10 +121,7 @@ export function BorewellDetail() {
               <Panel
                 title="Owner & location"
                 actions={b.latitude == null ? <Chip tone="warn">No location yet</Chip> : (
-                  <Tooltip>
-                    <TooltipTrigger render={<span />}><Button variant="ghost" disabled><MapIcon />Show on map</Button></TooltipTrigger>
-                    <TooltipContent>Arrives with the Map screen</TooltipContent>
-                  </Tooltip>
+                  <Button variant="ghost" render={<Link to={`/map?select=${b.id}`} />}><MapIcon />Show on map</Button>
                 )}
               >
                 <dl className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-5 gap-y-4">

@@ -9,12 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Field } from "@/components/app/Field";
 import { Chip } from "@/components/app/Chip";
 import { locationSourceText } from "@/components/app/BorewellStatus";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
+import { MapPicker } from "@/components/map/MapPicker";
 import { PipeSwatch } from "@/components/geology/patterns";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
@@ -319,7 +319,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
 
       {step === "location" && (
         <LocationStep
-          form={f} set={set} err={err}
+          form={f} set={set} err={err} others={(all.data ?? []).map((i) => i.borewell).filter((b) => b.id !== id)}
           onPhotoUsed={(p) => setDraft({ ...draft, form: { ...draft.form, latitude: String(p.latitude), longitude: String(p.longitude), locationSource: "photo", date: f.date || p.captureDate || today() }, photos: editing || draft.photos.some((x) => x.path === p.path) ? draft.photos : [...draft.photos, p] })}
           addsPhoto={!editing}
         />
@@ -391,7 +391,8 @@ function NumberField({ id, label, hint, value, onChange, error, warning }: {
 
 // ── Location ─────────────────────────────────────────────────────────────
 
-function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto }: {
+function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
+  others: Borewell[];
   form: FormState;
   set: (p: Partial<FormState>) => void;
   err: (field: string) => string | undefined;
@@ -401,6 +402,7 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto }: {
   const [paste, setPaste] = useState("");
   const [busy, setBusy] = useState<"photo" | "address" | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const hasLocation = parseNumber(f.latitude) != null && parseNumber(f.longitude) != null;
 
   const fromPhoto = async () => {
@@ -461,12 +463,7 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto }: {
             <WayButton icon={<ImagePlus />} title="Use a photo's GPS" body="Most accurate" onClick={fromPhoto} busy={busy === "photo"} disabled={isPreview} />
             <WayButton icon={<Crosshair />} title="Type coordinates" body="From a phone or GPS unit" onClick={() => document.getElementById("f-paste")?.focus()} />
             <WayButton icon={<Search />} title="Look up the address" body="Approximate · needs internet" onClick={lookUp} busy={busy === "address"} disabled={isPreview || !(f.area || f.address)} />
-            <Tooltip>
-              <TooltipTrigger render={<span className="grid" />}>
-                <WayButton icon={<MapPin />} title="Pick on the map" body="Arrives with the Map screen" disabled />
-              </TooltipTrigger>
-              <TooltipContent>Arrives with the Map screen</TooltipContent>
-            </Tooltip>
+            <WayButton icon={<MapPin />} title="Pick on the map" body="Click where the borewell is" onClick={() => setPicking(true)} />
           </div>
           {note && <p className="rounded-md bg-muted px-3 py-2 text-sm">{note}</p>}
           <div className="grid gap-4 sm:grid-cols-3">
@@ -486,6 +483,18 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto }: {
           {!hasLocation && <p className="text-sm text-muted-foreground">You can save without a location and add it later. The borewell will not appear on the map until it has one.</p>}
         </div>
       </Panel>
+      <MapPicker
+        key={picking ? "open" : "closed"}
+        open={picking}
+        initial={hasLocation ? { latitude: parseNumber(f.latitude)!, longitude: parseNumber(f.longitude)! } : null}
+        others={others}
+        onClose={() => setPicking(false)}
+        onPick={(p) => {
+          set({ latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6), locationSource: "map" });
+          setNote("Location picked on the map.");
+          setPicking(false);
+        }}
+      />
     </div>
   );
 }
