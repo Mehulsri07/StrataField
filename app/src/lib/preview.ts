@@ -20,6 +20,8 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   startup_status: () => startup,
   data_version: () => 1,
   materials_list: () => DEFAULT_MATERIALS,
+  sections_list: () => [],
+  soil_names_unlinked: () => [["Murrum", 3], ["Bajri", 1]],
   backups_list: () => [
     { fileName: "strata-preview-auto.db", path: "", createdAt: new Date().toISOString().slice(0, 10) + " 09:12:00", kind: "auto", label: "Automatic", sizeBytes: 212_992, borewellCount: SAMPLE_BOREWELLS.length, readable: true },
   ],

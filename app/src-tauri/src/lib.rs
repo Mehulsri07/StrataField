@@ -55,6 +55,8 @@ pub fn run() {
             commands::geocode_address,
             commands::photo_metadata,
             commands::read_spreadsheet,
+            commands::soil_names_unlinked,
+            commands::soil_name_link,
         ])
         .build(tauri::generate_context!())
         .expect("error while starting StrataField");

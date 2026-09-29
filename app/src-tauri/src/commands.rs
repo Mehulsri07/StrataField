@@ -335,3 +335,17 @@ pub fn read_spreadsheet(path: String) -> Res<tauri::ipc::Response> {
             _ => format!("The file could not be read: {e}"),
         })
 }
+
+/// Soil names on layers that are not linked to a soil type, with how many layers use each.
+#[tauri::command]
+pub fn soil_names_unlinked(state: State<AppState>) -> Res<Vec<(String, i64)>> {
+    read(&state, |_, c| materials::unlinked_names(c))
+}
+
+/// Links every layer with this soil name to a soil type. Returns how many layers changed.
+#[tauri::command]
+pub fn soil_name_link(state: State<AppState>, name: String, material_id: String) -> Res<usize> {
+    write(&state, |_, tx| {
+        materials::link_name(tx, &name, &material_id)
+    })
+}

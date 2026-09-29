@@ -234,3 +234,19 @@
 .strata-pin-selected {
     stroke: var(--primary);
 }
+.strata-handle {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 2.5px solid var(--foreground);
+    color: var(--foreground);
+    font: 700 13px/1 var(--font-heading);
+    box-shadow: var(--shadow-panel);
+    cursor: grab;
+}
+.strata-section-line {
+    stroke: var(--foreground);
+}

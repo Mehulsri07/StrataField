@@ -17,17 +17,21 @@ const PRINT_COLOURS: Record<string, string> = {
   "--water": "#1a86e8", "--primary": "#0d6883", "--card": "#ffffff",
 };
 
-/** The borewell drawing as a standalone SVG with fixed colours and fonts. */
-export function drawingSvg(r: BorewellRecord): string {
-  const defs = renderToStaticMarkup(<PatternDefs />).match(/<defs>[\s\S]*<\/defs>/)?.[0] ?? "";
-  let svg = renderToStaticMarkup(<BorewellProfile borewell={r.borewell} strata={r.strata} pipes={r.pipes} height={560} forPrint />);
-  svg = svg.replace("<svg ", `<svg xmlns="http://www.w3.org/2000/svg" `).replace(/(<svg[^>]*>)/, `$1<style>text{font-family:Helvetica,Arial,sans-serif}</style><rect width="100%" height="100%" fill="#ffffff"/>${defs}`);
+/** Makes on-screen SVG markup standalone: namespace, patterns, a white page, fixed colours and font. */
+export function printableSvg(markup: string): string {
+  const defs = renderToStaticMarkup(<PatternDefs />).match(/<defs>([\s\S]*)<\/defs>/)?.[1] ?? "";
+  let svg = markup.replace("<svg ", `<svg xmlns="http://www.w3.org/2000/svg" `);
+  svg = svg.replace(/(<svg[^>]*>)/, `$1<style>text{font-family:Helvetica,Arial,sans-serif}</style><rect width="100%" height="100%" fill="#ffffff"/><defs>${defs}</defs>`);
   return svg.replace(/var\((--[a-z-]+)\)/g, (_, name: string) => PRINT_COLOURS[name] ?? "#000000");
 }
 
-/** Renders the drawing to a PNG. `scale` 2 gives a sharp image for printing. */
-export async function drawingPng(r: BorewellRecord, scale = 2): Promise<{ bytes: Uint8Array; width: number; height: number }> {
-  const svg = drawingSvg(r);
+/** The borewell drawing as a standalone SVG with fixed colours and fonts. */
+export function drawingSvg(r: BorewellRecord): string {
+  return printableSvg(renderToStaticMarkup(<BorewellProfile borewell={r.borewell} strata={r.strata} pipes={r.pipes} height={560} forPrint />));
+}
+
+/** Renders standalone SVG to a PNG. `scale` 2 gives a sharp image for printing. */
+export async function svgToPng(svg: string, scale = 2): Promise<{ bytes: Uint8Array; width: number; height: number }> {
   const [, vw, vh] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!.map(Number);
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   try {
@@ -37,14 +41,15 @@ export async function drawingPng(r: BorewellRecord, scale = 2): Promise<{ bytes:
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(vw * scale);
     canvas.height = Math.round(vh * scale);
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
     const blob: Blob = await new Promise((ok) => canvas.toBlob((b) => ok(b!), "image/png"));
     return { bytes: new Uint8Array(await blob.arrayBuffer()), width: vw, height: vh };
   } finally {
     URL.revokeObjectURL(url);
   }
 }
+
+export const drawingPng = (r: BorewellRecord, scale = 2) => svgToPng(drawingSvg(r), scale);
 
 // ── PDF ──────────────────────────────────────────────────────────────────
 

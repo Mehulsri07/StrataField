@@ -136,3 +136,46 @@ fn validate(m: &Material) -> Result<()> {
     }
     Ok(())
 }
+
+/// Soil names on layers that are not linked to any soil type, with how many layers use each.
+pub fn unlinked_names(conn: &Connection) -> Result<Vec<(String, i64)>> {
+    let mut stmt = conn.prepare(
+        "SELECT s.material, COUNT(*) FROM strata_layers s JOIN borewells b ON b.id = s.borewell_id
+         WHERE s.material_id IS NULL AND b.deleted_at IS NULL AND TRIM(s.material) <> ''
+         GROUP BY LOWER(TRIM(s.material)) ORDER BY COUNT(*) DESC, s.material",
+    )?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// Links every unlinked layer called `name` (any capitalisation) to a soil type, taking its
+/// name, colour and pattern. Returns how many layers changed.
+pub fn link_name(conn: &Connection, name: &str, material_id: &str) -> Result<usize> {
+    let m = list(conn)?
+        .into_iter()
+        .find(|m| m.id == material_id)
+        .ok_or_else(|| DbError::NotFound("This soil type".into()))?;
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT borewell_id FROM strata_layers WHERE material_id IS NULL AND LOWER(TRIM(material)) = LOWER(TRIM(?1))",
+    )?;
+    let borewells: Vec<String> = stmt
+        .query_map([name], |r| r.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let changed = conn.execute(
+        "UPDATE strata_layers SET material_id = ?2, material = ?3, color = ?4, pattern = ?5
+         WHERE material_id IS NULL AND LOWER(TRIM(material)) = LOWER(TRIM(?1))",
+        params![name, m.id, m.name, m.color, m.pattern],
+    )?;
+    for b in borewells {
+        crate::db::record_history(
+            conn,
+            "borewell",
+            &b,
+            "update",
+            &format!("Soil name “{}” set to {}", name.trim(), m.name),
+            None,
+            None,
+        )?;
+    }
+    Ok(changed)
+}

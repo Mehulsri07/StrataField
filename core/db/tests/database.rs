@@ -592,3 +592,52 @@ fn sections_and_geocode_cache_round_trip() {
         Some(hit)
     );
 }
+
+#[test]
+fn unlinked_soil_names_can_be_linked_to_a_soil_type_in_one_go() {
+    let (_dir, db) = open_temp();
+    let b = db
+        .with_tx(|tx| borewells::create(tx, &input("BW-1")))
+        .unwrap();
+    let named = |start: f64, end: f64, name: &str| StrataLayer {
+        start_depth: start,
+        end_depth: end,
+        material: name.into(),
+        ..Default::default()
+    };
+    db.with_tx(|tx| {
+        layers::replace_strata(
+            tx,
+            &b.id,
+            &[
+                named(0.0, 10.0, "Murrum"),
+                named(10.0, 20.0, "murrum "),
+                layer(20.0, 30.0, "clay"),
+            ],
+        )
+    })
+    .unwrap();
+    assert_eq!(
+        db.with(materials::unlinked_names).unwrap(),
+        vec![("Murrum".to_string(), 2)]
+    );
+
+    let changed = db
+        .with_tx(|tx| materials::link_name(tx, "MURRUM", "kankar"))
+        .unwrap();
+    assert_eq!(changed, 2);
+    assert!(db.with(materials::unlinked_names).unwrap().is_empty());
+    let after = db.with(|c| layers::strata_for(c, &b.id)).unwrap();
+    assert!(after
+        .iter()
+        .take(2)
+        .all(|l| l.material_id.as_deref() == Some("kankar") && l.material == "Kankar"));
+    let history = db
+        .with(|c| misc::history_for(c, "borewell", &b.id))
+        .unwrap();
+    assert!(
+        history[0].summary.contains("set to Kankar"),
+        "{}",
+        history[0].summary
+    );
+}

@@ -11,3 +11,4 @@ export * from './profileUtils';
 export * from './layerInfo';
 export * from './numbers';
 export * from './waterMap';
+export * from './section';

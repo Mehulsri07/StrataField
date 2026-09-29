@@ -76,6 +76,12 @@ export const api = {
 
   importExcel: (request: ImportRequest) => invoke<ImportResult>("import_save", { request }),
 
+  soilNames: {
+    /** Soil names on layers that are not linked to a soil type: [name, number of layers]. */
+    unlinked: () => invoke<[string, number][]>("soil_names_unlinked"),
+    link: (name: string, materialId: string) => invoke<number>("soil_name_link", { name, materialId }),
+  },
+
   sections: {
     list: () => invoke<Section[]>("sections_list"),
     save: (section: Section) => invoke<Section>("section_save", { section }),
