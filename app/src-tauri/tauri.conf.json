@@ -46,9 +46,21 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "StrataField",
+        "installerIcon": "icons/icon.ico"
       }
-    }
+    },
+    "copyright": "© 2026 Mehul",
+    "longDescription": "Record borewells, soil layers, pipes and water levels; see them on a map and in cross-sections. Works offline; data stays on this computer."
   }
 }
