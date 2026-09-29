@@ -76,7 +76,12 @@ export async function connect({ app, dataDir } = {}) {
     console.log(execFileSync("powershell", ["-NoProfile", "-Command", `
       $p = Get-CimInstance Win32_Process -Filter "name='msedgewebview2.exe'"
       "WebView2 processes: " + @($p).Count
-      $p | Select-Object -First 3 | ForEach-Object { $_.CommandLine.Substring(0, [Math]::Min(400, $_.CommandLine.Length)) }
+      $main = $p | Where-Object { $_.CommandLine -notmatch '--type=' } | Select-Object -First 1
+      "Main process has the debugging option: " + ($main.CommandLine -match 'remote-debugging-port')
+      "Environment variable seen by this test: " + [bool]$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+      foreach ($k in 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge', 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\WebView2', 'HKCU:\\SOFTWARE\\Policies\\Microsoft\\Edge') {
+        if (Test-Path $k) { "Policy " + $k + ": " + ((Get-ItemProperty $k | Select-Object * -ExcludeProperty PS* | ConvertTo-Json -Compress)) }
+      }
       $ids = @($p | ForEach-Object { $_.ProcessId })
       "Listening: " + ((Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $ids -contains $_.OwningProcess } | ForEach-Object { "$($_.LocalAddress):$($_.LocalPort)" }) -join ', ')`], { encoding: "utf8" }));
   } catch { /* diagnostics only */ }
