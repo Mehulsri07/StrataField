@@ -26,6 +26,8 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^1.48.0",
     "pdf-lib": "^1.17.1",
+    "pmtiles": "~3.2.1",
+    "protomaps-leaflet": "^5.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-leaflet": "^5.0.0",
