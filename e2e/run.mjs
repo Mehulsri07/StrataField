@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  answerSaveDialog, cancelSaveDialog, check, connect, disconnect, page, results, sleep, startApp, waitForFile, workFolder,
+  answerSaveDialog, cancelSaveDialog, check, connect, disconnect, newFileIn, page, results, sleep, startApp, workFolder,
 } from "./harness.mjs";
 import { buildFixtures, LEGACY } from "./fixtures.mjs";
 
@@ -208,19 +208,22 @@ try {
 
   // ── Export: PDF report and Excel workbook ──────────────────────────────
   if (realDialogs) {
-    const pdfPath = path.join(f.saved, "report.pdf");
+    // The Save dialog keeps the app's suggested name and folder (Documents on a fresh machine).
+    const documents = path.join(os.homedir(), "Documents");
+    let since = Date.now();
     await page(`location.hash = '#/borewell/${manual.bwid}'; await __t.until(() => __t.btn('Make PDF report'), 8000); __t.btn('Make PDF report').click(); return true;`);
-    const pdfAnswer = await answerSaveDialog(pdfPath);
-    const pdf = await waitForFile(pdfPath);
+    const pdfAnswer = await answerSaveDialog();
+    const pdf = await newFileIn(documents, new RegExp(`^${manual.id}.*[.]pdf$`), since);
     if (!pdf) { cancelSaveDialog(); console.log(await exportDiagnostics()); }
-    check("A PDF report is saved through the Save dialog", pdf?.subarray(0, 5).toString() === "%PDF-" && pdf.length > 20000, `${pdfAnswer}; ${pdf?.length ?? 0} bytes`);
+    check("A PDF report is saved through the Save dialog", pdf?.bytes.subarray(0, 5).toString() === "%PDF-" && pdf.bytes.length > 20000, `${pdfAnswer}; ${pdf ? `${path.basename(pdf.file)}, ${pdf.bytes.length} bytes` : "no file"}`);
 
-    const xlsxPath = path.join(f.saved, "all-borewells.xlsx");
+    since = Date.now();
     await page(`location.hash = '#/export'; await __t.until(() => __t.btn('Excel workbook'), 8000); __t.btn('Excel workbook').click(); await __t.wait(200); __t.btn('Save Excel workbook').click(); return true;`);
-    const xlsxAnswer = await answerSaveDialog(xlsxPath);
-    const book = await waitForFile(xlsxPath);
+    const xlsxAnswer = await answerSaveDialog();
+    const book = await newFileIn(documents, /^StrataField.*[.]xlsx$/, since);
     if (!book) { cancelSaveDialog(); console.log(await exportDiagnostics()); }
-    check("An Excel workbook of all borewells is saved through the Save dialog", book?.subarray(0, 2).toString() === "PK" && book.length > 5000, `${xlsxAnswer}; ${book?.length ?? 0} bytes`);
+    check("An Excel workbook of all borewells is saved through the Save dialog", book?.bytes.subarray(0, 2).toString() === "PK" && book.bytes.length > 5000, `${xlsxAnswer}; ${book ? `${path.basename(book.file)}, ${book.bytes.length} bytes` : "no file"}`);
+    for (const saved of [pdf?.file, book?.file]) if (saved) fs.rmSync(saved, { force: true });
   } else {
     // Without the real dialog: the workbook is built, and writing to a path nobody picked is refused.
     const out = path.join(f.saved, "stand-in.xlsx").split(path.sep).join("/");

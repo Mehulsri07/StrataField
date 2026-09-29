@@ -157,37 +157,23 @@ const HELPERS = `
 // ── The Windows "Save As" dialog ────────────────────────────────────────
 
 /**
- * Answers the app's "Save As" dialog with `target`: sets the file name box and presses Save by
- * sending window messages to those two controls only. No keystrokes and no focus changes, so it
- * cannot affect other windows. Resolves to "answered" or what went wrong.
+ * Presses Save in the app's "Save As" dialog, keeping the name and folder the app suggested, by
+ * sending one window message to that dialog. No keystrokes and no focus changes, so it cannot affect
+ * other windows. Resolves to "answered" or what went wrong. (The dialog ignores text set into its
+ * file name box from outside, so the suggestion is used; see `newFileIn`.)
  */
-export function answerSaveDialog(target) {
+export function answerSaveDialog() {
   const ps = `
 Add-Type @'
 using System; using System.Text; using System.Runtime.InteropServices;
 public static class Dlg {
-  delegate bool EnumProc(IntPtr h, IntPtr l);
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr FindWindow(string c, string t);
-  [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr p, EnumProc f, IntPtr l);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
-  [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr h);
-  [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr h);
   [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr h, int id);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, string l);
-  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, StringBuilder l);
   [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, int m, IntPtr w, IntPtr l);
-  static string Cls(IntPtr h) { var s = new StringBuilder(64); GetClassName(h, s, 64); return s.ToString(); }
   public static IntPtr Find() { return FindWindow("#32770", "Save As"); }
-  public static string Save(IntPtr dlg, string path) {
-    // The file name box is the Edit with control id 1001 inside a ComboBox.
-    IntPtr edit = IntPtr.Zero;
-    EnumChildWindows(dlg, (h, l) => { if (Cls(h) == "Edit" && GetDlgCtrlID(h) == 1001 && Cls(GetParent(h)) == "ComboBox") { edit = h; return false; } return true; }, IntPtr.Zero);
-    if (edit == IntPtr.Zero) return "no file name box";
-    SendMessage(edit, 0x000C, IntPtr.Zero, path);                   // WM_SETTEXT
-    var check = new StringBuilder(1024); SendMessage(edit, 0x000D, (IntPtr)1024, check); // WM_GETTEXT
-    if (check.ToString() != path) return "file name not accepted: " + check;
-    var ok = GetDlgItem(dlg, 1);
-    PostMessage(dlg, 0x0111, (IntPtr)1, ok);                        // WM_COMMAND IDOK = press Save
+  public static string Save(IntPtr dlg) {
+    if (GetDlgItem(dlg, 1) == IntPtr.Zero) return "no save button";
+    PostMessage(dlg, 0x0111, (IntPtr)1, GetDlgItem(dlg, 1));   // WM_COMMAND IDOK = press Save
     return "answered";
   }
 }
@@ -196,7 +182,7 @@ $end = (Get-Date).AddSeconds(30); $h = [IntPtr]::Zero
 while ($h -eq [IntPtr]::Zero -and (Get-Date) -lt $end) { Start-Sleep -Milliseconds 300; $h = [Dlg]::Find() }
 if ($h -eq [IntPtr]::Zero) { Write-Output 'no dialog'; exit 1 }
 Start-Sleep -Milliseconds 1000
-Write-Output ([Dlg]::Save($h, '${target.replace(/'/g, "''")}'))`;
+Write-Output ([Dlg]::Save($h))`;
   return new Promise((resolve) => {
     const p = spawn("powershell", ["-NoProfile", "-Command", ps], { stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
@@ -217,6 +203,19 @@ public static class C { [DllImport("user32.dll", CharSet=CharSet.Unicode)] publi
 '@
 $h = [C]::FindWindow('#32770', 'Save As'); if ($h -ne [IntPtr]::Zero) { [void][C]::PostMessage($h, 0x0111, [IntPtr]2, [IntPtr]::Zero) }`], { stdio: "ignore" });
   } catch { /* nothing to close */ }
+}
+
+/** Waits for a new file in `dir` whose name matches `pattern` (made after `since`); returns its path and bytes. */
+export async function newFileIn(dir, pattern, since, ms = 45000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const hit = fs.existsSync(dir) && fs.readdirSync(dir)
+      .map((n) => path.join(dir, n))
+      .find((p) => pattern.test(path.basename(p)) && fs.statSync(p).mtimeMs >= since - 1000 && fs.statSync(p).size > 0);
+    if (hit) { await sleep(700); return { file: hit, bytes: fs.readFileSync(hit) }; }
+    await sleep(300);
+  }
+  return null;
 }
 
 export async function waitForFile(file, ms = 45000) {
