@@ -91,6 +91,7 @@ typings/
 # Electron-Forge
 out/
 .kiro/
+.claude/
 stratafield_context.md
 .github/*
 !.github/workflows/
