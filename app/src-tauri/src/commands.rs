@@ -98,15 +98,16 @@ pub fn borewell_restore(state: State<AppState>, id: String) -> Res<()> {
     write(&state, |_, tx| borewells::restore(tx, &id))
 }
 
-/// Deletes a borewell from the Recycle bin for good, including the photos and files StrataField stored for it.
+/// Deletes a borewell from the Recycle bin for good, including its photos and files.
 #[tauri::command]
 pub fn borewell_delete_permanently(state: State<AppState>, id: String) -> Res<()> {
-    let paths = write(&state, |_, tx| borewells::delete_permanently(tx, &id))?;
-    let db = state.db()?;
-    for p in paths {
-        attachments::remove_managed_file(db.data_dir(), &p);
-    }
-    Ok(())
+    // Its photos and files are set aside, not erased, so an older backup can still bring them back.
+    write(&state, |db, tx| {
+        for p in borewells::delete_permanently(tx, &id)? {
+            attachments::release_file(tx, db.data_dir(), &p)?;
+        }
+        Ok(())
+    })
 }
 
 // ── Layers, pipes, water ────────────────────────────────────────────────

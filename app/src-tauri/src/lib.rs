@@ -15,7 +15,12 @@ pub fn run() {
             // %APPDATA% (roaming). The shared database lives in %APPDATA%\Strata, and the older
             // Electron app's data (if any) in %APPDATA%\StrataField.
             let roaming = app.path().data_dir()?;
-            app.manage(state::start(&state::Locations::from_env_or(&roaming)));
+            let locations = state::Locations::from_env_or(&roaming);
+            // Photos are shown from the attachments folder of whichever data folder was opened.
+            let _ = app
+                .asset_protocol_scope()
+                .allow_directory(locations.data_dir.join("attachments"), true);
+            app.manage(state::start(&locations));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

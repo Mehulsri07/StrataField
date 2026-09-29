@@ -86,6 +86,15 @@ pub fn create(conn: &Connection, dir: &Path, reason: BackupReason) -> Result<Bac
     if reason == BackupReason::Automatic {
         prune_automatic(dir)?;
     }
+    // Removed photos and files older than every kept backup can no longer be restored: delete them.
+    if let Some(data_dir) = dir.parent() {
+        let oldest = list(dir)?.last().map(|b| b.file_name.clone());
+        let stamp = oldest
+            .as_deref()
+            .and_then(|f| f.strip_prefix(PREFIX))
+            .and_then(|s| s.get(..15));
+        crate::repo::attachments::clean_parked(data_dir, stamp)?;
+    }
     describe(&dest)
         .ok_or_else(|| DbError::Invalid("The backup was written but could not be listed.".into()))
 }
@@ -130,6 +139,7 @@ pub fn restore(db: &Database, source: &Path) -> Result<BackupInfo> {
         db::configure(conn)?;
         schema::migrate(conn)?;
         db::seed_default_materials(conn)?;
+        crate::repo::attachments::bring_back_parked(conn, db.data_dir())?;
         Ok(())
     })?;
     Ok(safety)

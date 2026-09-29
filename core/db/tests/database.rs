@@ -493,7 +493,12 @@ fn photos_and_files_are_copied_into_the_data_folder_and_removed_with_their_recor
         .unwrap();
     assert!(
         !std::path::Path::new(&photo.file_path).exists(),
-        "managed file removed"
+        "managed file moved out of the attachments folder"
+    );
+    assert_eq!(
+        parked_files(dir.path()),
+        1,
+        "kept aside so an older backup can bring it back"
     );
     assert!(photo_src.exists(), "the user's original is never touched");
 
@@ -640,4 +645,137 @@ fn unlinked_soil_names_can_be_linked_to_a_soil_type_in_one_go() {
         "{}",
         history[0].summary
     );
+}
+
+/// Number of removed photos and files waiting in the holding folder.
+fn parked_files(data_dir: &std::path::Path) -> usize {
+    fn count(p: &std::path::Path) -> usize {
+        std::fs::read_dir(p).map_or(0, |rd| {
+            rd.filter_map(|e| e.ok())
+                .map(|e| {
+                    if e.path().is_dir() {
+                        count(&e.path())
+                    } else {
+                        1
+                    }
+                })
+                .sum()
+        })
+    }
+    count(&data_dir.join(attachments::PARKED_DIR))
+}
+
+#[test]
+fn an_imported_excel_file_is_kept_under_every_borewell_it_created() {
+    let (dir, db) = open_temp();
+    let src_dir = tempfile::tempdir().unwrap();
+    let workbook = src_dir.path().join("Field logs.xlsx");
+    std::fs::write(&workbook, b"PK workbook bytes").unwrap();
+    let one = |id: &str| ImportedBorewell {
+        borewell: input(id),
+        strata: vec![layer(0.0, 20.0, "clay")],
+        pipes: vec![],
+    };
+    let req = ImportRequest {
+        file_name: "Field logs.xlsx".into(),
+        source_path: Some(workbook.to_string_lossy().into_owned()),
+        borewells: vec![one("BW-A"), one("BW-B")],
+        ..Default::default()
+    };
+    let result = db
+        .with_tx(|tx| repo::import_batch(tx, dir.path(), &req))
+        .unwrap();
+    let files: Vec<_> = result
+        .borewell_ids
+        .iter()
+        .map(|id| db.with(|c| repo::record(c, dir.path(), id)).unwrap().files)
+        .collect();
+    for f in &files {
+        assert_eq!(f.len(), 1);
+        assert_eq!(
+            (f[0].kind.as_str(), f[0].original_name.as_str()),
+            ("excel", "Field logs.xlsx")
+        );
+        assert!(std::path::Path::new(&f[0].file_path).is_file());
+    }
+    assert_eq!(
+        files[0][0].file_path, files[1][0].file_path,
+        "one shared copy"
+    );
+
+    // Removing it from one borewell leaves the shared original in place for the other.
+    db.with_tx(|tx| attachments::remove(tx, dir.path(), "files", &files[0][0].id))
+        .unwrap();
+    assert!(std::path::Path::new(&files[1][0].file_path).is_file());
+    assert_eq!(parked_files(dir.path()), 0);
+}
+
+#[test]
+fn restoring_a_backup_brings_back_photos_of_a_borewell_deleted_for_good() {
+    use strata_db::backup::{self, BackupReason};
+    let (dir, db) = open_temp();
+    let src_dir = tempfile::tempdir().unwrap();
+    let photo_src = src_dir.path().join("site.jpg");
+    std::fs::write(&photo_src, b"jpeg bytes").unwrap();
+    let b = db
+        .with_tx(|tx| borewells::create(tx, &input("BW-1")))
+        .unwrap();
+    let photo = db
+        .with_tx(|tx| {
+            attachments::add_photo(
+                tx,
+                dir.path(),
+                &b.id,
+                attachments::NewPhoto {
+                    source: &photo_src,
+                    capture_date: None,
+                    latitude: None,
+                    longitude: None,
+                    caption: String::new(),
+                },
+            )
+        })
+        .unwrap();
+    let before = db
+        .with(|c| backup::create(c, &db.backups_dir(), BackupReason::Manual))
+        .unwrap();
+
+    // Delete for good, the way the app does it.
+    db.with_tx(|tx| borewells::soft_delete(tx, &b.id)).unwrap();
+    db.with_tx(|tx| {
+        for p in borewells::delete_permanently(tx, &b.id)? {
+            attachments::release_file(tx, dir.path(), &p)?;
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert!(!std::path::Path::new(&photo.file_path).exists());
+    assert_eq!(parked_files(dir.path()), 1);
+
+    backup::restore(&db, std::path::Path::new(&before.path)).unwrap();
+    let record = db.with(|c| repo::record(c, dir.path(), &b.id)).unwrap();
+    assert_eq!(record.photos.len(), 1);
+    assert!(
+        std::path::Path::new(&record.photos[0].file_path).is_file(),
+        "the photo file is back"
+    );
+    assert_eq!(parked_files(dir.path()), 0);
+
+    // Once no kept backup is older than the removal, removed files are cleaned up for real.
+    db.with_tx(|tx| borewells::soft_delete(tx, &b.id)).unwrap();
+    db.with_tx(|tx| {
+        for p in borewells::delete_permanently(tx, &b.id)? {
+            attachments::release_file(tx, dir.path(), &p)?;
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(parked_files(dir.path()), 1);
+    for old in backup::list(&db.backups_dir()).unwrap() {
+        std::fs::remove_file(old.path).unwrap();
+    }
+    std::thread::sleep(std::time::Duration::from_millis(1100)); // backup names have one-second stamps
+    db.with(|c| backup::create(c, &db.backups_dir(), BackupReason::Manual))
+        .unwrap();
+    assert_eq!(parked_files(dir.path()), 0);
 }
