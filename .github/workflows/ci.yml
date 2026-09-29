@@ -79,25 +79,8 @@ jobs:
           path: target/release/bundle/nsis/*.exe
           if-no-files-found: error
 
-      # Install silently on the clean runner, launch the app, and make sure it stays open.
-      - name: Smoke test installer
+      # Install, start, upgrade and uninstall on the clean runner; sizes, start-up time and memory go to the summary.
+      - name: Clean-machine installer test
         run: |
           $installer = Get-ChildItem target/release/bundle/nsis/*.exe | Select-Object -First 1
-          Start-Process $installer.FullName -ArgumentList '/S' -Wait
-          $exe = Get-ChildItem "$env:LOCALAPPDATA\StrataField" -Recurse -Filter 'stratafield.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $exe) { throw 'Installed StrataField.exe not found' }
-          Write-Host "Installed to $($exe.FullName)"
-          $app = Start-Process $exe.FullName -PassThru
-          Start-Sleep -Seconds 15
-          if ($app.HasExited) { throw "StrataField exited early with code $($app.ExitCode)" }
-          Write-Host 'StrataField is running after 15 seconds'
-          # Start-up opens (or creates) the shared database; slow runners can take a while.
-          $db = Join-Path $env:APPDATA 'Strata\strata.db'
-          $deadline = (Get-Date).AddSeconds(60)
-          while (-not (Test-Path $db) -and (Get-Date) -lt $deadline -and -not $app.HasExited) { Start-Sleep -Seconds 2 }
-          if (-not (Test-Path $db)) {
-            Write-Host "Contents of $env:APPDATA :"; Get-ChildItem $env:APPDATA | Select-Object Name | Format-Table | Out-String | Write-Host
-            throw "The app did not create its database at $db within 60 seconds (app exited: $($app.HasExited))"
-          }
-          Write-Host "Database created at $db"
-          Stop-Process -Id $app.Id -Force
+          ./.github/scripts/installer-test.ps1 -Installer $installer.FullName

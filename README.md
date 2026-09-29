@@ -33,6 +33,10 @@ Handling raw geological data can be messy and inconsistent. StrataField solves t
 | `core/db/` | The shared Rust database layer (`strata_db`): schema and migrations, repositories, backups, and the one-time import from the older Electron app. |
 | `app/` | The StrataField desktop app: React screens in `app/src`, Rust commands in `app/src-tauri`. |
 
+## 💾 Installing
+
+To install StrataField on a computer (not to develop it), see [INSTALL.md](INSTALL.md).
+
 ## 📦 Getting Started
 
 **Requirements:** Node.js 22, [Rust](https://rustup.rs) (stable, MSVC), and the Visual Studio C++ Build Tools. WebView2 ships with Windows 10 and 11.
