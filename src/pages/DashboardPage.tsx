@@ -8,8 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { useBorewellStore } from '@/stores/borewellStore';
 import { useUIStore } from '@/stores/uiStore';
 import { 
-  Search, MapPin, PlusCircle, Database, FileSpreadsheet, 
-  FileDown, FileUp, ArrowRight, ExternalLink, Calendar, History 
+  Search, MapPin, PlusCircle, Database, 
+  FileDown, FileUp, ArrowRight, ExternalLink 
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
