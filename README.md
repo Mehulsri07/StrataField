@@ -210,9 +210,14 @@ $env:STRATA_DATA_DIR = "$env:TEMP\strata-dev"; npm run dev
 - **Rust tests** (`core/db/tests`): creating and upgrading the database, every kind of record,
   Recycle bin and history, backups and restore (including bringing back removed photos), and
   importing a real database from the older app.
+- **End-to-end test** (`e2e/`, `npm run e2e`): starts the real app on a scratch data folder with
+  made-up data (an older-app database, an Excel log, a photo with GPS) and works through every
+  screen like a user. It checks everything in the V1 definition of done, from bringing over old data
+  to backups and restore. It opens an app window, so run it locally only when the computer is free.
+  In CI it also saves files through the real Windows Save dialog (`E2E_REAL_DIALOGS=1`).
 - **CI** (`.github/workflows/ci.yml`). Every pull request gets the fast checks, which take about
   2-3 minutes: typecheck, lint, tests and a frontend build on Linux, plus Rust format, lint and
-  tests on Windows. The slow part builds the optimised installer and runs a **clean-machine test**
+  tests on Windows, and the end-to-end test on Windows. The slow part builds the optimised installer and runs a **clean-machine test**
   (`.github/scripts/installer-test.ps1`). That test installs the app on a fresh Windows runner,
   starts it twice, installs over the top and uninstalls, checking the data survives. The slow part
   runs after merging to `main`, and on pull requests that touch packaging or start-up code.

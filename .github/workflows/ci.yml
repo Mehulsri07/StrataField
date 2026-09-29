@@ -79,6 +79,40 @@ jobs:
       - name: Rust tests (database, migrations, backups, old-data import)
         run: cargo test --workspace
 
+  e2e:
+    name: End-to-end test (real app, made-up data)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: rust-e2e
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - run: npm ci
+
+      - name: Build the app (debug, no installer)
+        run: npm run tauri -w app -- build --debug --no-bundle
+
+      # Drives every screen of the real app on a scratch data folder, including saving through
+      # the real Windows Save dialog (safe here: nobody is using the runner's desktop).
+      - name: End-to-end test
+        env:
+          E2E_REAL_DIALOGS: '1'
+        run: npm run e2e
+
   # Decides whether a pull request needs the installer build and clean-machine test.
   changes:
     name: Does this change packaging or start-up?
@@ -114,10 +148,10 @@ jobs:
 
   installer:
     name: Installer build and clean-machine test
-    needs: [check, rust, changes]
+    needs: [check, rust, e2e, changes]
     # Runs on main and when started by hand; on pull requests only when `changes` says so.
     if: >-
-      always() && needs.check.result == 'success' && needs.rust.result == 'success' &&
+      always() && needs.check.result == 'success' && needs.rust.result == 'success' && needs.e2e.result == 'success' &&
       (github.event_name != 'pull_request' || needs.changes.outputs.installer == 'true')
     runs-on: windows-latest
     defaults:

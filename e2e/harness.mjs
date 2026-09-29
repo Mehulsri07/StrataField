@@ -1,0 +1,183 @@
+// Drives the real StrataField app (Rust + screens) for end-to-end tests.
+//
+// The app is started on a scratch data folder (STRATA_DATA_DIR) with a made-up "older app" database
+// (STRATA_LEGACY_ROOT), and its WebView2 window is controlled through the Chrome DevTools protocol.
+// Nothing touches the real %APPDATA%\Strata or %APPDATA%\StrataField.
+import { spawn, execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+export const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Where test files and the scratch data folder go. */
+export function workFolder() {
+  const dir = process.env.E2E_WORK ?? path.join(os.tmpdir(), `strata-e2e-${Date.now()}`);
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+// ── Results ─────────────────────────────────────────────────────────────
+
+export const results = [];
+export function check(name, ok, detail = "") {
+  results.push({ name, ok: !!ok, detail });
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${String(detail).slice(0, 300)})` : ""}`);
+}
+
+// ── Starting the app and talking to its window ──────────────────────────
+
+const PORT = Number(process.env.E2E_PORT ?? 9333);
+
+export function startApp({ dataDir, legacyRoot }) {
+  const exe = process.env.STRATA_EXE ?? path.join(repo, "target", "debug", "stratafield.exe");
+  if (!fs.existsSync(exe)) throw new Error(`Build the app first: ${exe} not found (npm run tauri -w app -- build --debug --no-bundle)`);
+  return spawn(exe, [], {
+    env: {
+      ...process.env,
+      STRATA_DATA_DIR: dataDir,
+      STRATA_LEGACY_ROOT: legacyRoot,
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT}`,
+    },
+    stdio: "ignore",
+  });
+}
+
+let ws, nextId = 0;
+const pending = new Map();
+
+export async function connect() {
+  for (let i = 0; i < 120; i++) {
+    try {
+      const pages = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json();
+      const page = pages.find((p) => p.type === "page");
+      if (page) {
+        ws = new WebSocket(page.webSocketDebuggerUrl);
+        await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+        ws.onmessage = (m) => { const d = JSON.parse(m.data); pending.get(d.id)?.(d); pending.delete(d.id); };
+        await sleep(2500);
+        await page_(HELPERS);
+        return;
+      }
+    } catch { /* not up yet */ }
+    await sleep(500);
+  }
+  throw new Error("Could not connect to the app window");
+}
+
+export function disconnect() {
+  try { ws?.close(); } catch { /* ignore */ }
+}
+
+function send(method, params = {}) {
+  const i = ++nextId;
+  ws.send(JSON.stringify({ id: i, method, params }));
+  return new Promise((r) => pending.set(i, r));
+}
+
+/** Runs JavaScript (may use await and `__t` helpers) in the app window and returns its result. */
+async function page_(code) {
+  const r = await send("Runtime.evaluate", { expression: `(async () => { ${code} })()`, awaitPromise: true, returnByValue: true });
+  if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? JSON.stringify(r.result.exceptionDetails));
+  return r.result?.result?.value;
+}
+export const page = page_;
+
+// Helpers injected into the page for driving the screens like a user.
+const HELPERS = `
+  window.__t = {
+    wait: (ms) => new Promise(r => setTimeout(r, ms)),
+    async until(fn, ms = 8000) { const end = Date.now() + ms; while (Date.now() < end) { const v = await fn(); if (v) return v; await this.wait(100); } throw new Error('timed out waiting for: ' + fn.toString().slice(0, 120)); },
+    btn: (t, scope = document) => [...scope.querySelectorAll('button, a, [role="tab"]')].find(b => b.textContent.trim().startsWith(t)),
+    type(el, v) { const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); },
+    press(el) { for (const t of ['pointerdown','mousedown','pointerup','mouseup','click']) el.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' })); },
+    // Lists stay in the page (hidden) after closing, so only look at the one that is showing.
+    shownOptions: () => [...document.querySelectorAll('[role="option"]')].filter(o => o.getClientRects().length && !o.closest('[hidden], [data-closed]')),
+    async choose(trigger, label) {
+      await this.until(() => this.shownOptions().length === 0, 3000).catch(() => {});
+      this.press(trigger);
+      const opt = await this.until(() => this.shownOptions().find(o => o.textContent.trim() === label));
+      await this.wait(150); this.press(opt);
+      await this.until(() => this.shownOptions().length === 0, 3000).catch(() => {});
+      await this.wait(150);
+    },
+    invoke: (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args),
+    text: () => document.querySelector('main')?.innerText ?? '',
+  };
+  return true;`;
+
+// ── The Windows "Save As" dialog ────────────────────────────────────────
+
+/**
+ * Answers the app's "Save As" dialog with `target`: sets the file name box and presses Save by
+ * sending window messages to those two controls only. No keystrokes and no focus changes, so it
+ * cannot affect other windows. Resolves to "answered" or what went wrong.
+ */
+export function answerSaveDialog(target) {
+  const ps = `
+Add-Type @'
+using System; using System.Text; using System.Runtime.InteropServices;
+public static class Dlg {
+  delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr FindWindow(string c, string t);
+  [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr p, EnumProc f, IntPtr l);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr h);
+  [DllImport("user32.dll")] static extern int GetDlgCtrlID(IntPtr h);
+  [DllImport("user32.dll")] static extern IntPtr GetDlgItem(IntPtr h, int id);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, string l);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, int m, IntPtr w, StringBuilder l);
+  [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, int m, IntPtr w, IntPtr l);
+  static string Cls(IntPtr h) { var s = new StringBuilder(64); GetClassName(h, s, 64); return s.ToString(); }
+  public static IntPtr Find() { return FindWindow("#32770", "Save As"); }
+  public static string Save(IntPtr dlg, string path) {
+    // The file name box is the Edit with control id 1001 inside a ComboBox.
+    IntPtr edit = IntPtr.Zero;
+    EnumChildWindows(dlg, (h, l) => { if (Cls(h) == "Edit" && GetDlgCtrlID(h) == 1001 && Cls(GetParent(h)) == "ComboBox") { edit = h; return false; } return true; }, IntPtr.Zero);
+    if (edit == IntPtr.Zero) return "no file name box";
+    SendMessage(edit, 0x000C, IntPtr.Zero, path);                   // WM_SETTEXT
+    var check = new StringBuilder(1024); SendMessage(edit, 0x000D, (IntPtr)1024, check); // WM_GETTEXT
+    if (check.ToString() != path) return "file name not accepted: " + check;
+    var ok = GetDlgItem(dlg, 1);
+    PostMessage(dlg, 0x0111, (IntPtr)1, ok);                        // WM_COMMAND IDOK = press Save
+    return "answered";
+  }
+}
+'@
+$end = (Get-Date).AddSeconds(30); $h = [IntPtr]::Zero
+while ($h -eq [IntPtr]::Zero -and (Get-Date) -lt $end) { Start-Sleep -Milliseconds 300; $h = [Dlg]::Find() }
+if ($h -eq [IntPtr]::Zero) { Write-Output 'no dialog'; exit 1 }
+Start-Sleep -Milliseconds 1000
+Write-Output ([Dlg]::Save($h, '${target.replace(/'/g, "''")}'))`;
+  return new Promise((resolve) => {
+    const p = spawn("powershell", ["-NoProfile", "-Command", ps], { stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    p.stdout.on("data", (d) => (out += d));
+    p.stderr.on("data", (d) => (out += d));
+    p.on("close", () => resolve(out.trim()));
+  });
+}
+
+/** Closes a leftover "Save As" dialog (Cancel), so a failed step does not block the next ones. */
+export function cancelSaveDialog() {
+  try {
+    execFileSync("powershell", ["-NoProfile", "-Command", `
+Add-Type @'
+using System; using System.Runtime.InteropServices;
+public static class C { [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string t);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, int m, IntPtr w, IntPtr l); }
+'@
+$h = [C]::FindWindow('#32770', 'Save As'); if ($h -ne [IntPtr]::Zero) { [void][C]::PostMessage($h, 0x0111, [IntPtr]2, [IntPtr]::Zero) }`], { stdio: "ignore" });
+  } catch { /* nothing to close */ }
+}
+
+export async function waitForFile(file, ms = 45000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (fs.existsSync(file) && fs.statSync(file).size > 0) { await sleep(700); return fs.readFileSync(file); }
+    await sleep(300);
+  }
+  return null;
+}
