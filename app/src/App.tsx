@@ -1,8 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/app/AppShell";
-import { ComingSoon } from "@/components/app/Page";
-import { text } from "@/text";
+import { NotFound } from "@/components/app/Page";
 
 const Home = lazy(() => import("@/pages/Home").then((m) => ({ default: m.Home })));
 const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })));
@@ -17,7 +16,6 @@ const ImportPage = lazy(() => import("@/pages/ImportPage").then((m) => ({ defaul
 const SectionPage = lazy(() => import("@/pages/SectionPage").then((m) => ({ default: m.SectionPage })));
 const ExportPage = lazy(() => import("@/pages/ExportPage").then((m) => ({ default: m.ExportPage })));
 
-const p = text.pages;
 
 /** Every screen. */
 export default function App() {
@@ -39,7 +37,7 @@ export default function App() {
         <Route path="recycle-bin" element={<RecycleBin />} />
         <Route path="settings" element={<Settings />} />
         <Route path="design" element={<DesignSystem />} />
-        <Route path="*" element={<ComingSoon title={p.notFound.title} sub={p.notFound.sub} />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
     </Suspense>

@@ -17,7 +17,7 @@ import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate } from "@/lib/format";
+import { formatDate, zoneName } from "@/lib/format";
 import { numberText, parseCoordinatePair, parseNumber } from "@strata/core";
 import { text } from "@/text";
 import { cn } from "@/lib/utils";
@@ -589,7 +589,7 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
         {section("Basics", "basics", <>
           {row("Borewell ID", <span className="num">{f.borewellId}</span>)}
           {row("Owner", f.ownerName)}
-          {row("Zone", f.project || "Default Project")}
+          {row("Zone", zoneName(f.project))}
           {row("Date drilled", f.date && formatDate(f.date))}
         </>)}
         {section("Location", "location", <>

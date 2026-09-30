@@ -90,6 +90,15 @@ afterAll(() => {
 
 // ─── Anomaly detection tests ──────────────────────────────────────────────────
 
+describe('thick layers', () => {
+  it('does not warn about gaps when layers are simply thicker than usual', () => {
+    const rows = buildStandardRows([20, 40, 60, 100, 160].map((depth) => ({ depth, material: 'Clay' })));
+    const result = smartParseExcel(createTemp(rows));
+    expect(result.anomalies.filter((a) => a.code === 'DEPTH_GAP')).toEqual([]);
+    expect(result.strata.map((l) => [l.startDepth, l.endDepth])).toEqual([[0, 20], [20, 40], [40, 60], [60, 100], [100, 160]]);
+  });
+});
+
 describe('anomaly detection', () => {
   it('flags DEPTH_NON_MONOTONIC when a depth value goes backwards', () => {
     // Row sequence: 10 → 20 → 15 (non-monotonic) → 30

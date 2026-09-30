@@ -8,7 +8,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { PatternDefs } from "@/components/geology/patterns";
 import { isPreview } from "./api";
-import { formatDate } from "./format";
+import { formatDate, zoneName } from "./format";
 
 // Light-theme colours for anything printed or saved: files are read outside the app's theme.
 const PRINT_COLOURS: Record<string, string> = {
@@ -144,7 +144,7 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
     w.newPage();
     w.text(w.fit(`${b.borewellId}${b.ownerName ? ` · ${b.ownerName}` : ""}`, A4[0] - 2 * M, 18, true), M, w.y, 18, INK, true);
     w.y -= 16;
-    w.text(w.fit([b.project, [b.area, b.city].filter(Boolean).join(", "), b.date && `drilled ${formatDate(b.date)}`].filter(Boolean).join(" · "), A4[0] - 2 * M), M, w.y, 10, QUIET);
+    w.text(w.fit([zoneName(b.project), [b.area, b.city].filter(Boolean).join(", "), b.date && `drilled ${formatDate(b.date)}`].filter(Boolean).join(" · "), A4[0] - 2 * M), M, w.y, 10, QUIET);
     w.y -= 14;
     w.rule();
     w.y -= 18;
@@ -169,7 +169,7 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
       ["Address", [b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ") || "—"],
       ["GPS location", b.latitude != null && b.longitude != null ? `${b.latitude.toFixed(5)}, ${b.longitude.toFixed(5)}` : "Not recorded"],
       ...(b.latitude != null && LOCATION[b.locationSource] ? [["", LOCATION[b.locationSource]] as [string, string]] : []),
-      ["Zone", b.project || "—"],
+      ["Zone", zoneName(b.project)],
       ["Soil layers", `${r.strata.length}`],
       ["Pipe pieces", `${r.pipes.length}`],
     ];

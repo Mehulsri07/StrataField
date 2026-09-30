@@ -18,7 +18,7 @@ import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, formatWhen } from "@/lib/format";
+import { formatDate, formatWhen, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
 
@@ -84,7 +84,7 @@ export function BorewellDetail() {
     <Page>
       <PageHeader
         title={<><span className="num">{b.borewellId}</span>{b.ownerName && <> · {b.ownerName}</>}</>}
-        sub={<>{b.project} · {[b.area, b.city].filter(Boolean).join(", ")}{b.date && <> · drilled {formatDate(b.date)}</>}</>}
+        sub={<>{zoneName(b.project)} · {[b.area, b.city].filter(Boolean).join(", ")}{b.date && <> · drilled {formatDate(b.date)}</>}</>}
         actions={
           b.deletedAt ? null : (
             <>
@@ -127,7 +127,7 @@ export function BorewellDetail() {
                   <Fact label="Pipe size" value={b.pipeDia} unit="inch" />
                   <FactText label="Drilling method">{b.drillingMethod ? METHOD[b.drillingMethod] : "—"}</FactText>
                   <FactText label="Date drilled">{b.date ? formatDate(b.date) : "—"}</FactText>
-                  <FactText label="Zone">{b.project}</FactText>
+                  <FactText label="Zone">{zoneName(b.project)}</FactText>
                   <FactText label="Added by">{b.importMethod === "excel" ? `Excel file${b.importSource ? ` (${b.importSource})` : ""}` : b.importMethod === "legacy" ? "The older StrataField" : "Typed in"}</FactText>
                 </dl>
                 {b.remarks && <p className="mt-4 border-t border-border pt-3 text-sm"><span className="text-muted-foreground">Notes: </span>{b.remarks}</p>}

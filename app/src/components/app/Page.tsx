@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { Hammer } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Compass } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { text } from "@/text";
 
@@ -37,15 +39,15 @@ export function Panel({ title, actions, children, className, bodyClassName }: {
   );
 }
 
-/** Stand-in for screens built in T3; keeps navigation working. */
-export function ComingSoon({ title, sub }: { title: string; sub: string }) {
+/** Shown for an address that does not exist, with a way back. */
+export function NotFound() {
   return (
     <Page>
-      <PageHeader title={title} sub={sub} />
-      <div className="grid place-items-center gap-2 rounded-md border border-dashed border-input bg-card px-6 py-16 text-center">
-        <Hammer className="size-6 text-muted-foreground" aria-hidden="true" />
-        <p className="font-medium">{text.placeholder.comingSoon}</p>
-        <p className="max-w-md text-sm text-muted-foreground">{text.placeholder.body}</p>
+      <PageHeader title={text.pages.notFound.title} sub={text.pages.notFound.sub} />
+      <div className="grid place-items-center gap-3 rounded-md border border-dashed border-input bg-card px-6 py-16 text-center">
+        <Compass className="size-6 text-muted-foreground" aria-hidden="true" />
+        <p className="max-w-md text-sm text-muted-foreground">{text.pages.notFound.body}</p>
+        <Button render={<Link to="/" />}>{text.pages.notFound.home}</Button>
       </div>
     </Page>
   );

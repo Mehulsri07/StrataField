@@ -141,13 +141,8 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
         `Row ${i + 1}: Material "${materialRaw}" not in dictionary. Kept as-is.`, i);
     }
 
-    // Depth gap check
-    const expectedStep = detectedUnit === 'm' ? 3 * conversionFactor : 10;
-    const gap = depthFt - prevEndDepth;
-    if (gap > expectedStep * 1.5 && prevEndDepth > 0) {
-      addAnomaly(anomalies, 'DEPTH_GAP', 'warning',
-        `Row ${i + 1}: Gap of ${(gap / conversionFactor).toFixed(1)} ${detectedUnit} between layers (expected ~${expectedStep / conversionFactor}).`, i);
-    }
+    // No gap check here: each row gives a layer's bottom and the layer starts where the previous
+    // one ended, so rows never leave a gap. A big step between rows is just a thick layer.
 
     strata.push({
       startDepth: prevEndDepth,

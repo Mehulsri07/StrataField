@@ -80,7 +80,8 @@ export function FitBorewells({ borewells, trigger }: { borewells: Borewell[]; tr
   const map = useMap();
   useEffect(() => {
     const pts = borewells.filter((b) => b.latitude != null && b.longitude != null).map((b) => [b.latitude!, b.longitude!] as [number, number]);
-    if (pts.length === 1) map.setView(pts[0], 15);
+    // One borewell: show it with its surroundings, not right up close.
+    if (pts.length === 1) map.setView(pts[0], 13);
     else if (pts.length > 1) map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 });
   }, [map, borewells, trigger]);
   return null;
