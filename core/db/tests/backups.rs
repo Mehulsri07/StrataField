@@ -130,3 +130,79 @@ fn restore_refuses_damaged_newer_and_old_app_files() {
         "refused restores change nothing"
     );
 }
+
+#[test]
+fn every_backup_is_also_copied_to_the_second_folder_and_the_newest_are_kept() {
+    let (dir, db) = open_temp();
+    let usb = tempfile::tempdir().unwrap();
+    assert_eq!(backup::second_copy(dir.path()).folder, None);
+    backup::set_second_copy_folder(dir.path(), Some(usb.path())).unwrap();
+
+    for _ in 0..(backup::KEEP_SECOND_COPIES + 2) {
+        db.with(|c| backup::create(c, &db.backups_dir(), BackupReason::Automatic))
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    let copies: Vec<_> = std::fs::read_dir(usb.path().join(backup::SECOND_COPY_SUBFOLDER))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(copies.len(), backup::KEEP_SECOND_COPIES, "{copies:?}");
+    assert!(
+        copies.iter().all(|n| n.ends_with(".db")),
+        "no half-written copies left"
+    );
+    let newest = backup::list(&db.backups_dir()).unwrap()[0]
+        .file_name
+        .clone();
+    assert!(
+        copies.contains(&newest),
+        "the newest backup is in the second folder"
+    );
+
+    let status = backup::second_copy(dir.path());
+    assert!(status.last_copied_at.is_some());
+    assert_eq!(status.last_error, None);
+    // The copies are real, checkable backups.
+    let copy = usb.path().join(backup::SECOND_COPY_SUBFOLDER).join(&newest);
+    assert_eq!(backup::verify(&copy).unwrap(), schema::LATEST_VERSION);
+}
+
+#[test]
+fn an_unplugged_second_folder_is_reported_but_the_backup_still_works() {
+    let (dir, db) = open_temp();
+    let usb = tempfile::tempdir().unwrap();
+    backup::set_second_copy_folder(dir.path(), Some(usb.path())).unwrap();
+    let gone = usb.path().to_path_buf();
+    drop(usb); // the USB drive is unplugged
+
+    let info = db
+        .with(|c| backup::create(c, &db.backups_dir(), BackupReason::Manual))
+        .unwrap();
+    assert!(
+        std::path::Path::new(&info.path).is_file(),
+        "the backup itself is made"
+    );
+    let status = backup::second_copy(dir.path());
+    assert_eq!(
+        status.folder.as_deref(),
+        Some(gone.to_string_lossy().as_ref())
+    );
+    assert!(
+        status
+            .last_error
+            .as_deref()
+            .is_some_and(|e| e.contains("not available")),
+        "{status:?}"
+    );
+
+    // Choosing a folder inside the data folder is refused; stopping copies clears the setting.
+    let err = backup::set_second_copy_folder(dir.path(), Some(&db.backups_dir())).unwrap_err();
+    assert!(err.to_string().contains("outside"), "{err}");
+    assert_eq!(
+        backup::set_second_copy_folder(dir.path(), None)
+            .unwrap()
+            .folder,
+        None
+    );
+}

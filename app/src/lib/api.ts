@@ -10,6 +10,15 @@ import type {
   StartupStatus, StrataLayer, WaterReading, GeocodeResult,
 } from "@strata/core";
 
+export interface SecondCopy {
+  /** The folder the user chose; null when backups are only on this computer. */
+  folder: string | null;
+  /** Local time, "YYYY-MM-DD HH:MM:SS". */
+  lastCopiedAt: string | null;
+  /** Why the last copy failed; null after a success. */
+  lastError: string | null;
+}
+
 export interface OfflineMapStatus {
   installed: boolean;
   sizeBytes: number;
@@ -101,6 +110,13 @@ export const api = {
     /** Resolves with the safety backup taken before restoring. */
     restore: (path: string) => invoke<BackupInfo>("backup_restore", { path }),
     importFromOlderVersion: (path: string) => invoke<LegacyImportReport>("legacy_import", { path }),
+    /** A second copy of every backup in a folder the user chose (USB drive, cloud folder). */
+    secondCopy: {
+      get: () => invoke<SecondCopy>("backup_second_copy_get"),
+      /** `null` stops copying. Copies the newest backup straight away. */
+      set: (folder: string | null) => invoke<SecondCopy>("backup_second_copy_set", { folder }),
+      now: () => invoke<SecondCopy>("backup_second_copy_now"),
+    },
     /** Opens the backups folder or the whole data folder in File Explorer. */
     openFolder: (which: "backups" | "data") => invoke<void>("open_folder", { which }),
   },
@@ -145,6 +161,16 @@ export const files = {
     const picked = await open({ title: options.title, multiple: options.multiple ?? false, filters: options.filters, directory: false });
     if (!picked) return [];
     return Array.isArray(picked) ? picked : [picked];
+  },
+  /** Asks the user to choose a folder. Resolves to its path, or null if they cancel. */
+  async chooseFolder(title: string): Promise<string | null> {
+    // The end-to-end test stands in for the folder picker, only in builds made for it.
+    const testPick = import.meta.env.VITE_E2E === "1" ? (window as { __STRATA_TEST_CHOOSE__?: (title: string) => string[] }).__STRATA_TEST_CHOOSE__ : undefined;
+    if (testPick) return testPick(title)[0] ?? null;
+    if (isPreview) throw new Error("Choosing folders works in the StrataField app, not in the browser preview.");
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const picked = await open({ title, directory: true, multiple: false });
+    return typeof picked === "string" ? picked : null;
   },
   /** Opens a stored file (PDF, Excel…) in its usual program. */
   async open(path: string): Promise<void> {
