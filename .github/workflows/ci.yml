@@ -22,9 +22,9 @@ jobs:
     name: Typecheck, lint, tests, frontend build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -47,9 +47,9 @@ jobs:
     name: Known vulnerabilities in libraries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -71,7 +71,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -107,9 +107,9 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -145,8 +145,8 @@ jobs:
       installer: ${{ steps.filter.outputs.installer }}
       update: ${{ steps.filter.outputs.update }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -198,9 +198,9 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -244,9 +244,9 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
