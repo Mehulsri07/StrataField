@@ -136,6 +136,11 @@ jobs:
           E2E_REAL_DIALOGS: '1'
         run: npm run e2e
 
+      # The same build, with 5,000 made-up borewells: each main screen must be ready within its limit.
+      - name: Performance with 5,000 borewells
+        if: success() || failure()
+        run: npm run perf
+
   # Decides whether a pull request needs the installer build and clean-machine test.
   changes:
     name: Does this change packaging or start-up?
