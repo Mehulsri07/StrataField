@@ -109,7 +109,7 @@ export function SectionPage() {
       const { buildSectionPdf, saveFile, fileName } = await import("@/lib/exporting");
       const name = saved.data?.find((s) => s.id === openSectionId)?.name ?? "Cross-section";
       const bytes = await buildSectionPdf({
-        name, line: path, lengthKm: result.lengthKm, corridorKm: half, nearby: result.placed.length,
+        name, line: path, lengthKm: result.lengthKm, corridorKm: half, nearby: result.near,
         drawingMarkup: renderToStaticMarkup(<SectionDrawing placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} forPrint />),
         borewells: result.placed.map((p) => ({ borewell: p.item.borewell, alongKm: p.alongKm, offsetKm: p.offsetKm, layers: p.item.strata.length })),
       });
