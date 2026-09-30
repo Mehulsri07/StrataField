@@ -3,6 +3,10 @@
 // Starts the app on a scratch data folder, loads made-up borewells spread over Lucknow in one
 // import, then times the screens people use most. Each has a limit; slower counts as a failure.
 // Also records memory. Run after a debug build (see run.mjs), e.g. `npm run perf`.
+//
+// Limits: what a user would notice as slow, with room for GitHub's machines, whose speed varies by
+// about 1.6x from run to run (the same code measured 1.9 s and 3.1 s for the list). The numbers in
+// the run summary show the trend; a limit only fails when something is clearly slower.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -57,7 +61,7 @@ try {
     return { count: r.borewellIds.length, layers: borewells.reduce((s, b) => s + b.strata.length, 0), ms: Math.round(performance.now() - t0) };`);
   check(`Loaded ${loaded.count} borewells with ${loaded.layers} layers in one import (${loaded.ms} ms)`, loaded.count === COUNT);
 
-  await timed("Borewells list shows", 3000, `
+  await timed("Borewells list shows", 5000, `
     location.hash = '#/borewells';
     await __t.until(() => document.querySelectorAll('main tbody tr').length > 0 && /Showing \\d+ of ${COUNT}/.test(__t.text()), 30000);
     return document.querySelectorAll('main tbody tr').length + ' rows drawn';`);
@@ -69,17 +73,17 @@ try {
     document.querySelector('main tbody tr').click();
     await __t.until(() => /PERF-04321/.test(document.querySelector('main h2')?.innerText ?? '') && document.querySelector('svg [role="button"]'), 30000);
     return 'detail with drawing';`);
-  await timed("Home shows (numbers, water map, recent)", 4000, `
+  await timed("Home shows (numbers, water map, recent)", 6000, `
     location.hash = '#/';
     await __t.until(() => /Recently added/.test(__t.text()) && document.querySelector('main .leaflet-image-layer'), 30000);
     return 'ready';`);
-  await timed("Map shows pins and water colours", 4000, `
+  await timed("Map shows pins and water colours", 7000, `
     location.hash = '#/map';
     // Wait for the Map screen itself (not Home's map, which is still showing for a moment).
     await __t.until(() => /^Map/.test(document.querySelector('main h2')?.innerText ?? ''), 30000);
     await __t.until(() => document.querySelectorAll('.strata-cluster, .leaflet-overlay-pane path.leaflet-interactive').length > 0 && document.querySelector('main .leaflet-image-layer'), 30000);
     return document.querySelectorAll('.strata-cluster').length + ' groups';`);
-  await timed("Cross-section draws an example line", 3000, `
+  await timed("Cross-section draws an example line", 4000, `
     location.hash = '#/section';
     (await __t.until(() => __t.btn('North to south'), 30000)).click();
     const svg = await __t.until(() => [...document.querySelectorAll('svg[aria-label^="Cross-section with"]')].pop(), 30000);
