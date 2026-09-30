@@ -29,7 +29,8 @@ message says how many. The older app's file is only read, never changed.
 
 Your borewells, photos and files are kept in `%APPDATA%\Strata` (Settings & backup shows the exact
 folder and has a button to open it). StrataField makes a backup every day by itself and keeps the
-last 10. Now and then, copy one to a USB drive or cloud folder in case the computer fails.
+last 10. To protect against the computer failing, choose a USB drive or cloud folder under
+**Settings & backup → A second copy of your backups**: every backup is then copied there too.
 
 ## Updating
 
