@@ -225,8 +225,25 @@ pub fn set_setting(conn: &Connection, key: &str, value: &serde_json::Value) -> R
 pub(crate) fn resolve_path(data_dir: &Path, stored: &str) -> String {
     let p = Path::new(stored);
     if p.is_absolute() {
+        // Files the older app pointed to, left where they were.
         stored.to_string()
     } else {
-        data_dir.join(p).to_string_lossy().into_owned()
+        // A relative path must stay inside the attachments folder; anything else (for example
+        // "../" in a damaged or tampered backup) is treated as a missing file.
+        managed_path(data_dir, stored)
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default()
     }
+}
+
+/// The real location of a file StrataField stored, if `stored` is a plain path inside the
+/// data folder's `attachments` folder (no "..", no drive or root). `None` for anything else.
+pub fn managed_path(data_dir: &Path, stored: &str) -> Option<std::path::PathBuf> {
+    use std::path::Component;
+    let p = Path::new(stored);
+    let mut parts = p.components();
+    let first_is_attachments =
+        matches!(parts.next(), Some(Component::Normal(c)) if c == "attachments");
+    let rest_is_plain = parts.all(|c| matches!(c, Component::Normal(_)));
+    (first_is_attachments && rest_is_plain && p.components().count() >= 2).then(|| data_dir.join(p))
 }

@@ -25,6 +25,9 @@ struct NominatimPlace {
 pub async fn lookup(state: &AppState, query: &str) -> Result<Option<GeocodeHit>, String> {
     let db = state.db()?;
     let query = query.trim();
+    if query.chars().count() > 200 {
+        return Err("Type a shorter address to look up.".into());
+    }
     if query.len() < 3 {
         return Err("Type a longer address to look up.".into());
     }
