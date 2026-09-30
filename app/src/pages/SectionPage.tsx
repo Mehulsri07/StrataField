@@ -103,6 +103,23 @@ export function SectionPage() {
     }
   };
 
+  const savePdf = async () => {
+    if (!result) return;
+    try {
+      const { buildSectionPdf, saveFile, fileName } = await import("@/lib/exporting");
+      const name = saved.data?.find((s) => s.id === openSectionId)?.name ?? "Cross-section";
+      const bytes = await buildSectionPdf({
+        name, line: path, lengthKm: result.lengthKm, corridorKm: half, nearby: result.near,
+        drawingMarkup: renderToStaticMarkup(<SectionDrawing placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} forPrint />),
+        borewells: result.placed.map((p) => ({ borewell: p.item.borewell, alongKm: p.alongKm, offsetKm: p.offsetKm, layers: p.item.strata.length })),
+      });
+      const out = await saveFile(`${fileName(name)}.pdf`, "pdf", bytes);
+      if (out) toast.success("PDF saved");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
   const saveSection = async (name: string) => {
     if (path.length < 2) return;
     try {
@@ -242,6 +259,7 @@ export function SectionPage() {
         actions={result && result.placed.length > 0 && (
           <>
             <Button variant="outline" disabled={isPreview} onClick={() => setNaming(saved.data?.find((s) => s.id === openSectionId)?.name ?? `A–A′ ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`)}><Save />Save</Button>
+            <Button variant="outline" disabled={isPreview} onClick={savePdf}>Save as PDF</Button>
             <Button variant="outline" disabled={isPreview} onClick={savePicture}>Save as picture</Button>
           </>
         )}
