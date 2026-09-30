@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { thinAlongLine, corridorPolygon, coverageFor, exampleLines, familyRuns, matchRuns, placeAlongLine } from './section';
+import { corridorPolygon, corridorPolygons, coverageFor, exampleLines, familyRuns, matchRuns, midpoints, placeAlongLine, placeAlongPath, thinAlongLine } from './section';
 import type { StrataLayer } from './types';
 
 const L = (start: number, end: number, materialId: string): StrataLayer => ({
@@ -40,6 +40,46 @@ describe('placeAlongLine', () => {
     const poly = corridorPolygon(a, b, 1);
     expect(poly).toHaveLength(4);
     expect(Math.abs(poly[0][0] - 26.87)).toBeCloseTo(1 / 110.57, 3);
+  });
+});
+
+describe('placeAlongPath (a line with bends)', () => {
+  // An L-shaped line: 10 km east along 26.85 N, then 10 km north.
+  const a: [number, number] = [26.85, 80.90];
+  const corner: [number, number] = [26.85, 80.90 + 10 / (111.32 * Math.cos((26.85 * Math.PI) / 180))];
+  const end: [number, number] = [26.85 + 10 / 110.57, corner[1]];
+  const wells = [
+    { id: 'on-second-leg', latitude: 26.85 + 5 / 110.57, longitude: corner[1] + 0.003 },
+    { id: 'on-first-leg', latitude: 26.852, longitude: 80.95 },
+    { id: 'near-corner-outside', latitude: 26.84, longitude: corner[1] + 0.01 },
+    { id: 'far-away', latitude: 26.95, longitude: 80.90 },
+  ];
+
+  it('measures the whole length, bend included', () => {
+    const { lengthKm } = placeAlongPath([a, corner, end], 1, wells);
+    expect(lengthKm).toBeCloseTo(20, 0);
+  });
+
+  it('orders borewells along the bent line and ignores those far from every part', () => {
+    const { placed } = placeAlongPath([a, corner, end], 2, wells);
+    expect(placed.map(p => p.item.id)).toEqual(['on-first-leg', 'near-corner-outside', 'on-second-leg']);
+    const second = placed.find(p => p.item.id === 'on-second-leg')!;
+    expect(second.alongKm).toBeCloseTo(15, 0);          // 10 km of the first part + 5 km up the second
+    expect(Math.abs(second.offsetKm)).toBeLessThan(0.4);
+  });
+
+  it('gives the same answer as a straight line when there is no bend', () => {
+    const straight = placeAlongLine(a, end, 3, wells);
+    const path = placeAlongPath([a, end], 3, wells);
+    expect(path.placed.map(p => p.item.id)).toEqual(straight.placed.map(p => p.item.id));
+    expect(path.lengthKm).toBeCloseTo(straight.lengthKm, 6);
+  });
+
+  it('draws one corridor band per part and offers the middle of each part for a new bend', () => {
+    expect(corridorPolygons([a, corner, end], 1)).toHaveLength(2);
+    const mids = midpoints([a, corner, end]);
+    expect(mids).toHaveLength(2);
+    expect(mids[0][0]).toBeCloseTo(26.85, 6);
   });
 });
 
