@@ -1,5 +1,8 @@
 // End-to-end test of the StrataField app, following the V1 definition of done.
 //
+// Build first, with the test's stand-ins for file dialogs switched on (PowerShell):
+//   $env:VITE_E2E = "1"; npm run tauri -w app -- build --debug --no-bundle
+//
 //   npm run e2e                     uses target/debug/stratafield.exe
 //   STRATA_EXE=... npm run e2e      another build (e.g. target/release/stratafield.exe)
 //   E2E_REAL_DIALOGS=1 npm run e2e  also saves PDF and Excel through the real Windows Save dialog

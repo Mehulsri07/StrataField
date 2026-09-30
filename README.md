@@ -158,6 +158,12 @@ look for the older app's data).
 
 ---
 
+## Security
+
+How the app protects data and the computer is described in [SECURITY.md](SECURITY.md): which
+internet connections it makes, which files it may read and write, signed updates, and how to report
+a problem privately.
+
 ## Rules the code follows
 
 These come from the project plan and apply to anyone (or any AI assistant) changing the code:
@@ -208,13 +214,17 @@ $env:STRATA_DATA_DIR = "$env:TEMP\strata-dev"; npm run dev
 
 - **`core` tests** (Vitest): validation, numbers, layer info, water map, cross-section maths, Excel
   parser.
+- **Known vulnerabilities**: CI runs `npm audit` and `cargo audit` on every change; Dependabot
+  proposes library updates weekly.
 - **Rust tests** (`core/db/tests`): creating and upgrading the database, every kind of record,
   Recycle bin and history, backups and restore (including bringing back removed photos), and
   importing a real database from the older app.
 - **End-to-end test** (`e2e/`, `npm run e2e`): starts the real app on a scratch data folder with
   made-up data (an older-app database, an Excel log, a photo with GPS) and works through every
   screen like a user. It checks everything in the V1 definition of done, from bringing over old data
-  to backups and restore. It opens an app window, so run it locally only when the computer is free.
+  to backups and restore. It opens an app window, so run it locally only when the computer is free. Build for it first with
+  `VITE_E2E=1` (which switches on its stand-ins for file dialogs; normal builds never have them):
+  `$env:VITE_E2E = "1"; npm run tauri -w app -- build --debug --no-bundle`.
   In CI it also saves files through the real Windows Save dialog (`E2E_REAL_DIALOGS=1`).
 - **CI** (`.github/workflows/ci.yml`). Every pull request gets the fast checks, which take about
   2-3 minutes: typecheck, lint, tests and a frontend build on Linux, plus Rust format, lint and

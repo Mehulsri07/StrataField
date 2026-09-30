@@ -43,6 +43,27 @@ jobs:
       - name: Build frontend
         run: npm run build -w app
 
+  audit:
+    name: Known vulnerabilities in libraries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Libraries that go into the app (not build tools); fails on high or critical advisories.
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: cargo audit
+        run: cargo audit
+
   rust:
     name: Rust format, lint, tests
     runs-on: windows-latest
@@ -103,7 +124,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Build the app (debug, no installer)
+      - name: Build the app (debug, no installer, with the test's stand-ins for file dialogs)
+        env:
+          VITE_E2E: '1'
         run: npm run tauri -w app -- build --debug --no-bundle
 
       # Drives every screen of the real app on a scratch data folder, including saving through

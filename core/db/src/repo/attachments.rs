@@ -1,7 +1,7 @@
 //! Photos and files. StrataField copies each one into `<data folder>/attachments/<borewell>/`
 //! and stores the path relative to the data folder, so backups and moves keep them together.
 
-use crate::db::{new_id, now, record_history, resolve_path};
+use crate::db::{managed_path, new_id, now, record_history, resolve_path};
 use crate::error::{DbError, Result};
 use crate::models::{Attachment, Photo};
 use crate::repo::borewells;
@@ -153,7 +153,7 @@ pub const PARKED_DIR: &str = "removed-files";
 /// Excel import's original is shared by every borewell in that file), it is moved to
 /// [`PARKED_DIR`] rather than deleted. Files outside the data folder are never touched.
 pub fn release_file(conn: &Connection, data_dir: &Path, stored: &str) -> Result<()> {
-    if !Path::new(stored).is_relative() {
+    if managed_path(data_dir, stored).is_none() {
         return Ok(());
     }
     let still_used: i64 = conn.query_row(
@@ -170,7 +170,9 @@ pub fn release_file(conn: &Connection, data_dir: &Path, stored: &str) -> Result<
 }
 
 fn park_file(data_dir: &Path, stored: &str) {
-    let from = data_dir.join(stored);
+    let Some(from) = managed_path(data_dir, stored) else {
+        return;
+    };
     if !from.is_file() {
         return;
     }
@@ -204,8 +206,10 @@ pub fn bring_back_parked(conn: &Connection, data_dir: &Path) -> Result<usize> {
         .query_map([], |r| r.get(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let mut brought = 0;
-    for stored in used.iter().filter(|s| Path::new(s).is_relative()) {
-        let dest = data_dir.join(stored);
+    for stored in &used {
+        let Some(dest) = managed_path(data_dir, stored) else {
+            continue;
+        };
         if dest.exists() {
             continue;
         }
@@ -252,7 +256,8 @@ pub(crate) fn copy_in(data_dir: &Path, borewell_id: &str, source: &Path) -> Resu
         .extension()
         .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
         .unwrap_or_default();
-    let relative: PathBuf = ["attachments", borewell_id, &format!("{}{ext}", new_id())]
+    let folder = safe_folder_name(borewell_id);
+    let relative: PathBuf = ["attachments", &folder, &format!("{}{ext}", new_id())]
         .iter()
         .collect();
     let dest = data_dir.join(&relative);
@@ -260,6 +265,26 @@ pub(crate) fn copy_in(data_dir: &Path, borewell_id: &str, source: &Path) -> Resu
     std::fs::copy(source, &dest)?;
     // Forward slashes keep stored paths portable between machines.
     Ok(relative.to_string_lossy().replace('\\', "/"))
+}
+
+/// A borewell's ID as a folder name: letters, digits, "-" and "_" only. IDs made by this app are
+/// already like that; IDs from older or imported data might not be.
+fn safe_folder_name(id: &str) -> String {
+    let name: String = id
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if name.trim_matches('_').is_empty() {
+        "borewell".into()
+    } else {
+        name
+    }
 }
 
 fn kind_of(p: &Path) -> &'static str {
