@@ -65,6 +65,13 @@ else are allowed.
   advisories for the libraries used (`npm audit`, `cargo audit`). Dependabot proposes library
   updates every week.
 
+### Problems and support
+
+Errors are written to a small log on the computer (`%APPDATA%\Strata\logs`, at most about half a
+megabyte). **Settings & backup → About → Copy details for support** shows the user a summary to
+send to whoever supports them: versions, counts, backup status and recent errors. It contains no
+borewell details, the user sees exactly what it says first, and the app itself never sends it.
+
 ### Known limits
 
 - **The installer is not code-signed yet**, so Windows SmartScreen warns the first time. Updates

@@ -12,6 +12,11 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **Cross-sections with bends.** After drawing A to A′, drag the small dot in the middle of the line
   to bend it, for example to follow a road or pass through more borewells. Drag a bend to move it;
   double-click it to remove it. Distances are measured along the bent line.
+- **Copy details for support.** If something goes wrong, **Settings & backup → About → Copy details
+  for support** gives a short summary to send to whoever helps you: versions, backup status and
+  recent errors, with no borewell details. You see it before copying; nothing is sent by itself.
+- **Cross-sections as PDF.** **Save as PDF** on the Cross-section screen makes a report: the drawing
+  with a key, what the line is, and a table of the borewells used along it.
 - **Heights in cross-sections.** Under **More options**, **Show heights above sea level** stands each
   borewell at its ground height and draws the ground's shape, so layers line up by real height.
   Heights come with the app (approximate, from satellite elevation data) and work without internet.

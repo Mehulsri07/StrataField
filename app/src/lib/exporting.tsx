@@ -3,7 +3,7 @@
  * Everything is built on this computer; nothing is uploaded.
  */
 import { renderToStaticMarkup } from "react-dom/server";
-import type { BorewellRecord } from "@strata/core";
+import type { Borewell, BorewellRecord } from "@strata/core";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { PatternDefs } from "@/components/geology/patterns";
@@ -63,14 +63,15 @@ class Writer {
   page!: PDFPage;
   y = 0;
   pages: PDFPage[] = [];
-  constructor(private doc: PDFDocument, private font: PDFFont, private bold: PDFFont, private title: string) {}
+  constructor(private doc: PDFDocument, private font: PDFFont, private bold: PDFFont, private title: string,
+    readonly size: [number, number] = A4, private header = "Borewell report") {}
 
   newPage() {
-    this.page = this.doc.addPage(A4);
+    this.page = this.doc.addPage(this.size);
     this.pages.push(this.page);
-    this.y = A4[1] - M;
-    this.text("StrataField · Borewell report", M, this.y, 8, QUIET);
-    this.text(this.title, A4[0] - M - this.font.widthOfTextAtSize(this.title, 8), this.y, 8, QUIET);
+    this.y = this.size[1] - M;
+    this.text(`StrataField · ${this.header}`, M, this.y, 8, QUIET);
+    this.text(this.title, this.size[0] - M - this.font.widthOfTextAtSize(this.title, 8), this.y, 8, QUIET);
     this.y -= 22;
   }
   /** Starts a new page if fewer than `need` points are left. */
@@ -87,7 +88,7 @@ class Writer {
     return out;
   }
   rule(y = this.y) {
-    this.page.drawLine({ start: { x: M, y }, end: { x: A4[0] - M, y }, thickness: 0.6, color: LINE });
+    this.page.drawLine({ start: { x: M, y }, end: { x: this.size[0] - M, y }, thickness: 0.6, color: LINE });
   }
   /** A simple table with a heading row; continues on a new page when it runs out of room. */
   table(heading: string, cols: { label: string; width: number; right?: boolean }[], rows: string[][]) {
@@ -208,6 +209,87 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
       p.drawLine({ start: { x: M, y: M + 4 }, end: { x: A4[0] - M, y: M + 4 }, thickness: 0.6, color: ACCENT, opacity: 0.4 });
     });
   }
+  return doc.save();
+}
+
+/** What a cross-section PDF needs: the drawing, the line, and the borewells used along it. */
+export interface SectionReport {
+  name: string;
+  /** The drawing as the screen shows it (for print), from `renderToStaticMarkup(<SectionDrawing forPrint />)`. */
+  drawingMarkup: string;
+  line: [number, number][];
+  lengthKm: number;
+  corridorKm: number;
+  /** Borewells near the line, and how many of them the drawing shows. */
+  nearby: number;
+  borewells: { borewell: Borewell; alongKm: number; offsetKm: number; layers: number }[];
+}
+
+const A4_LANDSCAPE: [number, number] = [A4[1], A4[0]];
+
+/** A cross-section as a PDF: the drawing with its key, what the line is, and the borewells used. */
+export async function buildSectionPdf(r: SectionReport): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`${r.name} cross-section`);
+  doc.setCreator("StrataField");
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const made = formatDate(new Date().toISOString());
+  const [W] = A4_LANDSCAPE;
+  const w = new Writer(doc, font, bold, r.name, A4_LANDSCAPE, "Cross-section");
+  const km = (v: number) => `${v.toFixed(1)} km`;
+
+  w.newPage();
+  w.text(w.fit(r.name, W - 2 * M, 18, true), M, w.y, 18, INK, true);
+  w.y -= 16;
+  const bends = r.line.length - 2;
+  const shown = r.borewells.length;
+  w.text(w.fit([
+    `Line A to A' ${km(r.lengthKm)}${bends > 0 ? ` with ${bends} bend${bends === 1 ? "" : "s"} (distances along the line)` : ""}`,
+    `borewells within ${r.corridorKm} km of the line`,
+    shown < r.nearby ? `${shown} of ${r.nearby} nearby borewells shown (the closest to the line)` : `${shown} borewell${shown === 1 ? "" : "s"}`,
+  ].join(" · "), W - 2 * M), M, w.y, 10, QUIET);
+  w.y -= 14;
+  w.rule();
+  w.y -= 10;
+
+  const png = await svgToPng(printableSvg(r.drawingMarkup), 2);
+  const image = await doc.embedPng(png.bytes);
+  const drawW = W - 2 * M, drawH = Math.min((png.height / png.width) * drawW, w.y - M - 90);
+  const fitW = (png.width / png.height) * drawH;
+  w.page.drawImage(image, { x: M + (drawW - fitW) / 2, y: w.y - drawH, width: fitW, height: drawH });
+  w.y -= drawH + 16;
+
+  // Key, in words (the colours are the ones on the screen).
+  const key = [
+    "Coloured columns: layers measured at a borewell.",
+    "Faded bands between columns: estimates (dashed edge: borewells within 2.5 km; dotted: 2.5 to 5 km apart).",
+    "Hatched: not enough borewells to say.  Blue line: water level.",
+  ];
+  for (const k of key) { w.text(w.fit(k, W - 2 * M, 8.5), M, w.y, 8.5, QUIET); w.y -= 12; }
+
+  w.newPage();
+  w.table("Borewells along the line, from A to A'", [
+    { label: "#", width: 30, right: true }, { label: "Borewell ID", width: 110 }, { label: "Area", width: 170 },
+    { label: "From A (km)", width: 80, right: true }, { label: "Off the line (km)", width: 100, right: true },
+    { label: "Total depth (ft)", width: 95, right: true }, { label: "Water level (ft)", width: 95, right: true },
+    { label: "Layers", width: W - 2 * M - 680, right: true },
+  ], r.borewells.map((b, i) => [
+    String(i + 1), b.borewell.borewellId, [b.borewell.area, b.borewell.city].filter(Boolean).join(", "),
+    b.alongKm.toFixed(2), Math.abs(b.offsetKm).toFixed(2),
+    b.borewell.totalDepth == null ? "—" : String(b.borewell.totalDepth), b.borewell.waterLevel == null ? "—" : String(b.borewell.waterLevel),
+    String(b.layers),
+  ]));
+  w.table("The line", [{ label: "Point", width: 80 }, { label: "Latitude", width: 110, right: true }, { label: "Longitude", width: 110, right: true }],
+    r.line.map((p, i) => [i === 0 ? "A" : i === r.line.length - 1 ? "A'" : `Bend ${i}`, p[0].toFixed(5), p[1].toFixed(5)]));
+
+  w.pages.forEach((p, i) => {
+    const foot = `Made with StrataField on ${made}. Only the coloured columns are measured; everything between them is an estimate.`;
+    p.drawText(safe(foot), { x: M, y: M - 8, size: 7.5, font, color: QUIET });
+    const n = `Page ${i + 1} of ${w.pages.length}`;
+    p.drawText(n, { x: W - M - font.widthOfTextAtSize(n, 7.5), y: M - 8, size: 7.5, font, color: QUIET });
+    p.drawLine({ start: { x: M, y: M + 4 }, end: { x: W - M, y: M + 4 }, thickness: 0.6, color: ACCENT, opacity: 0.4 });
+  });
   return doc.save();
 }
 
