@@ -16,7 +16,8 @@
     "build": "npm run tauri -w app -- build",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "eslint .",
-    "test": "npm test -w core"
+    "test": "npm test -w core",
+    "e2e": "node e2e/run.mjs"
   },
   "devDependencies": {
     "eslint": "^10.11.0",
