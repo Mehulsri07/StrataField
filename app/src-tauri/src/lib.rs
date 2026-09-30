@@ -12,6 +12,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // %APPDATA% (roaming). The shared database lives in %APPDATA%\Strata, and the older
             // Electron app's data (if any) in %APPDATA%\StrataField.

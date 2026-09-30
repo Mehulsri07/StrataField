@@ -20,6 +20,8 @@
     "@tauri-apps/plugin-dialog": "^2.8.0",
     "@tauri-apps/plugin-fs": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2.6.0",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.13.1",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "exifr": "^7.1.3",
