@@ -93,11 +93,15 @@ out/
 .kiro/
 .claude/
 stratafield_context.md
-.github/*
-!.github/workflows/
-!.github/scripts/
-!.github/release-notes.md
-!.github/dependabot.yml
+# AI assistant instructions are kept private (not committed). Everything else in .github/
+# (workflows, scripts, release notes, Dependabot) is part of the project and is committed.
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
+.github/chatmodes/
+.github/agents/
+AGENTS.md
+CLAUDE.md
 # Private sample data (real client files) - never commit
 private-fixtures/
 
