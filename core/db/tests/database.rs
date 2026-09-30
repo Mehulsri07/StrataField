@@ -779,3 +779,64 @@ fn restoring_a_backup_brings_back_photos_of_a_borewell_deleted_for_good() {
         .unwrap();
     assert_eq!(parked_files(dir.path()), 0);
 }
+
+#[test]
+fn paths_from_damaged_or_tampered_data_never_reach_outside_the_attachments_folder() {
+    let (dir, db) = open_temp();
+    // A file next to the data folder that a tampered record points at.
+    let outside = dir
+        .path()
+        .parent()
+        .unwrap()
+        .join(format!("keep-me-{}.txt", std::process::id()));
+    std::fs::write(&outside, b"not StrataField's").unwrap();
+    let escaping = format!(
+        "attachments/../../{}",
+        outside.file_name().unwrap().to_string_lossy()
+    );
+
+    let b = db
+        .with_tx(|tx| borewells::create(tx, &input("BW-1")))
+        .unwrap();
+    db.with_tx(|tx| {
+        for (id, path) in [("f1", escaping.as_str()), ("f2", "../elsewhere.pdf"), ("f3", "attachments")] {
+            tx.execute(
+                "INSERT INTO files (id, borewell_id, kind, file_path, original_name, created_at) VALUES (?1, ?2, 'pdf', ?3, 'x.pdf', '2026-01-01')",
+                rusqlite::params![id, b.id, path],
+            )?;
+        }
+        Ok(())
+    })
+    .unwrap();
+
+    let record = db.with(|c| repo::record(c, dir.path(), &b.id)).unwrap();
+    assert!(
+        record.files.iter().all(|f| f.file_path.is_empty()),
+        "shown as missing, never resolved outside: {:?}",
+        record
+            .files
+            .iter()
+            .map(|f| &f.file_path)
+            .collect::<Vec<_>>()
+    );
+
+    // Removing the records, deleting the borewell for good and restoring must leave the file alone.
+    for id in ["f1", "f2", "f3"] {
+        db.with_tx(|tx| attachments::remove(tx, dir.path(), "files", id))
+            .unwrap();
+    }
+    assert!(
+        outside.is_file(),
+        "a file outside the data folder was moved or deleted"
+    );
+    assert!(
+        std::fs::read_dir(dir.path())
+            .unwrap()
+            .all(|e| e.unwrap().file_name() != attachments::PARKED_DIR),
+        "nothing was set aside"
+    );
+    db.with(|c| attachments::bring_back_parked(c, dir.path()))
+        .unwrap();
+    assert!(outside.is_file());
+    std::fs::remove_file(outside).unwrap();
+}

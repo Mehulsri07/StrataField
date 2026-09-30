@@ -223,7 +223,8 @@ export async function saveFile(suggestedName: string, kind: "pdf" | "excel" | "p
     excel: [{ name: "Excel workbook", extensions: ["xlsx"] }],
     png: [{ name: "Picture", extensions: ["png"] }],
   }[kind];
-  const testSave = (window as { __STRATA_TEST_SAVE__?: (name: string) => string | null }).__STRATA_TEST_SAVE__;
+  // The end-to-end test stands in for the Save dialog, only in builds made for it.
+  const testSave = import.meta.env.VITE_E2E === "1" ? (window as { __STRATA_TEST_SAVE__?: (name: string) => string | null }).__STRATA_TEST_SAVE__ : undefined;
   const { save } = await import("@tauri-apps/plugin-dialog");
   const path = testSave ? testSave(suggestedName) : await save({ defaultPath: suggestedName, filters });
   if (!path) return null;

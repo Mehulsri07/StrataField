@@ -2,6 +2,7 @@
 //! writes run in one transaction, and errors come back as plain-language strings.
 
 use crate::geocode;
+use crate::guard;
 use crate::state::{AppState, StartupStatus};
 use std::path::PathBuf;
 use strata_db::backup::{self, BackupInfo, BackupReason};
@@ -11,7 +12,7 @@ use strata_db::repo::{
     self, attachments, borewells, layers, materials, misc, projects, ImportRequest, ImportResult,
 };
 use strata_db::Database;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 type Res<T> = Result<T, String>;
 
@@ -185,7 +186,9 @@ pub fn project_rename(state: State<AppState>, id: String, name: String) -> Res<(
 // ── Photos and files ────────────────────────────────────────────────────
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // one argument per value the screens send
 pub fn photo_add(
+    app: AppHandle,
     state: State<AppState>,
     borewell_id: String,
     source_path: String,
@@ -195,6 +198,8 @@ pub fn photo_add(
     caption: Option<String>,
 ) -> Res<Photo> {
     let source = PathBuf::from(source_path);
+    guard::has_extension(&source, guard::PHOTOS, "a photo")?;
+    guard::chosen_by_user(&app, &source)?;
     write(&state, |db, tx| {
         attachments::add_photo(
             tx,
@@ -213,17 +218,17 @@ pub fn photo_add(
 
 #[tauri::command]
 pub fn file_add(
+    app: AppHandle,
     state: State<AppState>,
     borewell_id: String,
     source_path: String,
 ) -> Res<Attachment> {
+    let source = PathBuf::from(&source_path);
+    // Only documents: an attached program could otherwise be started with "Open".
+    guard::has_extension(&source, guard::DOCUMENTS, "a document")?;
+    guard::chosen_by_user(&app, &source)?;
     write(&state, |db, tx| {
-        attachments::add_file(
-            tx,
-            db.data_dir(),
-            &borewell_id,
-            &PathBuf::from(&source_path),
-        )
+        attachments::add_file(tx, db.data_dir(), &borewell_id, &source)
     })
 }
 
@@ -239,7 +244,16 @@ pub fn attachment_remove(state: State<AppState>, kind: String, id: String) -> Re
 // ── Excel import ────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn import_save(state: State<AppState>, request: ImportRequest) -> Res<ImportResult> {
+pub fn import_save(
+    app: AppHandle,
+    state: State<AppState>,
+    request: ImportRequest,
+) -> Res<ImportResult> {
+    if let Some(source) = &request.source_path {
+        let source = PathBuf::from(source);
+        guard::has_extension(&source, guard::SPREADSHEETS, "an Excel file")?;
+        guard::chosen_by_user(&app, &source)?;
+    }
     write(&state, |db, tx| {
         repo::import_batch(tx, db.data_dir(), &request)
     })
@@ -279,8 +293,19 @@ pub fn backup_create(state: State<AppState>) -> Res<BackupInfo> {
 /// Restores from a backup file (one listed in Settings, or one the user picked).
 /// Returns the safety backup taken first, so the restore can be undone.
 #[tauri::command]
-pub fn backup_restore(state: State<AppState>, path: String) -> Res<BackupInfo> {
-    backup::restore(state.db()?, &PathBuf::from(path)).map_err(|e| e.to_string())
+pub fn backup_restore(app: AppHandle, state: State<AppState>, path: String) -> Res<BackupInfo> {
+    let path = PathBuf::from(path);
+    let db = state.db()?;
+    guard::has_extension(&path, guard::DATABASES, "a StrataField backup")?;
+    // A backup from the list (inside the backups folder), or a file the user chose.
+    let listed = path
+        .parent()
+        .zip(db.backups_dir().canonicalize().ok())
+        .is_some_and(|(dir, backups)| dir.canonicalize().is_ok_and(|d| d == backups));
+    if !listed {
+        guard::chosen_by_user(&app, &path)?;
+    }
+    backup::restore(db, &path).map_err(|e| e.to_string())
 }
 
 /// Opens the backups folder (or the whole data folder) in File Explorer. Only these two
@@ -323,8 +348,15 @@ pub fn open_guide(app: tauri::AppHandle) -> Res<()> {
 /// Imports data from the older StrataField app. Start-up does this automatically once;
 /// this lets the user bring in another old database file.
 #[tauri::command]
-pub fn legacy_import(state: State<AppState>, path: String) -> Res<LegacyImportReport> {
-    legacy::import(state.db()?, &PathBuf::from(path)).map_err(|e| e.to_string())
+pub fn legacy_import(
+    app: AppHandle,
+    state: State<AppState>,
+    path: String,
+) -> Res<LegacyImportReport> {
+    let path = PathBuf::from(path);
+    guard::has_extension(&path, guard::DATABASES, "the older StrataField's data file")?;
+    guard::chosen_by_user(&app, &path)?;
+    legacy::import(state.db()?, &path).map_err(|e| e.to_string())
 }
 
 // ── Settings and address lookup ─────────────────────────────────────────
@@ -347,23 +379,21 @@ pub async fn geocode_address(
     geocode::lookup(&state, &query).await
 }
 
-/// Date and GPS position saved inside a photo, if any. Works for photos anywhere on the computer.
+/// Date and GPS position saved inside a photo the user chose.
 #[tauri::command]
-pub fn photo_metadata(path: String) -> Res<crate::photo::PhotoMetadata> {
-    crate::photo::read(&PathBuf::from(path))
+pub fn photo_metadata(app: AppHandle, path: String) -> Res<crate::photo::PhotoMetadata> {
+    let path = PathBuf::from(path);
+    guard::has_extension(&path, guard::PHOTOS, "a photo")?;
+    guard::chosen_by_user(&app, &path)?;
+    crate::photo::read(&path)
 }
 
 /// Reads a spreadsheet the user chose, so the screens can parse it. Only spreadsheet files are allowed.
 #[tauri::command]
-pub fn read_spreadsheet(path: String) -> Res<tauri::ipc::Response> {
+pub fn read_spreadsheet(app: AppHandle, path: String) -> Res<tauri::ipc::Response> {
     let p = PathBuf::from(&path);
-    let ext = p
-        .extension()
-        .map(|e| e.to_string_lossy().to_lowercase())
-        .unwrap_or_default();
-    if !matches!(ext.as_str(), "xlsx" | "xls" | "xlsm" | "csv") {
-        return Err("Choose an Excel file (.xlsx, .xls, .xlsm) or a .csv file.".into());
-    }
+    guard::has_extension(&p, guard::SPREADSHEETS, "an Excel file")?;
+    guard::chosen_by_user(&app, &p)?;
     std::fs::read(&p)
         .map(tauri::ipc::Response::new)
         .map_err(|e| match e.kind() {

@@ -1,5 +1,6 @@
 mod commands;
 mod geocode;
+mod guard;
 mod offline_map;
 mod photo;
 mod state;

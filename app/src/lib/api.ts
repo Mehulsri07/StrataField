@@ -137,8 +137,9 @@ export const api = {
 export const files = {
   /** Asks the user to choose files. Resolves to their paths ([] if they cancel). */
   async choose(options: { title: string; multiple?: boolean; filters?: { name: string; extensions: string[] }[] }): Promise<string[]> {
-    const testPick = (window as { __STRATA_TEST_CHOOSE__?: (title: string) => string[] }).__STRATA_TEST_CHOOSE__;
-    if (testPick) return testPick(options.title); // end-to-end tests stand in for the file picker
+    // The end-to-end test stands in for the file picker, only in builds made for it.
+    const testPick = import.meta.env.VITE_E2E === "1" ? (window as { __STRATA_TEST_CHOOSE__?: (title: string) => string[] }).__STRATA_TEST_CHOOSE__ : undefined;
+    if (testPick) return testPick(options.title);
     if (isPreview) throw new Error("Choosing files works in the StrataField app, not in the browser preview.");
     const { open } = await import("@tauri-apps/plugin-dialog");
     const picked = await open({ title: options.title, multiple: options.multiple ?? false, filters: options.filters, directory: false });
