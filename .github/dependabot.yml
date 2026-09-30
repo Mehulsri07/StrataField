@@ -6,6 +6,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # protomaps-leaflet, which draws the offline map, needs pmtiles 3. Move both together once
+      # protomaps-leaflet supports a newer pmtiles.
+      - dependency-name: pmtiles
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
