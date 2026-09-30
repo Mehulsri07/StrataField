@@ -39,9 +39,24 @@ export const isPreview = !isTauri();
  * reviewed without the app; commands the preview does not support reject with a clear message.
  */
 async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  if (!isPreview) return tauriInvoke<T>(command, args);
+  if (!isPreview) {
+    try {
+      return await tauriInvoke<T>(command, args);
+    } catch (e) {
+      // Kept in the log on this computer, for "Copy details for support".
+      if (command !== "log_error") logError(command, e);
+      throw e;
+    }
+  }
   const { previewCommand } = await import("./preview");
   return previewCommand<T>(command, args);
+}
+
+/** Writes a problem to the log on this computer (never fails, never sends anything anywhere). */
+export function logError(source: string, error: unknown) {
+  if (isPreview) return;
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  tauriInvoke("log_error", { source, message }).catch(() => {});
 }
 
 export const api = {
@@ -131,6 +146,9 @@ export const api = {
 
   /** The bytes of an Excel or CSV file the user chose. */
   readSpreadsheet: (path: string) => invoke<ArrayBuffer>("read_spreadsheet", { path }),
+
+  /** Versions, counts, backup status and recent errors, for "Copy details for support". */
+  supportDetails: () => invoke<string>("support_details"),
 
   /** Opens the getting-started guide installed with the app, in the web browser. */
   openGuide: () => invoke<void>("open_guide"),
