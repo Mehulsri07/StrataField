@@ -9,6 +9,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **A second copy of your backups.** Choose a folder on a USB drive or in OneDrive/Google Drive
   (**Settings & backup → A second copy of your backups**) and every backup is copied there too.
   Home reminds you if copies stop (for example when the USB drive is not plugged in).
+- **Cross-sections with bends.** After drawing A to A′, drag the small dot in the middle of the line
+  to bend it, for example to follow a road or pass through more borewells. Drag a bend to move it;
+  double-click it to remove it. Distances are measured along the bent line.
 
 ## [1.0.1] - 2026-09-30
 

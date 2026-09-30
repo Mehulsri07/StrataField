@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Marker, Polygon, Polyline, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { Section } from "@strata/core";
-import { COVERAGE_KM, corridorPolygon, exampleLines, placeAlongLine, type LatLon } from "@strata/core";
+import { COVERAGE_KM, corridorPolygons, exampleLines, midpoints, placeAlongPath, type LatLon } from "@strata/core";
 import { toast } from "sonner";
 import { Check, Eraser, FolderOpen, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,12 +28,16 @@ import { cn } from "@/lib/utils";
 
 const handleIcon = (label: string) =>
   L.divIcon({ className: "", html: `<div class="strata-handle">${label}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+/** A bend in the line: drag to move, double-click to remove. */
+const bendIcon = L.divIcon({ className: "", html: `<div class="strata-bend" title="Drag to move this bend. Double-click to remove it."></div>`, iconSize: [16, 16], iconAnchor: [8, 8] });
+/** The middle of a part of the line: drag it to add a bend there. */
+const midIcon = L.divIcon({ className: "", html: `<div class="strata-mid" title="Drag to bend the line here"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
 
-/** Zooms the map to the whole line when a line is chosen (not while dragging its ends). */
-function FitLine({ a, b, trigger }: { a: LatLon | null; b: LatLon | null; trigger: number }) {
+/** Zooms the map to the whole line when a line is chosen (not while dragging its points). */
+function FitLine({ path, trigger }: { path: LatLon[]; trigger: number }) {
   const map = useMap();
   useEffect(() => {
-    if (a && b && trigger) map.fitBounds([a, b], { padding: [40, 40] });
+    if (path.length >= 2 && trigger) map.fitBounds(path, { padding: [40, 40] });
   }, [map, trigger]); // eslint-disable-line react-hooks/exhaustive-deps -- only when a new line is chosen
   return null;
 }
@@ -48,8 +52,9 @@ export function SectionPage() {
   const { bump } = useDataVersion();
   const items = useLoad("section-borewells", () => api.borewells.search({}));
   const saved = useLoad("sections", () => api.sections.list());
-  const [a, setA] = useState<LatLon | null>(null);
-  const [b, setB] = useState<LatLon | null>(null);
+  // The line: A, any bends, then A′.
+  const [path, setPath] = useState<LatLon[]>([]);
+  const a = path[0] ?? null, b = path.length >= 2 ? path[path.length - 1] : null;
   const [half, setHalf] = useState(2);
   const [showEstimates, setShowEstimates] = useState(true);
   const [showWater, setShowWater] = useState(true);
@@ -65,12 +70,16 @@ export function SectionPage() {
     [items.data],
   );
   const examples = useMemo(() => exampleLines(wells), [wells]);
-  const result = useMemo(() => (a && b ? placeAlongLine(a, b, half, wells) : null), [a, b, half, wells]);
-  const step = a && b ? 3 : a ? 2 : 1;
+  const result = useMemo(() => (path.length >= 2 ? placeAlongPath(path, half, wells) : null), [path, half, wells]);
+  const step = b ? 3 : a ? 2 : 1;
 
-  const setLine = (from: LatLon, to: LatLon, id: string | null = null) => { setA(from); setB(to); setSelectedKey(null); setOpenSectionId(id); setFitLine((n) => n + 1); };
-  const tap = (p: LatLon) => { if (!a) setA(p); else if (!b) { setB(p); setSelectedKey(null); } };
-  const clear = () => { setA(null); setB(null); setSelectedKey(null); setOpenSectionId(null); };
+  const setLine = (points: LatLon[], id: string | null = null) => { setPath(points); setSelectedKey(null); setOpenSectionId(id); setFitLine((n) => n + 1); };
+  const tap = (p: LatLon) => { if (path.length < 2) { setPath([...path, p]); setSelectedKey(null); } };
+  const clear = () => { setPath([]); setSelectedKey(null); setOpenSectionId(null); };
+  /** Changes the line (moving a point, adding or removing a bend); the saved section no longer matches it. */
+  const edit = (next: LatLon[]) => { setPath(next); setSelectedKey(null); setOpenSectionId(null); };
+  const moved = (e: L.LeafletEvent): LatLon => { const ll = (e.target as L.Marker).getLatLng(); return [ll.lat, ll.lng]; };
+  const bends = path.length - 2;
 
   const depthMax = result ? Math.max(100, ...result.placed.map((p) => p.item.borewell.totalDepth ?? 0)) : 100;
   const stretch = result && result.lengthKm > 0 ? Math.round(((result.lengthKm * 1000) / 1012) / ((depthMax * 0.3048) / 330)) : 0;
@@ -90,12 +99,12 @@ export function SectionPage() {
   };
 
   const saveSection = async (name: string) => {
-    if (!a || !b) return;
+    if (path.length < 2) return;
     try {
       const existing = saved.data?.find((s) => s.id === openSectionId);
       const s: Section = {
         id: existing && existing.name === name ? existing.id : "",
-        name, line: [a, b], corridorHalfKm: half, settings: { showEstimates, showWater }, createdAt: "", updatedAt: "",
+        name, line: path, corridorHalfKm: half, settings: { showEstimates, showWater }, createdAt: "", updatedAt: "",
       };
       const out = await api.sections.save(s);
       setOpenSectionId(out.id);
@@ -111,7 +120,7 @@ export function SectionPage() {
     setHalf(s.corridorHalfKm);
     setShowEstimates(s.settings.showEstimates !== false);
     setShowWater(s.settings.showWater !== false);
-    setLine(s.line[0], s.line[s.line.length - 1], s.id);
+    setLine(s.line, s.id);
   };
 
   return (
@@ -125,7 +134,7 @@ export function SectionPage() {
       <ol className="grid gap-3 rounded-md border border-border bg-card px-4 py-3.5 md:grid-cols-3" aria-label="Steps">
         {[
           ["Tap where the line starts", step === 1 ? "Click anywhere on the map below" : "Point A is set"],
-          ["Tap where the line ends", step <= 2 ? "Click a second point on the map" : "Point A′ is set. Drag A or A′ to adjust"],
+          ["Tap where the line ends", step <= 2 ? "Click a second point on the map" : "Drag A or A′ to move them, or drag a dot on the line to bend it"],
           ["Read the layers", step === 3 ? `${result?.placed.length ?? 0} borewells near the line are used` : "The picture appears once the line is drawn"],
         ].map(([title, body], i) => {
           const n = i + 1, done = step > n || (n === 3 && step === 3), now = step === n;
@@ -146,17 +155,30 @@ export function SectionPage() {
           <BaseMap className={step < 3 ? "cursor-crosshair" : undefined}>
             <BorewellPins borewells={wells.map((w) => w.borewell)} faint />
             {step < 3 && <TapToPlace onTap={tap} />}
-            <FitLine a={a} b={b} trigger={fitLine} />
-            {a && b && <Polygon positions={corridorPolygon(a, b, half)} pathOptions={{ color: "#0d6883", weight: 1, dashArray: "4 3", fillOpacity: 0.1 }} />}
+            <FitLine path={path} trigger={fitLine} />
+            {b && corridorPolygons(path, half).map((band, i) => (
+              <Polygon key={`c${i}`} positions={band} pathOptions={{ color: "#0d6883", weight: 1, dashArray: "4 3", fillOpacity: 0.1 }} />
+            ))}
             {result?.placed.map((p) => (
               <Polyline key={p.item.borewell.id} positions={[[p.item.borewell.latitude!, p.item.borewell.longitude!], p.foot]} pathOptions={{ color: "#0d6883", weight: 1.2 }} />
             ))}
             {result?.placed.map((p) => (
               <CircleMarker key={`u${p.item.borewell.id}`} center={[p.item.borewell.latitude!, p.item.borewell.longitude!]} radius={6} pathOptions={{ color: "#ffffff", weight: 2, fillColor: "#0d6883", fillOpacity: 1 }} />
             ))}
-            {a && b && <Polyline positions={[a, b]} pathOptions={{ color: "#16202a", weight: 2.5, className: "strata-section-line" }} />}
-            {a && <Marker position={a} icon={handleIcon("A")} draggable eventHandlers={{ dragend: (e) => { const ll = (e.target as L.Marker).getLatLng(); setA([ll.lat, ll.lng]); setOpenSectionId(null); } }} />}
-            {b && <Marker position={b} icon={handleIcon("A′")} draggable eventHandlers={{ dragend: (e) => { const ll = (e.target as L.Marker).getLatLng(); setB([ll.lat, ll.lng]); setOpenSectionId(null); } }} />}
+            {b && <Polyline positions={path} pathOptions={{ color: "#16202a", weight: 2.5, className: "strata-section-line" }} />}
+            {b && midpoints(path).map((m, i) => (
+              <Marker key={`m${i}-${path.length}`} position={m} icon={midIcon} draggable
+                eventHandlers={{ dragend: (e) => edit([...path.slice(0, i + 1), moved(e), ...path.slice(i + 1)]) }} />
+            ))}
+            {path.slice(1, -1).map((p, j) => (
+              <Marker key={`b${j}-${path.length}`} position={p} icon={bendIcon} draggable
+                eventHandlers={{
+                  dragend: (e) => edit(path.map((q, k) => (k === j + 1 ? moved(e) : q))),
+                  dblclick: () => edit(path.filter((_, k) => k !== j + 1)),
+                }} />
+            ))}
+            {a && <Marker position={a} icon={handleIcon("A")} draggable eventHandlers={{ dragend: (e) => edit([moved(e), ...path.slice(1)]) }} />}
+            {b && <Marker position={b} icon={handleIcon("A′")} draggable eventHandlers={{ dragend: (e) => edit([...path.slice(0, -1), moved(e)]) }} />}
           </BaseMap>
           {step < 3 && (
             <div className="pointer-events-none absolute top-3 left-1/2 z-[500] -translate-x-1/2 rounded-full bg-primary px-4 py-2 text-sm font-semibold whitespace-nowrap text-primary-foreground shadow-panel">
@@ -191,8 +213,8 @@ export function SectionPage() {
           <Panel title="Or try an example line" bodyClassName="flex flex-wrap gap-2">
             {examples ? (
               <>
-                <Button variant="outline" onClick={() => setLine(...examples.northSouth)}>North to south</Button>
-                <Button variant="outline" onClick={() => setLine(...examples.westEast)}>West to east</Button>
+                <Button variant="outline" onClick={() => setLine(examples.northSouth)}>North to south</Button>
+                <Button variant="outline" onClick={() => setLine(examples.westEast)}>West to east</Button>
               </>
             ) : <p className="text-sm text-muted-foreground">Examples appear once two borewells have a location.</p>}
             {(saved.data?.length ?? 0) > 0 && <span className="w-full pt-2 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">Saved cross-sections</span>}
@@ -226,6 +248,7 @@ export function SectionPage() {
             <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border px-4 py-2.5 text-xs text-muted-foreground">
               <span>Line length <b className="num text-foreground">{result.lengthKm.toFixed(1)} km</b></span>
               <span>Borewells used <b className="num text-foreground">{result.placed.length}</b></span>
+              {bends > 0 && <span>Bends <b className="num text-foreground">{bends}</b> <span className="text-muted-foreground">(distances are measured along the line)</span></span>}
               {stretch > 1 && <span title="The picture is much wider than it is deep, so depth is stretched to make layers readable">Depth stretched <b className="num text-foreground">{stretch}×</b> so thin layers are visible</span>}
             </div>
             <div className="overflow-x-auto px-3 pt-2">
