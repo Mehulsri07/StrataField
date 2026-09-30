@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Marker, Polygon, Polyline, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { ElevationGrid, Section } from "@strata/core";
-import { METRES_TO_FEET, groundProfile, heightAt, parseElevationGrid, COVERAGE_KM, corridorPolygons, exampleLines, midpoints, placeAlongPath, type LatLon } from "@strata/core";
+import { METRES_TO_FEET, groundProfile, heightAt, parseElevationGrid, COVERAGE_KM, MAX_SECTION_BOREWELLS, corridorPolygons, exampleLines, midpoints, placeAlongPath, thinAlongLine, type LatLon } from "@strata/core";
 import { toast } from "sonner";
 import { Check, Eraser, FolderOpen, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,12 @@ export function SectionPage() {
     [items.data],
   );
   const examples = useMemo(() => exampleLines(wells), [wells]);
-  const result = useMemo(() => (path.length >= 2 ? placeAlongPath(path, half, wells) : null), [path, half, wells]);
+  const result = useMemo(() => {
+    if (path.length < 2) return null;
+    const all = placeAlongPath(path, half, wells);
+    // With very many borewells near the line, draw the closest one in each stretch (readable, and quick).
+    return { ...all, placed: thinAlongLine(all.placed, all.lengthKm), near: all.placed.length };
+  }, [path, half, wells]);
   const step = b ? 3 : a ? 2 : 1;
 
   // Ground heights (bundled with the app; loaded the first time heights are shown).
@@ -273,6 +278,9 @@ export function SectionPage() {
             <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-border px-4 py-2.5 text-xs text-muted-foreground">
               <span>Line length <b className="num text-foreground">{result.lengthKm.toFixed(1)} km</b></span>
               <span>Borewells used <b className="num text-foreground">{result.placed.length}</b></span>
+              {result.near > result.placed.length && (
+                <span className="text-foreground">Showing the {MAX_SECTION_BOREWELLS} borewells closest to the line, spread along it, of <b className="num">{result.near}</b> nearby. Make the corridor narrower to see others.</span>
+              )}
               {bends > 0 && <span>Bends <b className="num text-foreground">{bends}</b> <span className="text-muted-foreground">(distances are measured along the line)</span></span>}
               {stretch > 1 && <span title="The picture is much wider than it is deep, so depth is stretched to make layers readable">Depth stretched <b className="num text-foreground">{stretch}×</b> so thin layers are visible</span>}
             </div>

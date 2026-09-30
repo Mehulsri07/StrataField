@@ -45,6 +45,51 @@ export function estimateWater(latitude: number, longitude: number, points: Water
   return { value: num / den, nearestKm, strength };
 }
 
+/**
+ * Only borewells within this distance count towards an estimate. Nearby borewells say most about the
+ * water at a place, and colours are only shown within `FADE.goneKm` of a borewell anyway.
+ */
+export const NEIGHBOURHOOD_KM = 5;
+
+/**
+ * Water points grouped by area, so the whole map can be estimated quickly even with thousands of
+ * borewells: each estimate looks only at borewells within `NEIGHBOURHOOD_KM`.
+ */
+export class WaterIndex {
+  private readonly cells = new Map<string, WaterPoint[]>();
+  private readonly cellDegLat: number;
+  private readonly cellDegLon: number;
+  /** Cells are half the neighbourhood wide, so two cells either way cover it. */
+  private static readonly REACH = 2;
+  constructor(points: WaterPoint[], private readonly radiusKm = NEIGHBOURHOOD_KM) {
+    const lat0 = points.length ? points.reduce((s, p) => s + p.latitude, 0) / points.length : 0;
+    this.cellDegLat = radiusKm / WaterIndex.REACH / 110.57;
+    this.cellDegLon = radiusKm / WaterIndex.REACH / (111.32 * Math.cos((lat0 * Math.PI) / 180));
+    for (const p of points) {
+      const key = this.key(Math.floor(p.latitude / this.cellDegLat), Math.floor(p.longitude / this.cellDegLon));
+      const list = this.cells.get(key);
+      if (list) list.push(p); else this.cells.set(key, [p]);
+    }
+  }
+  private key(i: number, j: number) { return `${i}:${j}`; }
+
+  /** Borewells within `radiusKm` of the place. */
+  nearby(latitude: number, longitude: number): WaterPoint[] {
+    const i = Math.floor(latitude / this.cellDegLat), j = Math.floor(longitude / this.cellDegLon), r = WaterIndex.REACH;
+    const out: WaterPoint[] = [];
+    for (let di = -r; di <= r; di++) for (let dj = -r; dj <= r; dj++) {
+      const c = this.cells.get(this.key(i + di, j + dj));
+      if (c) for (const p of c) if (kmBetween(latitude, longitude, p.latitude, p.longitude) <= this.radiusKm) out.push(p);
+    }
+    return out;
+  }
+
+  /** The estimate from nearby borewells; null where none is within `radiusKm`. */
+  estimate(latitude: number, longitude: number): WaterEstimate | null {
+    return estimateWater(latitude, longitude, this.nearby(latitude, longitude));
+  }
+}
+
 /** Colour stops for depth to water: pale aqua (shallow) to deep indigo (deep). */
 export const WATER_RAMP: [number, [number, number, number]][] = [
   [40, [207, 238, 240]],

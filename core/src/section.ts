@@ -102,6 +102,24 @@ export function midpoints(path: LatLon[]): LatLon[] {
   return path.slice(1).map((q, i) => [(path[i][0] + q[0]) / 2, (path[i][1] + q[1]) / 2] as LatLon);
 }
 
+/** Most borewells a cross-section draws; more than this cannot be read in one picture. */
+export const MAX_SECTION_BOREWELLS = 80;
+
+/**
+ * With more than `max` borewells near the line, keeps the one closest to the line in each of `max`
+ * equal stretches, so the picture stays readable and evenly covers the line. Order is kept.
+ */
+export function thinAlongLine<T>(placed: Placed<T>[], lengthKm: number, max = MAX_SECTION_BOREWELLS): Placed<T>[] {
+  if (placed.length <= max || lengthKm <= 0) return placed;
+  const best = new Map<number, Placed<T>>();
+  for (const p of placed) {
+    const bin = Math.min(max - 1, Math.max(0, Math.floor((p.alongKm / lengthKm) * max)));
+    const cur = best.get(bin);
+    if (!cur || Math.abs(p.offsetKm) < Math.abs(cur.offsetKm)) best.set(bin, p);
+  }
+  return [...best.values()].sort((a, b) => a.alongKm - b.alongKm);
+}
+
 export interface Run {
   family: LithologyFamily;
   top: number;
