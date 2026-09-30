@@ -3,6 +3,13 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **A second copy of your backups.** Choose a folder on a USB drive or in OneDrive/Google Drive
+  (**Settings & backup → A second copy of your backups**) and every backup is copied there too.
+  Home reminds you if copies stop (for example when the USB drive is not plugged in).
+
 ## [1.0.1] - 2026-09-30
 
 ### New
