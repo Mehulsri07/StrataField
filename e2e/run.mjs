@@ -359,6 +359,19 @@ try {
     return r.strata.filter(l => l.materialId === 'gravel').length;`);
   check("Settings: a soil name that was not recognised is linked to a soil type", linked === 2, `${linked} gravel layers`);
 
+  // ── Copy details for support ────────────────────────────────────────────
+  const support = await page(`
+    await __t.invoke('borewell_get', { id: 'no-such-borewell' }).catch(() => {});   // a failed command, logged
+    location.hash = '#/settings';
+    (await __t.until(() => __t.btn('Copy details for support'), 8000)).click();
+    const dlg = await __t.until(() => document.querySelector('[role="dialog"] pre'), 8000);
+    const t = dlg.innerText;
+    __t.btn('Close', document.querySelector('[role="dialog"]'))?.click(); await __t.wait(300);
+    return t;`);
+  check("Settings: details for support show versions, counts and the recent error",
+    /^StrataField\s+\d/.test(support) && /Borewells\s+\d/.test(support) && /borewell_get/.test(support), support.split("\n").slice(0, 4).join(" | "));
+  check("…and contain no borewell details", !/E2E Owner|Vipul Khand|Asha Verma/.test(support));
+
   // ── Home ───────────────────────────────────────────────────────────────
   const home = await page(`
     location.hash = '#/'; await __t.until(() => /Recently added/.test(__t.text()), 8000);

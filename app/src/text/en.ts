@@ -49,6 +49,15 @@ export const en = {
     notConnected: "Your data could not be opened",
   },
 
+  support: {
+    button: "Copy details for support",
+    title: "Details for support",
+    explain: "If something is not working, send this to whoever helps you with StrataField, for example by email. It shows the versions, how much data there is, the state of backups and recent errors. It contains no borewell details, and nothing is sent unless you send it.",
+    copy: "Copy",
+    copied: "Copied. Paste it into an email or message.",
+    copyFailed: "Could not copy. Select the text and copy it with Ctrl+C.",
+  },
+
   guide: {
     open: "Open the getting-started guide",
     short: "Getting started",

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import type { BackupInfo, LegacyImportReport, LithologyFamily, Material } from "@strata/core";
-import { BookOpen, FolderOpen, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
+import { BookOpen, FolderOpen, LifeBuoy, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -482,6 +482,17 @@ function Appearance() {
 function About() {
   const status = useStartup();
   const info = useLoad("app-info", () => api.appInfo());
+  const [support, setSupport] = useState<string | null>(null);
+  const showSupport = () => api.supportDetails().then(setSupport).catch((e) => toast.error(String(e)));
+  const copySupport = async () => {
+    try {
+      await navigator.clipboard.writeText(support ?? "");
+      toast.success(text.support.copied);
+      setSupport(null);
+    } catch {
+      toast.error(text.support.copyFailed);
+    }
+  };
   const [update, setUpdate] = useState<{ state: "idle" | "checking" | "none" | "failed" } | { state: "found"; found: AvailableUpdate; progress?: number | null }>({ state: "idle" });
   const check = async () => {
     setUpdate({ state: "checking" });
@@ -519,11 +530,26 @@ function About() {
           </Button>
         )}
         <Button variant="ghost" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} disabled={isPreview}><BookOpen />{text.guide.open}</Button>
+        <Button variant="ghost" onClick={showSupport}><LifeBuoy />{text.support.button}</Button>
         <Button variant="ghost" onClick={() => api.backups.openFolder("data").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open data folder</Button>
       </div>
       {update.state === "none" && info.data && <p className="text-sm text-muted-foreground" role="status">{text.updates.upToDate(info.data.version)}</p>}
       {update.state === "failed" && <p className="text-sm text-destructive" role="status">{text.updates.offline}</p>}
       {update.state === "found" && update.progress === undefined && <p className="text-sm text-muted-foreground">{text.updates.howItWorks}</p>}
+
+      <Dialog open={support != null} onOpenChange={(o) => !o && setSupport(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{text.support.title}</DialogTitle>
+            <DialogDescription>{text.support.explain}</DialogDescription>
+          </DialogHeader>
+          <pre className="num max-h-[50vh] overflow-auto rounded-md border border-border bg-muted p-3 text-xs whitespace-pre-wrap">{support}</pre>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSupport(null)}>{text.actions.close}</Button>
+            <Button onClick={copySupport}>{text.support.copy}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Panel>
   );
 }

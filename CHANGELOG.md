@@ -9,6 +9,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **A second copy of your backups.** Choose a folder on a USB drive or in OneDrive/Google Drive
   (**Settings & backup → A second copy of your backups**) and every backup is copied there too.
   Home reminds you if copies stop (for example when the USB drive is not plugged in).
+- **Copy details for support.** If something goes wrong, **Settings & backup → About → Copy details
+  for support** gives a short summary to send to whoever helps you: versions, backup status and
+  recent errors, with no borewell details. You see it before copying; nothing is sent by itself.
 
 ## [1.0.1] - 2026-09-30
 
