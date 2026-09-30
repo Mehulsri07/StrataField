@@ -69,10 +69,11 @@ try {
   const offered = await page(`
     location.hash = '#/settings';
     (await __t.until(() => __t.btn('Check for updates'), 10000)).click();
+    // The offer can come from Settings or from the daily check's notice at the top; either shows the version.
     const install = await __t.until(() => [...document.querySelectorAll('main button')].find(b => b.innerText.startsWith('Install and restart')), 30000);
-    const label = install.innerText;
+    const shown = (__t.text().match(/StrataField [0-9.]+ is available|Install and restart [(][0-9.]+[)]/g) ?? []).join('; ');
     install.click();
-    return label;`).catch((e) => `error: ${e.message}`);
+    return shown;`).catch((e) => `error: ${e.message}`);
   check("Settings finds the newer version", offered.includes(newVersion), `${offered}; server saw ${requests.join(", ")}`);
 
   // The app downloads the installer, closes and runs it; wait for the new version to be in place.
