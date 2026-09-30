@@ -3,6 +3,11 @@ import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import { ThemeProvider, applyInitialTheme } from "@/lib/theme";
 import App from "./App";
+import { logError } from "@/lib/api";
+
+// Problems in the screens themselves also go to the log on this computer.
+window.addEventListener("error", (e) => logError("screens", e.error ?? e.message));
+window.addEventListener("unhandledrejection", (e) => logError("screens", e.reason));
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { DataProvider } from "@/lib/data";

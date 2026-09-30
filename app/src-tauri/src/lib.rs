@@ -4,6 +4,7 @@ mod guard;
 mod offline_map;
 mod photo;
 mod state;
+mod support;
 
 use tauri::Manager;
 
@@ -20,6 +21,13 @@ pub fn run() {
             // Electron app's data (if any) in %APPDATA%\StrataField.
             let roaming = app.path().data_dir()?;
             let locations = state::Locations::from_env_or(&roaming);
+            // A crash is written to the log (kept on this computer) before the usual handling.
+            let log_dir = locations.data_dir.clone();
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                support::log_line(&log_dir, "PANIC", "app", &info.to_string());
+                default_hook(info);
+            }));
             // Photos are shown from the attachments folder of whichever data folder was opened.
             let _ = app
                 .asset_protocol_scope()
@@ -61,6 +69,8 @@ pub fn run() {
             commands::backup_restore,
             commands::legacy_import,
             commands::open_folder,
+            support::log_error,
+            support::support_details,
             commands::backup_second_copy_get,
             commands::backup_second_copy_set,
             commands::backup_second_copy_now,

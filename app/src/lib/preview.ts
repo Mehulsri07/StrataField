@@ -21,6 +21,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
   data_version: () => 1,
   materials_list: () => DEFAULT_MATERIALS,
   sections_list: () => [],
+  support_details: () => "StrataField           preview\nWindows               (browser preview)\n\nRecent errors (newest last):\n  none",
   backup_second_copy_get: () => ({ folder: null, lastCopiedAt: null, lastError: null }),
   offline_map_status: () => ({ installed: false, sizeBytes: 0, downloadedAt: null }),
   soil_names_unlinked: () => [["Murrum", 3], ["Bajri", 1]],
