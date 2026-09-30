@@ -24,6 +24,8 @@ export function AppShell() {
   const startup = useStartup();
   const ready = !!startup && !startup.error;
   const summary = useSummary(ready);
+  // The one-time message about the older app's data is shown on Home only, not on every screen.
+  const onHome = useLocation().pathname === "/";
 
   return (
     <div className="grid h-full grid-cols-[212px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto]">
@@ -36,7 +38,7 @@ export function AppShell() {
             <CannotOpen message={startup.error} folder={startup.dataFolder} />
           ) : (
             <>
-              {startup && <StartupNotice status={startup} />}
+              {startup && onHome && <StartupNotice status={startup} />}
               <UpdateNotice />
               <Outlet />
             </>

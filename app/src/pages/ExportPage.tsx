@@ -10,6 +10,7 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { api, files, isPreview } from "@/lib/api";
 import { useLoad } from "@/lib/data";
 import { buildReport, fileName, saveFile } from "@/lib/exporting";
+import { zoneName } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +61,7 @@ export function ExportPage() {
     }
   };
 
-  const zoneItems = zones.map((z) => ({ value: z, label: z }));
+  const zoneItems = zones.map((z) => ({ value: z, label: zoneName(z) }));
 
   return (
     <Page className="max-w-[1000px]">

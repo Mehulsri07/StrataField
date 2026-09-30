@@ -13,7 +13,7 @@ import { StrataStrip } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/data";
-import { formatDate } from "@/lib/format";
+import { formatDate, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
 import { cn } from "@/lib/utils";
@@ -79,7 +79,7 @@ export function Borewells() {
   };
   const toggleSort = (key: SortKey) => setSort((s) => ({ key, desc: s.key === key ? !s.desc : key !== "borewellId" }));
 
-  const zoneItems = [{ value: ALL, label: "All zones" }, ...(zones.data ?? []).map((z) => ({ value: z.name, label: z.name }))];
+  const zoneItems = [{ value: ALL, label: "All zones" }, ...(zones.data ?? []).map((z) => ({ value: z.name, label: zoneName(z.name) }))];
   const soilItems = [{ value: ALL, label: "Any soil type" }, ...(materials.data ?? []).filter((m) => m.lithologyFamily !== "NONE").map((m) => ({ value: m.id, label: m.name }))];
   const nothingYet = total.data?.length === 0;
 
@@ -166,7 +166,7 @@ export function Borewells() {
                 >
                   <TableCell className="num font-medium text-primary">{b.borewellId}</TableCell>
                   <TableCell>{b.ownerName || <span className="text-muted-foreground">Not entered</span>}</TableCell>
-                  <TableCell>{b.area}<div className="text-xs text-muted-foreground">{b.project}</div></TableCell>
+                  <TableCell>{b.area}<div className="text-xs text-muted-foreground">{zoneName(b.project)}</div></TableCell>
                   <TableCell className="num whitespace-nowrap">{b.date ? formatDate(b.date) : "—"}</TableCell>
                   <TableCell className="num text-right">{b.totalDepth ?? "—"}</TableCell>
                   <TableCell className="num text-right">{b.waterLevel ?? "—"}</TableCell>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { StartupStatus } from "@strata/core";
 import { CircleCheck, TriangleAlert, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { text } from "@/text";
@@ -48,7 +49,10 @@ export function StartupNotice({ status }: { status: StartupStatus }) {
                 <span className="text-muted-foreground">{text.startup.leftBehind(report.orphanedLayers, report.orphanedPipes)}</span>
               )}
               {report.unmatchedMaterialNames.length > 0 && (
-                <span className="text-muted-foreground">{text.startup.unmatched(report.unmatchedMaterialNames)}</span>
+                <span className="text-muted-foreground">
+                  {text.startup.unmatched(report.unmatchedMaterialNames)}{" "}
+                  <Link to="/settings#soil-names" className="font-medium text-foreground underline underline-offset-2">{text.startup.chooseSoilTypes}</Link>
+                </span>
               )}
             </>
           )

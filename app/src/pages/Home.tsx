@@ -120,8 +120,15 @@ export function Home() {
                 <p className="text-sm text-muted-foreground">Add water levels to borewells that have a location to see where water is deep or shallow.</p>
               ) : (
                 <>
-                  <WaterBars title="Deepest water" list={byWater.slice(0, 5)} max={byWater[0].waterLevel!} />
-                  <WaterBars title="Shallowest water" list={byWater.slice(-5).reverse()} max={byWater[0].waterLevel!} />
+                  {byWater.length === 1 ? (
+                    <WaterBars title="Water level" list={byWater} max={byWater[0].waterLevel!} />
+                  ) : (
+                    <>
+                      {/* Split so a place never appears in both lists when there are only a few. */}
+                      <WaterBars title="Deepest water" list={byWater.slice(0, Math.min(5, Math.ceil(byWater.length / 2)))} max={byWater[0].waterLevel!} />
+                      <WaterBars title="Shallowest water" list={byWater.slice(Math.max(Math.ceil(byWater.length / 2), byWater.length - 5)).reverse()} max={byWater[0].waterLevel!} />
+                    </>
+                  )}
                   <p className="text-xs text-muted-foreground">Feet below ground. Colours between borewells are estimates, and they fade out far from any borewell.</p>
                 </>
               )}

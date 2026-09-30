@@ -21,6 +21,16 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   borewell at its ground height and draws the ground's shape, so layers line up by real height.
   Heights come with the app (approximate, from satellite elevation data) and work without internet.
 
+### Fixed
+- Importing an Excel log no longer warns about "gaps between layers" when a layer is simply thick.
+- The message about data brought over from the older StrataField shows on Home only, with a link to
+  choose soil types for names it did not recognise.
+- Borewells without a zone show "No zone" (not "Default Project").
+- The layer editor fits on a laptop screen (the "Holds water" column was cut off).
+- With one borewell on the map, the map shows its surroundings; Home no longer lists the same place
+  as both deepest and shallowest water.
+- A clearer "Page not found" screen, with a way back to Home.
+
 ## [1.0.1] - 2026-09-30
 
 ### New

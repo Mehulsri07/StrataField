@@ -83,6 +83,7 @@ export const en = {
     leftBehind: (layers: number, pipes: number) =>
       `${layers} soil layers and ${pipes} pipe pieces belonged to borewells that had already been deleted, so they were not brought over.`,
     unmatched: (names: string[]) => `These soil names need a soil type chosen: ${names.join(", ")}.`,
+    chooseSoilTypes: "Choose them now",
     broughtOverFailed: "Your data from the older StrataField could not be brought over.",
     cannotOpenTitle: "StrataField could not open your data",
   },
@@ -112,13 +113,14 @@ export const en = {
     settings: { title: "Settings & backup", sub: "Backups, soil types and how StrataField looks." },
     detail: { title: "Borewell" },
     editLayers: { title: "Edit layers & pipes" },
-    notFound: { title: "Page not found", sub: "This page does not exist. Use the menu on the left." },
+    notFound: {
+      title: "Page not found",
+      sub: "This page does not exist.",
+      body: "The link may be old, or the borewell may have been deleted for good. Use the menu on the left, or go back to Home.",
+      home: "Go to Home",
+    },
   },
 
-  placeholder: {
-    comingSoon: "This screen is being built.",
-    body: "The layout, colours and menu are ready. The screen itself arrives in the next stage.",
-  },
 
   layer: {
     measured: "Measured at the borewell",

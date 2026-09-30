@@ -99,7 +99,7 @@ function Backups() {
       bodyClassName="grid gap-3 p-0"
     >
       <p className="px-4 pt-3 text-[13px] text-muted-foreground">
-        StrataField makes a backup every day by itself and keeps the last 10. Backups are on this computer only; copy one to a USB drive or cloud folder now and then.
+        StrataField makes a backup every day by itself and keeps the last 10 on this computer. To keep a copy somewhere else too, set up a second copy below.
       </p>
       <div className="overflow-x-auto">
         <Table>

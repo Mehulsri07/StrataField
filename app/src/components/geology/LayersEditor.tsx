@@ -99,7 +99,8 @@ export function LayersEditor({ layers, pipes, onChange, materials, totalDepth, s
   );
   // Missing soil types show in the row itself ("Choose…"), so they are not repeated in the list.
   const visibleLayerIssues = layerIssues.filter((i) => !i.message.startsWith("Choose a soil type"));
-  const cols = "grid-cols-[84px_84px_minmax(140px,1fr)_minmax(110px,1fr)_auto_auto]";
+  // Fits the layer editor's middle column on a 1366-pixel-wide laptop screen.
+  const cols = "grid-cols-[64px_64px_minmax(136px,1fr)_minmax(56px,1fr)_52px_auto]";
 
   return (
     <div className="grid min-w-0 gap-4">
@@ -107,7 +108,7 @@ export function LayersEditor({ layers, pipes, onChange, materials, totalDepth, s
         {layers.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No layers yet. Add the first one, starting at 0 ft.</p>}
         {layers.length > 0 && (
           <div className={cn("grid items-center gap-2 px-1.5 text-xs font-medium text-muted-foreground", cols)}>
-            <span>From (ft)</span><span>To (ft)</span><span>Soil type</span><span>Notes</span><span>Holds water</span><span />
+            <span>From (ft)</span><span>To (ft)</span><span>Soil type</span><span>Notes</span><span className="text-center leading-tight">Holds water</span><span />
           </div>
         )}
         {layers.map((r, i) => (
@@ -134,7 +135,7 @@ export function LayersEditor({ layers, pipes, onChange, materials, totalDepth, s
       <Panel title="Pipes" actions={<Button variant="outline" onClick={addPipe}><Plus />Add pipe piece</Button>} bodyClassName="grid gap-2">
         {pipes.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">No pipes yet.</p>}
         {pipes.map((r, i) => (
-          <div key={r.key} className="grid grid-cols-[84px_84px_minmax(200px,1fr)_auto] items-center gap-2 px-1.5">
+          <div key={r.key} className="grid grid-cols-[64px_64px_minmax(180px,1fr)_auto] items-center gap-2 px-1.5">
             <Input className="num" inputMode="decimal" value={r.start} onChange={(e) => setPipe(i, { start: e.target.value })} aria-label={`Pipe ${i + 1} from (ft)`} placeholder="From" />
             <Input className="num" inputMode="decimal" value={r.end} onChange={(e) => setPipe(i, { end: e.target.value })} aria-label={`Pipe ${i + 1} to (ft)`} placeholder="To" />
             <div className="flex gap-1.5" role="radiogroup" aria-label={`Pipe ${i + 1} type`}>
