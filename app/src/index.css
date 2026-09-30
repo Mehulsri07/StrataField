@@ -250,3 +250,27 @@
 .strata-section-line {
     stroke: var(--foreground);
 }
+
+/* Cross-section line: bends (drag to move, double-click to remove) and midpoints (drag to add a bend). */
+.strata-bend {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: var(--foreground);
+    border: 2.5px solid var(--card);
+    box-shadow: var(--shadow-panel);
+    cursor: grab;
+}
+.strata-mid {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 2px solid var(--foreground);
+    opacity: 0.7;
+    cursor: grab;
+}
+.strata-mid:hover {
+    opacity: 1;
+}
+

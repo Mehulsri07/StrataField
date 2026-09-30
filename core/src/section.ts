@@ -30,22 +30,55 @@ export interface Placed<T> {
 export function placeAlongLine<T extends { latitude: number | null; longitude: number | null }>(
   a: LatLon, b: LatLon, halfWidthKm: number, items: T[],
 ): { lengthKm: number; placed: Placed<T>[] } {
-  const lat0 = (a[0] + b[0]) / 2, k = kx(lat0);
-  const toXY = ([la, lo]: LatLon): [number, number] => [(lo - a[1]) * k, (la - a[0]) * KY];
-  const [bx, by] = toXY(b);
-  const lengthKm = Math.hypot(bx, by);
+  return placeAlongPath([a, b], halfWidthKm, items);
+}
+
+/**
+ * Borewells within `halfWidthKm` of a line with bends (`path`, at least two points), ordered by how
+ * far along the line they are. Each borewell belongs to the nearest part of the line.
+ */
+export function placeAlongPath<T extends { latitude: number | null; longitude: number | null }>(
+  path: LatLon[], halfWidthKm: number, items: T[],
+): { lengthKm: number; placed: Placed<T>[] } {
+  if (path.length < 2) return { lengthKm: 0, placed: [] };
+  const lat0 = path.reduce((s, p) => s + p[0], 0) / path.length, k = kx(lat0);
+  const o = path[0];
+  const toXY = ([la, lo]: LatLon): [number, number] => [(lo - o[1]) * k, (la - o[0]) * KY];
+  const toLL = ([x, y]: [number, number]): LatLon => [o[0] + y / KY, o[1] + x / k];
+  const pts = path.map(toXY);
+  const segs = pts.slice(1).map((q, i) => {
+    const p = pts[i], dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy);
+    return { p, len, ux: len ? dx / len : 0, uy: len ? dy / len : 0 };
+  });
+  const starts: number[] = [];
+  segs.reduce((acc, s) => { starts.push(acc); return acc + s.len; }, 0);
+  const lengthKm = segs.reduce((acc, s) => acc + s.len, 0);
   if (lengthKm < 1e-6) return { lengthKm: 0, placed: [] };
-  const ux = bx / lengthKm, uy = by / lengthKm;
+
   const placed = items
     .filter(i => i.latitude != null && i.longitude != null)
     .map(item => {
       const [x, y] = toXY([item.latitude!, item.longitude!]);
-      const alongKm = x * ux + y * uy;
-      const offsetKm = x * uy - y * ux;
-      const foot: LatLon = [a[0] + (uy * alongKm) / KY, a[1] + (ux * alongKm) / k];
-      return { item, alongKm, offsetKm, foot };
+      let best: Placed<T> | null = null, bestDist = Infinity;
+      segs.forEach((s, i) => {
+        if (s.len === 0) return;
+        const rx = x - s.p[0], ry = y - s.p[1];
+        const t = rx * s.ux + ry * s.uy;                       // along this part
+        const first = i === 0, last = i === segs.length - 1;
+        // Beyond the ends of the whole line, a little leeway only (as for a straight line).
+        const tc = Math.min(Math.max(t, first ? -0.05 : 0), last ? s.len + 0.05 : s.len);
+        const fx = s.p[0] + s.ux * tc, fy = s.p[1] + s.uy * tc;
+        const dist = Math.hypot(x - fx, y - fy);
+        const outside = t < (first ? -0.05 : -1e9) || t > (last ? s.len + 0.05 : 1e9);
+        if (!outside && dist < bestDist) {
+          bestDist = dist;
+          const offsetKm = rx * s.uy - ry * s.ux;              // right of the line is positive
+          best = { item, alongKm: starts[i] + tc, offsetKm: Math.sign(offsetKm || 1) * dist, foot: toLL([fx, fy]) };
+        }
+      });
+      return best as Placed<T> | null;
     })
-    .filter(p => p.alongKm >= -0.05 && p.alongKm <= lengthKm + 0.05 && Math.abs(p.offsetKm) <= halfWidthKm)
+    .filter((p): p is Placed<T> => p != null && Math.abs(p.offsetKm) <= halfWidthKm)
     .sort((p, q) => p.alongKm - q.alongKm);
   return { lengthKm, placed };
 }
@@ -57,6 +90,16 @@ export function corridorPolygon(a: LatLon, b: LatLon, halfWidthKm: number): LatL
   const nx = dy / len, ny = -dx / len; // right-hand normal
   const shift = ([la, lo]: LatLon, s: number): LatLon => [la + (ny * halfWidthKm * s) / KY, lo + (nx * halfWidthKm * s) / k];
   return [shift(a, 1), shift(b, 1), shift(b, -1), shift(a, -1)];
+}
+
+/** The corridor around a line with bends: one band per part of the line. */
+export function corridorPolygons(path: LatLon[], halfWidthKm: number): LatLon[][] {
+  return path.slice(1).map((q, i) => corridorPolygon(path[i], q, halfWidthKm));
+}
+
+/** The middle of each part of a line, where a new bend can be dragged out. */
+export function midpoints(path: LatLon[]): LatLon[] {
+  return path.slice(1).map((q, i) => [(path[i][0] + q[0]) / 2, (path[i][1] + q[1]) / 2] as LatLon);
 }
 
 export interface Run {
