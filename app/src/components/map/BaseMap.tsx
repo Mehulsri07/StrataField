@@ -2,15 +2,18 @@ import "leaflet/dist/leaflet.css";
 import type { ReactNode } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import type { LatLngBoundsExpression, LatLngExpression, Map as LeafletMap } from "leaflet";
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { OfflineMapLayer } from "./OfflineMapLayer";
 
 /** Centre of Lucknow, the pilot city. */
 export const CITY_CENTRE: LatLngExpression = [26.85, 80.95];
 
 /**
- * OpenStreetMap base map. Tiles need internet the first time; afterwards the browser cache keeps
- * recently seen areas. Without tiles the map shows a plain background and everything drawn on top
- * (pins, water colours, lines) still works.
+ * The base map. When the Lucknow map has been downloaded (Settings), it is drawn from that file and
+ * works without internet. Otherwise OpenStreetMap's online tiles are used; without internet those
+ * show a plain background, and everything drawn on top (pins, water colours, lines) still works.
  */
 export function BaseMap({ children, className, bounds, center = CITY_CENTRE, zoom = 12, onReady, interactive = true }: {
   children?: ReactNode;
@@ -21,6 +24,8 @@ export function BaseMap({ children, className, bounds, center = CITY_CENTRE, zoo
   onReady?: (map: LeafletMap) => void;
   interactive?: boolean;
 }) {
+  const offline = useLoad("offline-map-status", () => api.offlineMap.status());
+  const downloaded = offline.data?.installed ? offline.data.downloadedAt ?? "installed" : null;
   return (
     <MapContainer
       center={center}
@@ -35,11 +40,13 @@ export function BaseMap({ children, className, bounds, center = CITY_CENTRE, zoo
       zoomControl={interactive}
       attributionControl
     >
-      <TileLayer
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        maxZoom={19}
-      />
+      {downloaded ? <OfflineMapLayer stamp={downloaded} /> : offline.data && (
+        <TileLayer
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          maxZoom={19}
+        />
+      )}
       {children}
     </MapContainer>
   );

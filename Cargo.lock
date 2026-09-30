@@ -3721,6 +3721,7 @@ dependencies = [
 name = "stratafield"
 version = "1.0.0"
 dependencies = [
+ "chrono",
  "kamadak-exif",
  "reqwest",
  "serde",

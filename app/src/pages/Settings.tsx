@@ -47,6 +47,7 @@ export function Settings() {
     <Page className="max-w-[1100px]">
       <PageHeader title={text.pages.settings.title} sub={text.pages.settings.sub} />
       <Backups />
+      <OfflineMap />
       <OlderApp />
       <UnlinkedNames />
       <SoilTypes />
@@ -131,6 +132,69 @@ function Backups() {
       <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
         <Button variant="outline" onClick={restoreFromFile} disabled={busy != null || isPreview}>Restore from a file…</Button>
         <Button variant="ghost" onClick={() => api.backups.openFolder("backups").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open backup folder</Button>
+      </div>
+      {dialog}
+    </Panel>
+  );
+}
+
+// ── Map without internet ────────────────────────────────────────────────
+
+function OfflineMap() {
+  const { bump } = useDataVersion();
+  const { ask, dialog } = useConfirm();
+  const status = useLoad("offline-map-status", () => api.offlineMap.status());
+  const [progress, setProgress] = useState<{ received: number; total: number | null } | null>(null);
+  const mb = (bytes: number) => `${(bytes / 1_048_576).toFixed(bytes < 10_485_760 ? 1 : 0)} MB`;
+
+  const download = async () => {
+    setProgress({ received: 0, total: null });
+    const { listen } = await import("@tauri-apps/api/event");
+    const stop = await listen<{ received: number; total: number | null }>("offline-map-progress", (e) => setProgress(e.payload));
+    try {
+      const s = await api.offlineMap.download();
+      toast.success(`The Lucknow map is ready to use without internet (${mb(s.sizeBytes)}).`);
+      bump();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      stop();
+      setProgress(null);
+    }
+  };
+  const remove = async () => {
+    if (!(await ask({ title: "Remove the downloaded map?", body: "The map will need internet again. You can download it again at any time.", confirmLabel: "Remove map" }))) return;
+    try { await api.offlineMap.remove(); bump(); } catch (e) { toast.error(String(e)); }
+  };
+
+  const s = status.data;
+  const pct = progress?.total ? Math.round((progress.received / progress.total) * 100) : null;
+  return (
+    <Panel title={<span id="offline-map" className="scroll-mt-20">Map without internet</span>} bodyClassName="grid gap-3">
+      <p className="text-[13px] text-muted-foreground">
+        Download the map of Lucknow once, and the Map, Home and Cross-section screens show streets and places even without internet, for example at a drilling site. The map comes from OpenStreetMap data and is shown in place of the online map.
+      </p>
+      {s?.installed && !progress && (
+        <p className="text-sm">
+          <Chip tone="ok" className="mr-2">Downloaded</Chip>
+          {mb(s.sizeBytes)}{s.downloadedAt ? `, ${formatWhen(s.downloadedAt)}` : ""}
+        </p>
+      )}
+      {progress && (
+        <div className="grid gap-1.5" role="status">
+          <div className="h-2 overflow-hidden rounded-sm bg-muted">
+            <div className="h-full bg-primary transition-[width]" style={{ width: `${pct ?? 5}%` }} />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Downloading… {mb(progress.received)}{progress.total ? ` of ${mb(progress.total)}` : ""}
+          </span>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button variant={s?.installed ? "outline" : "default"} onClick={download} disabled={!!progress || isPreview}>
+          {s?.installed ? "Download again (newer map)" : "Download the Lucknow map"}
+        </Button>
+        {s?.installed && <Button variant="ghost" onClick={remove} disabled={!!progress}>Remove</Button>}
       </div>
       {dialog}
     </Panel>

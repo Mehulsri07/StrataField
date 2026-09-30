@@ -10,6 +10,13 @@ import type {
   StartupStatus, StrataLayer, WaterReading, GeocodeResult,
 } from "@strata/core";
 
+export interface OfflineMapStatus {
+  installed: boolean;
+  sizeBytes: number;
+  /** Local time, "YYYY-MM-DD HH:MM:SS". */
+  downloadedAt: string | null;
+}
+
 export interface AppInfo {
   name: string;
   version: string;
@@ -108,6 +115,15 @@ export const api = {
 
   /** The bytes of an Excel or CSV file the user chose. */
   readSpreadsheet: (path: string) => invoke<ArrayBuffer>("read_spreadsheet", { path }),
+
+  /** The Lucknow map file for use without internet (downloaded from Settings). */
+  offlineMap: {
+    status: () => invoke<OfflineMapStatus>("offline_map_status"),
+    /** Progress arrives as "offline-map-progress" events ({ received, total }). */
+    download: () => invoke<OfflineMapStatus>("offline_map_download"),
+    remove: () => invoke<void>("offline_map_remove"),
+    read: (offset: number, length: number) => invoke<ArrayBuffer>("offline_map_read", { offset, length }),
+  },
 
   /** Date and GPS position saved inside a photo (empty when the camera saved none). */
   photoMetadata: (path: string) =>
