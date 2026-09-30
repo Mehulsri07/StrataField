@@ -48,8 +48,12 @@ pub fn current_app_info() -> AppInfo {
 
 /// Lets the screen confirm the backend is reachable and show the running version.
 #[tauri::command]
-pub fn app_info() -> AppInfo {
-    current_app_info()
+pub fn app_info(app: AppHandle) -> AppInfo {
+    // The app's own version (tauri.conf.json), which the installer and updates use.
+    AppInfo {
+        version: app.package_info().version.to_string(),
+        ..current_app_info()
+    }
 }
 
 #[tauri::command]

@@ -136,6 +136,11 @@ jobs:
           E2E_REAL_DIALOGS: '1'
         run: npm run e2e
 
+      # The same build, with 5,000 made-up borewells: each main screen must be ready within its limit.
+      - name: Performance with 5,000 borewells
+        if: success() || failure()
+        run: npm run perf
+
   # Decides whether a pull request needs the installer build and clean-machine test.
   changes:
     name: Does this change packaging or start-up?
@@ -143,6 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       installer: ${{ steps.filter.outputs.installer }}
+      update: ${{ steps.filter.outputs.update }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
@@ -167,6 +173,22 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - 'app/package.json'
+              - '.github/**'
+            update:
+              - 'app/src/lib/updates.ts'
+              - 'app/src/components/app/UpdateNotice.tsx'
+              - 'app/src/pages/Settings.tsx'
+              - 'app/src-tauri/tauri.conf.json'
+              - 'app/src-tauri/tauri.release.conf.json'
+              - 'app/src-tauri/capabilities/**'
+              - 'app/src-tauri/Cargo.toml'
+              - 'app/src-tauri/src/lib.rs'
+              - 'app/src-tauri/windows/**'
+              - 'Cargo.lock'
+              - 'app/package.json'
+              - 'package-lock.json'
+              - 'e2e/update-test.mjs'
+              - 'e2e/harness.mjs'
               - '.github/**'
 
   installer:
@@ -213,3 +235,77 @@ jobs:
         run: |
           $installer = Get-ChildItem target/release/bundle/nsis/*.exe | Select-Object -First 1
           ./.github/scripts/installer-test.ps1 -Installer $installer.FullName
+
+  # Installs the current version, publishes a pretend newer one on a local web server, and checks the
+  # app finds it, installs it and restarts with its data. Uses a throwaway signing key, never the
+  # real one. Runs on main, by hand, and on pull requests that touch updating or packaging.
+  update:
+    name: Automatic update test
+    needs: [changes]
+    if: >-
+      always() && (github.event_name != 'pull_request' || needs.changes.outputs.update == 'true')
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          shared-key: rust-e2e
+          save-if: false
+
+      - run: npm ci
+
+      - name: Throwaway signing key and test update settings
+        working-directory: app
+        run: |
+          $dir = $env:RUNNER_TEMP
+          npx tauri signer generate --ci -w "$dir/update-test.key" -p update-test
+          $pub = (Get-Content "$dir/update-test.key.pub" -Raw).Trim()
+          $conf = @{
+            bundle  = @{ createUpdaterArtifacts = $true }
+            plugins = @{ updater = @{
+              pubkey = $pub
+              endpoints = @('http://127.0.0.1:8765/latest.json')
+              dangerousInsecureTransportProtocol = $true
+              windows = @{ installMode = 'passive' }
+            } }
+          }
+          $conf | ConvertTo-Json -Depth 6 | Set-Content "$dir/update-old.conf.json" -Encoding utf8NoBOM
+          $conf.version = '99.0.0'
+          $conf | ConvertTo-Json -Depth 6 | Set-Content "$dir/update-new.conf.json" -Encoding utf8NoBOM
+          "TAURI_SIGNING_PRIVATE_KEY=$((Get-Content "$dir/update-test.key" -Raw).Trim())" | Out-File -Append $env:GITHUB_ENV -Encoding utf8
+          "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=update-test" | Out-File -Append $env:GITHUB_ENV -Encoding utf8
+
+      # Development builds, so the test can reach the window (see open_main_window in lib.rs).
+      - name: Build the current version
+        run: |
+          npm run tauri -w app -- build --debug --config "$env:RUNNER_TEMP/update-old.conf.json"
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/old" | Out-Null
+          Copy-Item (Get-ChildItem target/debug/bundle/nsis/*-setup.exe | Select-Object -First 1).FullName "$env:RUNNER_TEMP/old/setup.exe"
+          Remove-Item target/debug/bundle/nsis/* -Force
+
+      - name: Build a pretend newer version (99.0.0)
+        run: |
+          npm run tauri -w app -- build --debug --config "$env:RUNNER_TEMP/update-new.conf.json"
+          $new = Get-ChildItem target/debug/bundle/nsis/*-setup.exe | Select-Object -First 1
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/new" | Out-Null
+          Copy-Item $new.FullName "$env:RUNNER_TEMP/new/setup.exe"
+          Copy-Item "$($new.FullName).sig" "$env:RUNNER_TEMP/new/setup.exe.sig"
+
+      - name: Automatic update test
+        env:
+          UPDATE_OLD_INSTALLER: ${{ runner.temp }}/old/setup.exe
+          UPDATE_NEW_INSTALLER: ${{ runner.temp }}/new/setup.exe
+          UPDATE_NEW_VERSION: '99.0.0'
+        run: node e2e/update-test.mjs
