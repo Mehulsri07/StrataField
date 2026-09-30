@@ -18,4 +18,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
   },
+  {
+    // End-to-end test scripts run in Node.
+    files: ["e2e/**/*.mjs"],
+    languageOptions: { globals: { ...globals.node } },
+  },
 );
