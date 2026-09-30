@@ -290,6 +290,52 @@ pub fn backup_create(state: State<AppState>) -> Res<BackupInfo> {
         .map_err(|e| e.to_string())
 }
 
+/// Where the second copy of every backup goes, and how the last copy went.
+#[tauri::command]
+pub fn backup_second_copy_get(state: State<AppState>) -> Res<backup::SecondCopy> {
+    Ok(backup::second_copy(state.db()?.data_dir()))
+}
+
+/// Chooses the folder for a second copy of every backup (a folder the user picked), or stops
+/// copying when `folder` is empty. A copy of the newest backup is made straight away.
+#[tauri::command]
+pub fn backup_second_copy_set(
+    app: AppHandle,
+    state: State<AppState>,
+    folder: Option<String>,
+) -> Res<backup::SecondCopy> {
+    let db = state.db()?;
+    let Some(folder) = folder.filter(|f| !f.trim().is_empty()) else {
+        return backup::set_second_copy_folder(db.data_dir(), None).map_err(|e| e.to_string());
+    };
+    let folder = PathBuf::from(folder);
+    guard::chosen_by_user(&app, &folder)?;
+    backup::set_second_copy_folder(db.data_dir(), Some(&folder)).map_err(|e| e.to_string())?;
+    backup_second_copy_now(state)
+}
+
+/// Copies the newest backup to the second folder now (making a backup first if there is none).
+#[tauri::command]
+pub fn backup_second_copy_now(state: State<AppState>) -> Res<backup::SecondCopy> {
+    let db = state.db()?;
+    match backup::list(&db.backups_dir())
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|b| b.readable)
+    {
+        Some(newest) => Ok(backup::copy_to_second_folder(
+            db.data_dir(),
+            &PathBuf::from(newest.path),
+        )),
+        None => {
+            // Making a backup also copies it.
+            db.with(|c| backup::create(c, &db.backups_dir(), BackupReason::Manual))
+                .map_err(|e| e.to_string())?;
+            Ok(backup::second_copy(db.data_dir()))
+        }
+    }
+}
+
 /// Restores from a backup file (one listed in Settings, or one the user picked).
 /// Returns the safety backup taken first, so the restore can be undone.
 #[tauri::command]

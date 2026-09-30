@@ -13,7 +13,7 @@ import { Chip } from "@/components/app/Chip";
 import { Field } from "@/components/app/Field";
 import { useConfirm } from "@/components/app/Confirm";
 import { MaterialSwatch, PATTERNS } from "@/components/geology/patterns";
-import { api, files, isPreview } from "@/lib/api";
+import { api, files, isPreview, type SecondCopy } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { useStartup } from "@/lib/hooks";
 import { formatWhen } from "@/lib/format";
@@ -47,6 +47,7 @@ export function Settings() {
     <Page className="max-w-[1100px]">
       <PageHeader title={text.pages.settings.title} sub={text.pages.settings.sub} />
       <Backups />
+      <SecondCopyPanel />
       <OfflineMap />
       <OlderApp />
       <UnlinkedNames />
@@ -134,6 +135,58 @@ function Backups() {
         <Button variant="ghost" onClick={() => api.backups.openFolder("backups").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open backup folder</Button>
       </div>
       {dialog}
+    </Panel>
+  );
+}
+
+// ── A second copy of the backups ────────────────────────────────────────
+
+function SecondCopyPanel() {
+  const { bump } = useDataVersion();
+  const status = useLoad("second-copy", () => api.backups.secondCopy.get());
+  const [busy, setBusy] = useState(false);
+  const s = status.data;
+
+  const run = async (work: () => Promise<SecondCopy>, done: (s: SecondCopy) => string | null) => {
+    setBusy(true);
+    try {
+      const result = await work();
+      if (result.lastError) toast.error(result.lastError);
+      else { const msg = done(result); if (msg) toast.success(msg); }
+      bump();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const choose = async () => {
+    const folder = await files.chooseFolder("Choose where to keep a second copy of your backups").catch((e) => { toast.error(String(e)); return null; });
+    if (folder) run(() => api.backups.secondCopy.set(folder), (r) => `Backups will also be copied to ${r.folder}. The newest one is there now.`);
+  };
+  const stop = () => run(() => api.backups.secondCopy.set(null), () => "Backups are no longer copied to a second folder.");
+  const copyNow = () => run(() => api.backups.secondCopy.now(), () => "The newest backup was copied.");
+
+  return (
+    <Panel title={<span id="second-copy" className="scroll-mt-20">A second copy of your backups</span>} bodyClassName="grid gap-3">
+      <p className="text-[13px] text-muted-foreground">
+        Backups on this computer are lost if the computer breaks or is stolen. Choose a folder on a USB drive, or a folder that OneDrive or Google Drive keeps in the cloud, and every backup is copied there as well. The newest 10 are kept.
+      </p>
+      {s?.folder ? (
+        <div className="grid gap-1 text-sm">
+          <span>Copies go to <b className="num break-all font-medium">{s.folder}</b></span>
+          {s.lastError
+            ? <span className="text-destructive" role="status">{s.lastError}</span>
+            : <span className="text-muted-foreground">{s.lastCopiedAt ? `Last copied ${formatWhen(s.lastCopiedAt)}.` : "Nothing copied yet."}</span>}
+        </div>
+      ) : (
+        <p className="text-sm"><Chip tone="warn" className="mr-2">Only on this computer</Chip>No second folder chosen yet.</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button variant={s?.folder ? "outline" : "default"} onClick={choose} disabled={busy || isPreview}>{s?.folder ? "Choose another folder…" : "Choose a folder…"}</Button>
+        {s?.folder && <Button variant="outline" onClick={copyNow} disabled={busy}>{busy ? "Copying…" : "Copy now"}</Button>}
+        {s?.folder && <Button variant="ghost" onClick={stop} disabled={busy}>Stop copying</Button>}
+      </div>
     </Panel>
   );
 }

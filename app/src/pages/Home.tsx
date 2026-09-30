@@ -28,6 +28,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 /** The locality part of an address like "Aliganj, Lucknow" → "Aliganj". */
 const shortArea = (b: Borewell) => b.area.split(",")[0].trim() || b.borewellId;
 const BACKUP_OLD_DAYS = 7;
+const SECOND_COPY_OLD_DAYS = 14;
 
 export function Home() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export function Home() {
   const items = useLoad("home-borewells", () => api.borewells.search({}));
   const backups = useLoad("home-backups", () => api.backups.list());
   const unlinked = useLoad("home-unlinked", () => api.soilNames.unlinked());
+  const secondCopy = useLoad("second-copy", () => api.backups.secondCopy.get());
   const [backingUp, setBackingUp] = useState(false);
   const [now] = useState(() => Date.now());
 
@@ -50,6 +52,8 @@ export function Home() {
   const noLayers = all.filter((i) => i.strata.length === 0).length;
   const lastBackup = backups.data?.[0] ?? null;
   const backupAgeDays = lastBackup ? (now - new Date(lastBackup.createdAt.replace(" ", "T")).getTime()) / 86_400_000 : Infinity;
+  const lastCopy = secondCopy.data?.lastCopiedAt;
+  const copyAgeDays = lastCopy ? (now - new Date(lastCopy.replace(" ", "T")).getTime()) / 86_400_000 : Infinity;
   const loaded = !items.loading && items.data != null;
 
   const backUpNow = async () => {
@@ -178,12 +182,17 @@ export function Home() {
                     title={`${plural(unlinked.data!.length, "soil name")} not recognised`}
                     sub={`${unlinked.data!.slice(0, 2).map(([n]) => `“${n}”`).join(" and ")}${unlinked.data!.length > 2 ? " and more" : ""}: choose what ${unlinked.data!.length === 1 ? "it means" : "they mean"}`} />
                 )}
+                {secondCopy.data && all.length > 0 && (!secondCopy.data.folder || secondCopy.data.lastError || copyAgeDays > SECOND_COPY_OLD_DAYS) && (
+                  <Attention tone="warn" to="/settings#second-copy"
+                    title={!secondCopy.data.folder ? "Backups are only on this computer" : secondCopy.data.lastError ? "The last backup copy failed" : `No backup copy for ${Math.floor(copyAgeDays)} days`}
+                    sub={!secondCopy.data.folder ? "Choose a USB drive or cloud folder for a second copy" : secondCopy.data.lastError ? "Is the USB drive plugged in? Try Copy now in Settings" : "Plug in the USB drive, or choose Copy now in Settings"} />
+                )}
                 {backupAgeDays > BACKUP_OLD_DAYS && (
                   <Attention tone="warn" to="/settings#backups"
                     title={lastBackup ? `No backup for ${Math.floor(backupAgeDays)} days` : "No backup yet"}
                     sub="Make a backup now, below" />
                 )}
-                {loaded && located.length === all.length && noLayers === 0 && !unlinked.data?.length && backupAgeDays <= BACKUP_OLD_DAYS && (
+                {loaded && located.length === all.length && noLayers === 0 && !unlinked.data?.length && backupAgeDays <= BACKUP_OLD_DAYS && !!secondCopy.data?.folder && !secondCopy.data.lastError && copyAgeDays <= SECOND_COPY_OLD_DAYS && (
                   <p className="px-2 py-3 text-sm text-muted-foreground">Nothing needs attention. Every borewell has a location and layers.</p>
                 )}
               </Panel>
@@ -196,8 +205,9 @@ export function Home() {
                 <dl className="grid gap-1.5 text-[13px]">
                   <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Last backup</dt><dd>{lastBackup ? formatWhen(lastBackup.createdAt) : "None yet"}</dd></div>
                   <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Copies on this computer</dt><dd className="num">{backups.data?.length ?? "…"}</dd></div>
+                  <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Second copy</dt><dd className="text-right">{!secondCopy.data?.folder ? "Not set up" : secondCopy.data.lastError ? <span className="text-destructive">Last copy failed</span> : lastCopy ? formatWhen(lastCopy) : "Not yet"}</dd></div>
                 </dl>
-                <p className="text-xs text-muted-foreground">StrataField makes a backup every day by itself. Copy one to a USB drive or cloud folder now and then, in case this computer fails.</p>
+                <p className="text-xs text-muted-foreground">StrataField makes a backup every day by itself{secondCopy.data?.folder ? " and copies it to your second folder." : ". Set up a second copy on a USB drive or cloud folder in Settings, in case this computer fails."}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={backUpNow} disabled={backingUp || isPreview}>{backingUp ? "Backing up…" : "Back up now"}</Button>
                   <Button variant="ghost" onClick={openFolder} disabled={isPreview}><FolderOpen />Open backup folder</Button>

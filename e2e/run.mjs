@@ -298,6 +298,20 @@ try {
     return (await __t.invoke('backups_list')).map(b => b.kind);`);
   check("Settings: Back up now makes a backup (and one was made automatically at start-up)", backedUp.includes("manual") && backedUp.includes("auto"), backedUp.join(", "));
 
+  // A second copy of every backup, in a folder the user chooses (standing in for a USB drive).
+  const usb = path.join(work, "usb-drive");
+  fs.mkdirSync(usb, { recursive: true });
+  const usbFwd = usb.split(path.sep).join("/");
+  const second = await page(`
+    window.__STRATA_TEST_CHOOSE__ = () => ['${usbFwd}'];
+    location.hash = '#/settings#second-copy';
+    (await __t.until(() => __t.btn('Choose a folder'), 8000)).click();
+    await __t.until(async () => (await __t.invoke('backup_second_copy_get')).lastCopiedAt, 10000);
+    delete window.__STRATA_TEST_CHOOSE__;
+    return await __t.invoke('backup_second_copy_get');`);
+  const copied = fs.existsSync(path.join(usb, "StrataField backups")) ? fs.readdirSync(path.join(usb, "StrataField backups")).filter((n) => n.endsWith(".db")) : [];
+  check("Settings: a second copy of the backups goes to a chosen folder (e.g. a USB drive)", second.folder && !second.lastError && copied.length === 1, `${copied.join(", ")} ${second.lastError ?? ""}`);
+
   const soil = await page(`
     __t.btn('Add soil type').click();
     const dlg = await __t.until(() => document.querySelector('[role="dialog"]'));
