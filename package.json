@@ -17,7 +17,8 @@
     "typecheck": "npm run typecheck --workspaces",
     "lint": "eslint .",
     "test": "npm test -w core",
-    "e2e": "node e2e/run.mjs"
+    "e2e": "node e2e/run.mjs",
+    "perf": "node e2e/perf.mjs"
   },
   "devDependencies": {
     "eslint": "^10.11.0",
