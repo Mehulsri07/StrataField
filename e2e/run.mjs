@@ -361,7 +361,8 @@ try {
 
   // ── Copy details for support ────────────────────────────────────────────
   const support = await page(`
-    await __t.invoke('borewell_get', { id: 'no-such-borewell' }).catch(() => {});   // a failed command, logged
+    // Opening a borewell that does not exist: the screen's request fails and is logged.
+    location.hash = '#/borewell/no-such-borewell'; await __t.wait(1500);
     location.hash = '#/settings';
     (await __t.until(() => __t.btn('Copy details for support'), 8000)).click();
     const dlg = await __t.until(() => document.querySelector('[role="dialog"] pre'), 8000);
