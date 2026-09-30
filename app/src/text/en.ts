@@ -49,6 +49,19 @@ export const en = {
     notConnected: "Your data could not be opened",
   },
 
+  updates: {
+    available: (v: string) => `StrataField ${v} is available`,
+    howItWorks: "Installing takes a minute: StrataField closes, updates and opens again. Your data is not touched.",
+    downloading: "Downloading the update…",
+    downloadingPct: (pct: number) => `Downloading the update… ${pct}%`,
+    install: "Install and restart",
+    later: "Not now",
+    upToDate: (v: string) => `You have the newest version (${v}).`,
+    check: "Check for updates",
+    checking: "Checking…",
+    offline: "Could not check for updates. Check the internet connection and try again.",
+  },
+
   startup: {
     broughtOverTitle: "Your data from the older StrataField is here",
     broughtOver: (b: number, layers: number, pipes: number) =>

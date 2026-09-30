@@ -233,13 +233,34 @@ $env:STRATA_DATA_DIR = "$env:TEMP\strata-dev"; npm run dev
   starts it twice, installs over the top and uninstalls, checking the data survives. The slow part
   runs after merging to `main`, and on pull requests that touch packaging or start-up code.
   Documentation-only changes skip CI. Sizes, start-up time and memory appear in the run summary.
-- **Releases** (`.github/workflows/release.yml`): pushing a tag like `v1.0.1` checks it matches the
-  version in `app/src-tauri/tauri.conf.json`, builds and tests the installer, and attaches it to a
-  **draft** GitHub release to be published by hand.
+- **Releases** (`.github/workflows/release.yml`). Pushing a tag like `v1.0.1` checks it matches
+  the version in `app/src-tauri/tauri.conf.json`, then builds and tests the installer. It attaches
+  three files to a **draft** GitHub release, to be published by hand: the installer, its update
+  signature (`.sig`) and `latest.json`.
 
 To release a new version: set the same version in `app/package.json`, `app/src-tauri/Cargo.toml`
 and `app/src-tauri/tauri.conf.json`, merge, then tag the merge commit (`git tag -a v1.0.1 -m ...`
-and `git push origin v1.0.1`).
+and `git push origin v1.0.1`). Check the draft release and publish it.
+
+### Automatic updates
+
+Installed copies check for a newer version once a day, using the `latest.json` of the newest
+**published** release. When there is one, they show "StrataField x.y.z is available". Choosing
+**Install and restart** downloads it, closes the app, updates it and opens it again. Settings →
+About also has **Check for updates**.
+
+Updates are **signed**, and an installed copy only accepts an update signed with the project's key.
+The public half of the key is in `tauri.conf.json` (`plugins.updater.pubkey`). The private half and
+its password are kept outside the repository:
+
+- as the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`,
+  which the Release workflow uses;
+- on the maintainer's computer in `%USERPROFILE%\.tauri\stratafield-updater.key` and
+  `stratafield-updater.password`. **Keep a safe copy.** If the key is lost, installed copies can
+  never be updated again, and users would have to install a new version by hand.
+
+Only the Release workflow signs builds (`--config src-tauri/tauri.release.conf.json`). Everyday and
+CI builds don't need the key.
 
 ---
 

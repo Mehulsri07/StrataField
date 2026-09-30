@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PatternDefs } from "@/components/geology/patterns";
 import { Chip } from "./Chip";
 import { StartupNotice } from "./StartupNotice";
+import { UpdateNotice } from "./UpdateNotice";
 import { NAV, titleFor } from "./nav";
 import { useStartup, useSummary, type Summary } from "@/lib/hooks";
 import { isPreview } from "@/lib/api";
@@ -35,6 +36,7 @@ export function AppShell() {
           ) : (
             <>
               {startup && <StartupNotice status={startup} />}
+              <UpdateNotice />
               <Outlet />
             </>
           )}
