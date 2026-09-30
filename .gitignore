@@ -96,6 +96,8 @@ stratafield_context.md
 .github/*
 !.github/workflows/
 !.github/scripts/
+!.github/release-notes.md
+!.github/dependabot.yml
 # Private sample data (real client files) - never commit
 private-fixtures/
 
