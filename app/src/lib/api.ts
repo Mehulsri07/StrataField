@@ -116,6 +116,9 @@ export const api = {
   /** The bytes of an Excel or CSV file the user chose. */
   readSpreadsheet: (path: string) => invoke<ArrayBuffer>("read_spreadsheet", { path }),
 
+  /** Opens the getting-started guide installed with the app, in the web browser. */
+  openGuide: () => invoke<void>("open_guide"),
+
   /** The Lucknow map file for use without internet (downloaded from Settings). */
   offlineMap: {
     status: () => invoke<OfflineMapStatus>("offline_map_status"),

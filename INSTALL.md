@@ -17,7 +17,8 @@ For people who will use StrataField on their computer. No technical knowledge ne
    Windows shows this for new programs that are not yet signed. It is expected.
 4. Follow the installer. It does not ask for an administrator password; StrataField is installed
    just for you.
-5. Open **StrataField** from the Start menu.
+5. Open **StrataField** from the Start menu. **Getting started with StrataField**, a short guide
+   you can print, is in the Start menu too, and in the app under Settings & backup → About.
 
 ## The first time it opens
 
@@ -32,7 +33,16 @@ last 10. Now and then, copy one to a USB drive or cloud folder in case the compu
 
 ## Updating
 
-Run the newer installer. Your data stays as it is; a backup is made before anything is upgraded.
+StrataField checks for a newer version once a day. When there is one, choose **Install and
+restart**; you can also use **Settings & backup → About → Check for updates**. Your data stays as it
+is, and a backup is made before anything is upgraded. (Copies from version 1.0.0 need the newer
+installer run once by hand; after that, updates are automatic.)
+
+## Using it without internet
+
+Everything works without internet except looking up an address. To see streets on the map without
+internet, download the map once: **Settings & backup → Map without internet → Download the Lucknow
+map** (about 6 MB).
 
 ## Uninstalling
 

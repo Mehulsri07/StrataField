@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started with StrataField</title>
+<style>
+  :root { --ink: #1c2a33; --muted: #5b6b75; --line: #d9e1e6; --accent: #0e6b82; --soft: #eef5f7; --warn: #8a5a00; --warn-soft: #fdf4e3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f6f8f9; color: var(--ink); font: 16px/1.55 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 24px 64px; background: #fff; min-height: 100vh; }
+  h1 { font-size: 30px; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 24px; font-size: 17px; }
+  h2 { font-size: 21px; margin: 40px 0 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 22px 0 6px; }
+  p, li { max-width: 68ch; }
+  ol, ul { padding-left: 1.4em; }
+  li { margin: 4px 0; }
+  b.ui { font-weight: 600; background: var(--soft); border: 1px solid #cfe1e7; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+  kbd { font: 13px Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: #fff; }
+  code { font: 14px Consolas, monospace; background: var(--soft); padding: 1px 4px; border-radius: 3px; }
+  nav { background: var(--soft); border-radius: 8px; padding: 12px 18px; }
+  nav ol { margin: 6px 0; columns: 2; column-gap: 32px; }
+  a { color: var(--accent); }
+  nav a { text-decoration: none; }
+  .note { background: var(--warn-soft); border-left: 4px solid #e0a52c; padding: 10px 14px; border-radius: 4px; }
+  .tip { background: var(--soft); border-left: 4px solid var(--accent); padding: 10px 14px; border-radius: 4px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+  @media (max-width: 600px) { nav ol { columns: 1; } }
+  @media print { body { background: #fff; } main { padding: 0; } h2 { break-after: avoid; } nav { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Getting started with StrataField</h1>
+  <p class="lead">StrataField keeps a record of every borewell: where it is, the soil layers found at each depth, the pipes put in, water levels, photos and files. This guide takes about ten minutes to read. You can print it.</p>
+
+  <nav aria-label="Contents">
+    <b>Contents</b>
+    <ol>
+      <li><a href="#install">Installing</a></li>
+      <li><a href="#first-start">The first time you open it</a></li>
+      <li><a href="#screens">Finding your way around</a></li>
+      <li><a href="#add">Adding a borewell</a></li>
+      <li><a href="#import">Adding borewells from Excel</a></li>
+      <li><a href="#find">Finding a borewell</a></li>
+      <li><a href="#map">The map and water depths</a></li>
+      <li><a href="#section">Seeing the layers between borewells</a></li>
+      <li><a href="#reports">Reports and pictures</a></li>
+      <li><a href="#offline">Using it without internet</a></li>
+      <li><a href="#backup">Keeping your data safe</a></li>
+      <li><a href="#updates">Updates</a></li>
+      <li><a href="#uninstall">Moving to another computer, or uninstalling</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="install">1. Installing</h2>
+  <ol>
+    <li>Double-click the file <b>StrataField_…_x64-setup.exe</b>.</li>
+    <li>If Windows shows <b>Windows protected your PC</b>, choose <b class="ui">More info</b>, then <b class="ui">Run anyway</b>. Windows shows this for new programs that are not yet signed. It is expected.</li>
+    <li>Follow the installer. It does not need an administrator password: StrataField is installed just for you.</li>
+    <li>Open <b>StrataField</b> from the Start menu. This guide is there too, as <b>Getting started with StrataField</b>.</li>
+  </ol>
+  <p>StrataField works on Windows 10 and Windows 11.</p>
+
+  <h2 id="first-start">2. The first time you open it</h2>
+  <p>If this computer had the older StrataField, your borewells are brought over by themselves and a green message says how many. The older app's file is only read, never changed. You can close the message with <b>×</b>.</p>
+  <p>If StrataField is new on this computer, it starts empty. Start with <a href="#add">adding a borewell</a> or <a href="#import">importing an Excel file</a>.</p>
+
+  <h2 id="screens">3. Finding your way around</h2>
+  <p>The menu on the left has everything:</p>
+  <ul>
+    <li><b class="ui">Home</b>: the main numbers, a water-depth map of the city, recently added borewells, and anything that needs attention.</li>
+    <li><b class="ui">Borewells</b>: the full list. Click a row to open a borewell.</li>
+    <li><b class="ui">Map</b>: where the borewells are.</li>
+    <li><b class="ui">Cross-section</b>: the soil layers underground along a line you draw.</li>
+    <li><b class="ui">New borewell</b>, <b class="ui">Import Excel</b>, <b class="ui">Export</b>: adding and sharing data.</li>
+    <li><b class="ui">Recycle bin</b>: deleted borewells, which you can bring back.</li>
+    <li><b class="ui">Settings &amp; backup</b>: backups, the offline map, soil types and appearance.</li>
+  </ul>
+  <p>The line at the bottom of the window always shows that your work is <b>Saved on this computer</b> and when the last backup was made. All depths are in feet.</p>
+
+  <h2 id="add">4. Adding a borewell</h2>
+  <p>Choose <b class="ui">New borewell</b>. The steps are shown across the top; you can go back to any step.</p>
+  <ol>
+    <li><b>Basics</b>: the borewell ID (suggested for you), owner and zone.</li>
+    <li><b>Location</b>: choose one of four ways, the first being the most accurate:
+      <ul>
+        <li><b class="ui">Use a photo's GPS</b>: pick a phone photo taken at the borewell; its position is read from it.</li>
+        <li><b class="ui">Type coordinates</b>: paste them, for example <code>26.8930, 80.9420</code>.</li>
+        <li><b class="ui">Pick on the map</b>: click the spot.</li>
+        <li><b class="ui">Look up the address</b>: approximate; needs internet.</li>
+      </ul>
+      StrataField remembers which way was used, so everyone knows how exact the location is.</li>
+    <li><b>Drilling &amp; water</b>: total depth, water level, pipe size, drilling method.</li>
+    <li><b>Layers &amp; pipes</b>: use <b class="ui">Add layer</b> for each soil layer from the top down, and <b class="ui">Add pipe piece</b> for the pipes. If a depth range was not recorded, StrataField points out the gap: choose <b class="ui">Mark … ft as not recorded</b>. Unknown depths are never filled in by guessing.</li>
+    <li><b>Photos &amp; files</b>: optional; add site photos and documents.</li>
+    <li><b>Check &amp; save</b>: shows anything that must be fixed first, then <b class="ui">Save borewell</b>.</li>
+  </ol>
+  <div class="tip">If you close the window halfway, your unfinished borewell is kept and waiting next time.</div>
+  <p>To change a borewell later, open it and use <b class="ui">Edit details</b> or <b class="ui">Edit layers &amp; pipes</b>. Changes to layers save by themselves. Click any layer in a drawing to see what it is and at what depth.</p>
+
+  <h2 id="import">5. Adding borewells from Excel</h2>
+  <ol>
+    <li>Choose <b class="ui">Import Excel</b>, then <b class="ui">Choose Excel files</b>. You can choose several at once.</li>
+    <li>Check each file in the preview: the details found, the layers and the pipes. Fix anything marked.</li>
+    <li>If a soil name is not recognised (for example "murrum"), choose which soil type it means.</li>
+    <li>Choose <b class="ui">Import</b>. The original Excel file is kept with each borewell, under <b>Files</b>.</li>
+  </ol>
+
+  <h2 id="find">6. Finding a borewell</h2>
+  <p>Press <kbd>Ctrl</kbd> + <kbd>K</kbd> anywhere, or use <b class="ui">Find a borewell…</b> at the top, and type an ID, owner or area. On the <b class="ui">Borewells</b> screen you can also filter by zone, soil type, depth, water level and date, or show only borewells with <b class="ui">No location</b>.</p>
+
+  <h2 id="map">7. The map and water depths</h2>
+  <p>The map shows each borewell as a dot. Colours show how deep the water is: darker means deeper. Colours between borewells are estimates, and they fade out far from any borewell. Click a dot to see that borewell.</p>
+
+  <h2 id="section">8. Seeing the layers between borewells</h2>
+  <ol>
+    <li>Choose <b class="ui">Cross-section</b>.</li>
+    <li>Click where the line starts (A) and where it ends (A′) on the map. You can drag either end afterwards. Or try <b class="ui">North to south</b> or <b class="ui">West to east</b>.</li>
+    <li>The picture shows the layers measured at each borewell near the line, and faded estimates between them. Where borewells are too far apart, it says <b>Not enough borewells</b> instead of guessing.</li>
+  </ol>
+  <p>Click any layer or estimate to see where it comes from. Use <b class="ui">Save</b> to keep the line, or <b class="ui">Save as picture</b>.</p>
+
+  <h2 id="reports">9. Reports and pictures</h2>
+  <ul>
+    <li>On a borewell: <b class="ui">Make PDF report</b> for printing and sharing, or <b class="ui">Save as picture</b> for the drawing.</li>
+    <li><b class="ui">Export</b>: a PDF report or an Excel workbook of all borewells, one zone, or the ones you tick.</li>
+  </ul>
+
+  <h2 id="offline">10. Using it without internet</h2>
+  <p>Everything works without internet except looking up an address. For the map to show streets offline, for example at a drilling site, download it once while connected:</p>
+  <p><b class="ui">Settings &amp; backup</b> → <b>Map without internet</b> → <b class="ui">Download the Lucknow map</b> (about 6 MB).</p>
+
+  <h2 id="backup">11. Keeping your data safe</h2>
+  <ul>
+    <li>StrataField makes a <b>backup every day</b> by itself and keeps the last 10. You can also choose <b class="ui">Back up now</b> on Home or in Settings.</li>
+    <li>Backups are on this computer. <b>Now and then, copy one to a USB drive or cloud folder</b>: in Settings, <b class="ui">Open backup folder</b> shows them.</li>
+    <li>To go back to an earlier state, choose <b class="ui">Restore</b> next to a backup. A copy of how things are now is saved first, so a restore can be undone.</li>
+    <li>Deleting a borewell moves it to the <b class="ui">Recycle bin</b>, from where it can be restored.</li>
+  </ul>
+  <div class="note">Your data is in the folder <code>%APPDATA%\Strata</code>. Settings shows it and can open it. Do not edit files there by hand.</div>
+
+  <h2 id="updates">12. Updates</h2>
+  <p>When a newer StrataField is available, a message offers <b class="ui">Install and restart</b>. StrataField closes, updates and opens again in about a minute; your data is not touched. You can also check in <b class="ui">Settings &amp; backup</b> → <b>About</b> → <b class="ui">Check for updates</b>. Nothing is installed unless you choose to.</p>
+
+  <h2 id="uninstall">13. Moving to another computer, or uninstalling</h2>
+  <ul>
+    <li><b>To move to a new computer:</b> install StrataField there, then in <b class="ui">Settings &amp; backup</b> choose <b class="ui">Restore from a file…</b> and pick a backup copied from the old computer.</li>
+    <li><b>To uninstall:</b> Windows <b>Settings → Apps → StrataField → Uninstall</b>. The app is removed but <b>your data is kept</b> in <code>%APPDATA%\Strata</code>, so reinstalling brings everything back.</li>
+  </ul>
+
+  <footer>
+    StrataField · Borewell records for Windows · Map data © OpenStreetMap contributors.
+  </footer>
+</main>
+</body>
+</html>

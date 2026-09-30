@@ -60,6 +60,7 @@ pub fn run() {
             commands::backup_restore,
             commands::legacy_import,
             commands::open_folder,
+            commands::open_guide,
             offline_map::offline_map_status,
             offline_map::offline_map_download,
             offline_map::offline_map_remove,

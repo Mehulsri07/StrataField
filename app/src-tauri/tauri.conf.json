@@ -59,11 +59,15 @@
         ],
         "displayLanguageSelector": false,
         "startMenuFolder": "StrataField",
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "windows/hooks.nsh"
       }
     },
     "copyright": "© 2026 Mehul",
-    "longDescription": "Record borewells, soil layers, pipes and water levels; see them on a map and in cross-sections. Works offline; data stays on this computer."
+    "longDescription": "Record borewells, soil layers, pipes and water levels; see them on a map and in cross-sections. Works offline; data stays on this computer.",
+    "resources": {
+      "resources/Getting started.html": "Getting started.html"
+    }
   },
   "plugins": {
     "updater": {

@@ -300,6 +300,26 @@ pub fn open_folder(app: tauri::AppHandle, state: State<AppState>, which: String)
         .map_err(|e| format!("Could not open the folder: {e}"))
 }
 
+/// Opens the getting-started guide that is installed with the app, in the usual web browser.
+#[tauri::command]
+pub fn open_guide(app: tauri::AppHandle) -> Res<()> {
+    use tauri::Manager;
+    use tauri_plugin_opener::OpenerExt;
+    let guide = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?
+        .join("Getting started.html");
+    if !guide.is_file() {
+        return Err(
+            "The getting-started guide is missing. Reinstall StrataField to bring it back.".into(),
+        );
+    }
+    app.opener()
+        .open_path(guide.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Could not open the guide: {e}"))
+}
+
 /// Imports data from the older StrataField app. Start-up does this automatically once;
 /// this lets the user bring in another old database file.
 #[tauri::command]

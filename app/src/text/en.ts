@@ -49,6 +49,11 @@ export const en = {
     notConnected: "Your data could not be opened",
   },
 
+  guide: {
+    open: "Open the getting-started guide",
+    short: "Getting started",
+  },
+
   updates: {
     available: (v: string) => `StrataField ${v} is available`,
     howItWorks: "Installing takes a minute: StrataField closes, updates and opens again. Your data is not touched.",
