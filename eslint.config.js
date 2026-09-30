@@ -19,8 +19,8 @@ export default tseslint.config(
     },
   },
   {
-    // End-to-end test scripts run in Node.
-    files: ["e2e/**/*.mjs"],
+    // End-to-end tests and build scripts run in Node.
+    files: ["e2e/**/*.mjs", "scripts/**/*.mjs"],
     languageOptions: { globals: { ...globals.node } },
   },
 );
