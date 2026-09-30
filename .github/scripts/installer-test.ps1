@@ -1,11 +1,12 @@
 # Clean-machine test of the StrataField installer (run on a fresh GitHub Windows runner).
 #
-#   1. Silent install for the current user; the app and its Start menu shortcut exist.
+#   1. Silent install for the current user; the app, its Start menu shortcut and the getting-started
+#      guide (with its own shortcut) exist.
 #   2. First start: the window stays open and the shared database is created.
 #      Records how long that took and how much memory the app uses (with its WebView2 processes).
 #   3. Second start: opens the existing database.
 #   4. Installing again over the top (an upgrade) keeps the data.
-#   5. Uninstalling removes the app but keeps the data in %APPDATA%\Strata.
+#   5. Uninstalling removes the app and the guide's shortcut but keeps the data in %APPDATA%\Strata.
 #
 # Figures go to the job summary so each run shows installer size, installed size, start-up time and memory.
 param([Parameter(Mandatory)] [string] $Installer)
@@ -67,6 +68,11 @@ $shortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -
 if (-not $shortcut) { Fail "no Start menu shortcut" }
 $installedMB = [math]::Round(((Get-ChildItem $installDir -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 2)
 Write-Host "Installed to $installDir ($installedMB MB); shortcut $($shortcut.FullName)"
+$guide = Join-Path $installDir 'Getting started.html'
+if (-not (Test-Path $guide)) { Fail "the getting-started guide was not installed ($guide)" }
+$guideShortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Getting started with StrataField.lnk' -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $guideShortcut) { Fail "no Start menu shortcut to the getting-started guide" }
+Write-Host "Guide installed, with Start menu shortcut $($guideShortcut.FullName)"
 
 Step "2. First start"
 $first = Start-App
@@ -96,6 +102,7 @@ $p = Start-Process $uninstaller -ArgumentList '/S', "_?=$installDir" -Wait -Pass
 if ($p.ExitCode -ne 0) { Fail "uninstaller exited with code $($p.ExitCode)" }
 if (Test-Path $exePath) { Fail "the app is still there after uninstalling" }
 if (-not (Test-Path $db)) { Fail "uninstalling deleted the user's data" }
+if (Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Getting started with StrataField.lnk' -ErrorAction SilentlyContinue) { Fail "the guide's Start menu shortcut was left behind" }
 Write-Host "App removed; data kept at $db"
 
 $summary = @"

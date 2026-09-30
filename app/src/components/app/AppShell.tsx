@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "@/lib/theme";
-import { CircleAlert, Moon, Palette, Search, Sun } from "lucide-react";
+import { BookOpen, CircleAlert, Moon, Palette, Search, Sun } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PatternDefs } from "@/components/geology/patterns";
@@ -10,7 +11,7 @@ import { StartupNotice } from "./StartupNotice";
 import { UpdateNotice } from "./UpdateNotice";
 import { NAV, titleFor } from "./nav";
 import { useStartup, useSummary, type Summary } from "@/lib/hooks";
-import { isPreview } from "@/lib/api";
+import { api, isPreview } from "@/lib/api";
 import { formatWhen } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "@/lib/utils";
@@ -99,6 +100,11 @@ function Sidebar({ summary }: { summary: Summary | null }) {
         ))}
       </nav>
       <div className="mt-auto grid gap-1 px-4 text-xs text-muted-foreground">
+        {!isPreview && (
+          <button type="button" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} className="inline-flex items-center gap-1.5 text-left hover:text-foreground">
+            <BookOpen className="size-3.5" aria-hidden="true" /> {text.guide.short}
+          </button>
+        )}
         {(isPreview || import.meta.env.DEV) && (
           <NavLink to="/design" className="inline-flex items-center gap-1.5 hover:text-foreground">
             <Palette className="size-3.5" aria-hidden="true" /> Design system

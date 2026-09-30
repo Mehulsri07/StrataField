@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import type { BackupInfo, LegacyImportReport, LithologyFamily, Material } from "@strata/core";
-import { FolderOpen, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
+import { BookOpen, FolderOpen, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -465,6 +465,7 @@ function About() {
               : update.progress === null ? text.updates.downloading : text.updates.downloadingPct(Math.round(update.progress * 100))}
           </Button>
         )}
+        <Button variant="ghost" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} disabled={isPreview}><BookOpen />{text.guide.open}</Button>
         <Button variant="ghost" onClick={() => api.backups.openFolder("data").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open data folder</Button>
       </div>
       {update.state === "none" && info.data && <p className="text-sm text-muted-foreground" role="status">{text.updates.upToDate(info.data.version)}</p>}
