@@ -3,6 +3,7 @@
 //   npm run e2e                     uses target/debug/stratafield.exe
 //   STRATA_EXE=... npm run e2e      another build (e.g. target/release/stratafield.exe)
 //   E2E_REAL_DIALOGS=1 npm run e2e  also saves PDF and Excel through the real Windows Save dialog
+//   E2E_OFFLINE_MAP=0 npm run e2e   skips downloading the Lucknow map (needs internet)
 //                                   (CI does this; locally the window must not be in use)
 //
 // Opens an app window. Everything runs on a scratch data folder with made-up data.
@@ -199,6 +200,34 @@ try {
     return { pins: document.querySelectorAll('.leaflet-overlay-pane path.leaflet-interactive, .strata-cluster').length,
       heat: !!document.querySelector('.leaflet-image-layer, .leaflet-overlay-pane canvas, .leaflet-overlay-pane img') };`);
   check("The map shows the borewells with water-depth colours", map.pins >= 1 && map.heat, JSON.stringify(map));
+
+  // ── Map without internet (needs internet once, to download it) ─────────
+  if (process.env.E2E_OFFLINE_MAP !== "0") {
+    const offline = await page(`
+      location.hash = '#/settings#offline-map';
+      const button = await __t.until(() => __t.btn('Download the Lucknow map'), 8000);
+      button.click();
+      await __t.until(() => /Downloaded/.test(document.getElementById('offline-map')?.closest('section')?.innerText ?? ''), 90000);
+      const status = await __t.invoke('offline_map_status');
+      location.hash = '#/map';
+      // The downloaded map is drawn into canvas tiles; count the ones with something drawn on them.
+      const drawn = await __t.until(() => {
+        const tiles = [...document.querySelectorAll('.leaflet-tile-pane canvas')];
+        const painted = tiles.filter(c => {
+          try {
+            const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+            const seen = new Set();
+            for (let i = 0; i < d.length; i += 4 * 97) seen.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]);
+            return seen.size > 3;   // more than a flat background: streets, water, labels…
+          } catch { return false; }
+        });
+        return painted.length >= 2 ? { tiles: tiles.length, painted: painted.length } : null;
+      }, 20000).catch(() => ({ tiles: document.querySelectorAll('.leaflet-tile-pane canvas').length, painted: 0 }));
+      const online = document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').length;
+      return { installed: status.installed, mb: Math.round(status.sizeBytes / 1048576 * 10) / 10, ...drawn, online };`);
+    check("Map without internet: the Lucknow map downloads from Settings", offline.installed && offline.mb > 1, `${offline.mb} MB`);
+    check("…and the Map screen draws streets from it instead of online tiles", offline.painted >= 2 && offline.online === 0, JSON.stringify(offline));
+  }
 
   const section = await page(`
     location.hash = '#/section'; await __t.until(() => __t.btn('North to south'), 8000);
