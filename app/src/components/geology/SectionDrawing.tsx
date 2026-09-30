@@ -9,6 +9,14 @@ export interface SectionWell {
   strata: StrataLayer[];
 }
 
+/** Heights above sea level, for drawing borewells at their ground height (feet). */
+export interface SectionGround {
+  /** Ground height at each borewell, or null when not known. */
+  heightFt: (well: SectionWell) => number | null;
+  /** Ground height along the line, for drawing the ground's shape. */
+  profile: { km: number; ft: number | null }[];
+}
+
 const W = 1100, LEFT = 58, RIGHT = 30, TOP = 64, H = 330, COL = 16;
 
 /**
@@ -16,7 +24,7 @@ const W = 1100, LEFT = 58, RIGHT = 30, TOP = 64, H = 330, COL = 16;
  * borewells" where they are too far apart. Every layer and estimate can be clicked for its details.
  */
 export function SectionDrawing({
-  placed, lengthKm, showEstimates = true, showWater = true, selectedKey, onLayer, onEstimate, forPrint,
+  placed, lengthKm, showEstimates = true, showWater = true, selectedKey, onLayer, onEstimate, forPrint, ground,
 }: {
   placed: Placed<SectionWell>[];
   lengthKm: number;
@@ -26,8 +34,16 @@ export function SectionDrawing({
   onLayer?: (layer: StrataLayer, well: SectionWell) => void;
   onEstimate?: (selection: Extract<LayerSelection, { kind: "estimated" }>, key: string) => void;
   forPrint?: boolean;
+  /** When given, borewells stand at their ground height and the scale shows height above sea level. */
+  ground?: SectionGround;
 }) {
-  const maxDepth = Math.max(100, Math.ceil(Math.max(0, ...placed.map((p) => p.item.borewell.totalDepth ?? Math.max(0, ...p.item.strata.map((l) => l.endDepth)))) / 50) * 50);
+  const depthOf = (p: Placed<SectionWell>) => p.item.borewell.totalDepth ?? Math.max(0, ...p.item.strata.map((l) => l.endDepth));
+  // With heights: everything is measured down from the highest ground on the line (topFt).
+  const heights = new Map(placed.map((p) => [p, ground?.heightFt(p.item) ?? null]));
+  const topFt = ground ? Math.max(...[...heights.values(), ...ground.profile.map((g) => g.ft)].filter((v): v is number => v != null), -Infinity) : 0;
+  const hasHeights = ground != null && Number.isFinite(topFt);
+  const off = (p: Placed<SectionWell>) => (hasHeights && heights.get(p) != null ? topFt - heights.get(p)! : 0);
+  const maxDepth = Math.max(100, Math.ceil(Math.max(0, ...placed.map((p) => off(p) + depthOf(p))) / 50) * 50);
   const X = (km: number) => LEFT + (km / Math.max(lengthKm, 0.01)) * (W - LEFT - RIGHT);
   // Borewells at (almost) the same distance along the line would draw on top of each other, so
   // their columns are nudged apart just enough to see both. Distances in the table stay exact.
@@ -35,6 +51,8 @@ export function SectionDrawing({
   placed.forEach((p, i) => colX.push(i === 0 ? X(p.alongKm) : Math.max(X(p.alongKm), colX[i - 1] + COL + 6)));
   const at = (p: Placed<SectionWell>) => colX[placed.indexOf(p)];
   const Y = (d: number) => TOP + (d / maxDepth) * H;
+  /** Position of a depth below a borewell's ground. */
+  const Yp = (p: Placed<SectionWell>, d: number) => Y(off(p) + d);
   const step = lengthKm > 12 ? 2 : lengthKm > 4 ? 1 : 0.5;
   const ticks = Array.from({ length: Math.floor(lengthKm / step) + 1 }, (_, i) => i * step);
   const clickable = !forPrint;
@@ -67,11 +85,12 @@ export function SectionDrawing({
       pairs.forEach(([ia, ib]) => {
         const ra = RA[ia], rb = RB[ib], key = `u${i}-${ia}-${ib}`;
         const open = onEstimate && (() => onEstimate({ kind: "estimated", family: ra.family, confidence, distanceKm: gap, sides: [{ borewell: A.item.borewell, top: ra.top, bottom: ra.bottom }, { borewell: B.item.borewell, top: rb.top, bottom: rb.bottom }] }, key));
+        const [at1, ab1, bt1, bb1] = [Yp(A, ra.top), Yp(A, ra.bottom), Yp(B, rb.top), Yp(B, rb.bottom)];
         between.push(
           <g key={key} {...button(`Estimated ${ra.family.toLowerCase()} layer between ${A.item.borewell.borewellId} and ${B.item.borewell.borewellId}`, open)}>
-            <path d={`M${xa} ${Y(ra.top)}L${xb} ${Y(rb.top)}L${xb} ${Y(rb.bottom)}L${xa} ${Y(ra.bottom)}Z`} fill={FAMILY_COLOURS[ra.family]} fillOpacity={selectedKey === key ? Math.min(0.85, opacity + 0.3) : opacity} />
-            <path d={`M${xa} ${Y(ra.bottom)}L${xb} ${Y(rb.bottom)}`} stroke="var(--foreground)" strokeOpacity="0.55" strokeDasharray={dash} fill="none" />
-            {!forPrint && <path className="hl opacity-0" d={`M${xa} ${Y(ra.top)}L${xb} ${Y(rb.top)}L${xb} ${Y(rb.bottom)}L${xa} ${Y(ra.bottom)}Z`} fill="none" stroke="var(--primary)" strokeWidth="2" />}
+            <path d={`M${xa} ${at1}L${xb} ${bt1}L${xb} ${bb1}L${xa} ${ab1}Z`} fill={FAMILY_COLOURS[ra.family]} fillOpacity={selectedKey === key ? Math.min(0.85, opacity + 0.3) : opacity} />
+            <path d={`M${xa} ${ab1}L${xb} ${bb1}`} stroke="var(--foreground)" strokeOpacity="0.55" strokeDasharray={dash} fill="none" />
+            {!forPrint && <path className="hl opacity-0" d={`M${xa} ${at1}L${xb} ${bt1}L${xb} ${bb1}L${xa} ${ab1}Z`} fill="none" stroke="var(--primary)" strokeWidth="2" />}
           </g>,
         );
       });
@@ -86,7 +105,7 @@ export function SectionDrawing({
           const open = onEstimate && (() => onEstimate({ kind: "estimated", family: r.family as LithologyFamily, confidence, distanceKm: gap, sides }, key));
           between.push(
             <g key={key} {...button(`${r.family.toLowerCase()} layer only at ${self.item.borewell.borewellId}`, open)}>
-              <path d={`M${xs} ${Y(r.top)}L${xm} ${Y((r.top + r.bottom) / 2)}L${xs} ${Y(r.bottom)}Z`} fill={FAMILY_COLOURS[r.family]} fillOpacity={selectedKey === key ? Math.min(0.85, opacity + 0.3) : opacity} stroke="var(--foreground)" strokeOpacity="0.45" strokeDasharray={dash} />
+              <path d={`M${xs} ${Yp(self, r.top)}L${xm} ${Yp(self, (r.top + r.bottom) / 2)}L${xs} ${Yp(self, r.bottom)}Z`} fill={FAMILY_COLOURS[r.family]} fillOpacity={selectedKey === key ? Math.min(0.85, opacity + 0.3) : opacity} stroke="var(--foreground)" strokeOpacity="0.45" strokeDasharray={dash} />
             </g>,
           );
         });
@@ -95,7 +114,7 @@ export function SectionDrawing({
     }
     const wa = A.item.borewell.waterLevel, wb = B.item.borewell.waterLevel;
     if (showWater && wa != null && wb != null) {
-      between.push(<path key={`w${i}`} d={`M${xa} ${Y(wa)}L${xb} ${Y(wb)}`} stroke="var(--water)" strokeWidth="1.8" strokeDasharray={dash} fill="none" pointerEvents="none" />);
+      between.push(<path key={`w${i}`} d={`M${xa} ${Yp(A, wa)}L${xb} ${Yp(B, wb)}`} stroke="var(--water)" strokeWidth="1.8" strokeDasharray={dash} fill="none" pointerEvents="none" />);
     }
   }
 
@@ -109,10 +128,15 @@ export function SectionDrawing({
       {Array.from({ length: maxDepth / 50 + 1 }, (_, i) => i * 50).map((d) => (
         <g key={d}>
           <path d={`M${LEFT} ${Y(d)}H${W - RIGHT}`} stroke="var(--border)" strokeDasharray={d ? "2 4" : undefined} />
-          <text x={LEFT - 8} y={Y(d) + 4} textAnchor="end" fontSize="10.5" fill="var(--muted-foreground)">{d}</text>
+          <text x={LEFT - 8} y={Y(d) + 4} textAnchor="end" fontSize="10.5" fill="var(--muted-foreground)">{hasHeights ? Math.round(topFt - d) : d}</text>
         </g>
       ))}
-      <text x={LEFT - 8} y={TOP - 10} textAnchor="end" fontSize="10.5" fill="var(--muted-foreground)">depth, ft</text>
+      <text x={LEFT - 8} y={TOP - 10} textAnchor="end" fontSize="10.5" fill="var(--muted-foreground)">{hasHeights ? "height, ft" : "depth, ft"}</text>
+      {hasHeights && ground && (
+        // The ground's shape along the line (approximate heights from elevation data).
+        <path d={ground.profile.filter((g) => g.ft != null).map((g, i) => `${i ? "L" : "M"}${X(g.km).toFixed(1)} ${Y(topFt - g.ft!).toFixed(1)}`).join("")}
+          fill="none" stroke="#6b8e23" strokeWidth="2" strokeLinejoin="round" pointerEvents="none" />
+      )}
       {ticks.map((k) => <text key={k} x={X(k)} y={TOP + H + 18} textAnchor="middle" fontSize="10.5" fill="var(--muted-foreground)">{k}</text>)}
       <text x={W - RIGHT} y={TOP + H + 36} textAnchor="end" fontSize="11" fill="var(--muted-foreground)">km from A</text>
       <text x={LEFT} y="18" fontSize="15" fontWeight="600" fill="var(--foreground)">A</text>
@@ -137,18 +161,18 @@ export function SectionDrawing({
               return (
                 <g key={l.id} {...button(`${l.material}, ${l.startDepth} to ${l.endDepth} ft, at ${b.borewellId}`, onLayer && (() => onLayer(l, p.item)))}>
                   <title>{`${b.borewellId}: ${l.material}, ${l.startDepth} to ${l.endDepth} ft`}</title>
-                  <rect x={x} y={Y(l.startDepth)} width={COL} height={Math.max(0, Y(l.endDepth) - Y(l.startDepth))} fill={l.color} />
-                  <rect x={x} y={Y(l.startDepth)} width={COL} height={Math.max(0, Y(l.endDepth) - Y(l.startDepth))} fill={patternFill(l.pattern)} />
-                  {!forPrint && <rect className={selectedKey === key ? "hl" : "hl opacity-0"} x={x - 1.5} y={Y(l.startDepth) - 1} width={COL + 3} height={Math.max(0, Y(l.endDepth) - Y(l.startDepth)) + 2} fill="none" stroke="var(--primary)" strokeWidth="2" />}
+                  <rect x={x} y={Yp(p, l.startDepth)} width={COL} height={Math.max(0, Yp(p, l.endDepth) - Yp(p, l.startDepth))} fill={l.color} />
+                  <rect x={x} y={Yp(p, l.startDepth)} width={COL} height={Math.max(0, Yp(p, l.endDepth) - Yp(p, l.startDepth))} fill={patternFill(l.pattern)} />
+                  {!forPrint && <rect className={selectedKey === key ? "hl" : "hl opacity-0"} x={x - 1.5} y={Yp(p, l.startDepth) - 1} width={COL + 3} height={Math.max(0, Yp(p, l.endDepth) - Yp(p, l.startDepth)) + 2} fill="none" stroke="var(--primary)" strokeWidth="2" />}
                 </g>
               );
             })}
-            <rect x={x} y={TOP} width={COL} height={Math.max(0, Y(depth) - TOP)} fill="none" stroke="var(--foreground)" strokeWidth="1.4" pointerEvents="none" />
-            {showWater && b.waterLevel != null && <path d={`M${x - 5} ${Y(b.waterLevel)}H${x + COL + 5}`} stroke="var(--water)" strokeWidth="2.5" pointerEvents="none" />}
+            <rect x={x} y={Yp(p, 0)} width={COL} height={Math.max(0, Yp(p, depth) - Yp(p, 0))} fill="none" stroke="var(--foreground)" strokeWidth="1.4" pointerEvents="none" />
+            {showWater && b.waterLevel != null && <path d={`M${x - 5} ${Yp(p, b.waterLevel)}H${x + COL + 5}`} stroke="var(--water)" strokeWidth="2.5" pointerEvents="none" />}
             <text x={x + COL / 2} y={labelY} textAnchor="middle" fontSize="11" fontWeight="600" fill="var(--foreground)" paintOrder="stroke" stroke="var(--card)" strokeWidth="3">
               {(b.area.includes(",") ? b.area.split(",").pop()!.trim() : b.area) || b.borewellId}
             </text>
-            <path d={`M${x + COL / 2} ${labelY + 4}V${TOP - 2}`} stroke="var(--input)" />
+            <path d={`M${x + COL / 2} ${labelY + 4}V${Yp(p, 0) - 2}`} stroke="var(--input)" />
           </g>
         );
       })}
