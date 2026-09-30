@@ -71,11 +71,13 @@ try {
     return 'detail with drawing';`);
   await timed("Home shows (numbers, water map, recent)", 4000, `
     location.hash = '#/';
-    await __t.until(() => /Recently added/.test(__t.text()) && document.querySelector('.leaflet-image-layer, .leaflet-overlay-pane canvas, .leaflet-overlay-pane img'), 30000);
+    await __t.until(() => /Recently added/.test(__t.text()) && document.querySelector('main .leaflet-image-layer'), 30000);
     return 'ready';`);
   await timed("Map shows pins and water colours", 4000, `
     location.hash = '#/map';
-    await __t.until(() => document.querySelectorAll('.strata-cluster, .leaflet-overlay-pane path.leaflet-interactive').length > 0 && document.querySelector('.leaflet-image-layer, .leaflet-overlay-pane canvas, .leaflet-overlay-pane img'), 30000);
+    // Wait for the Map screen itself (not Home's map, which is still showing for a moment).
+    await __t.until(() => /^Map/.test(document.querySelector('main h2')?.innerText ?? ''), 30000);
+    await __t.until(() => document.querySelectorAll('.strata-cluster, .leaflet-overlay-pane path.leaflet-interactive').length > 0 && document.querySelector('main .leaflet-image-layer'), 30000);
     return document.querySelectorAll('.strata-cluster').length + ' groups';`);
   await timed("Cross-section draws an example line", 3000, `
     location.hash = '#/section';

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import type { WaterPoint } from "@strata/core";
-import { estimateWater, waterColour, WATER_RAMP } from "@strata/core";
+import { WaterIndex, waterColour, WATER_RAMP } from "@strata/core";
 
 const MARGIN_DEG = 0.035; // about 3.5 km around the borewells
 const CELLS = 180; // grid resolution across the longer side
@@ -28,11 +28,12 @@ export function WaterLayer({ points, opacity = 0.75 }: { points: WaterPoint[]; o
     grid.height = rows;
     const g = grid.getContext("2d")!;
     const img = g.createImageData(cols, rows);
+    const index = new WaterIndex(points); // each cell looks only at nearby borewells
     for (let y = 0; y < rows; y++) {
       const lat = north - ((y + 0.5) / rows) * (north - south);
       for (let x = 0; x < cols; x++) {
         const lon = west + ((x + 0.5) / cols) * (east - west);
-        const e = estimateWater(lat, lon, points);
+        const e = index.estimate(lat, lon);
         if (!e || e.strength <= 0) continue;
         const [r, gr, b] = waterColour(e.value);
         const i = (y * cols + x) * 4;

@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 
 type SortKey = "borewellId" | "date" | "totalDepth" | "waterLevel";
 const ALL = "all";
+/** Rows shown at first, and added by "Show more": thousands of rows at once make the screen slow. */
+const PAGE = 200;
 
 export function Borewells() {
   const navigate = useNavigate();
@@ -66,6 +68,11 @@ export function Borewells() {
   const materials = useLoad("materials", () => api.materials.list());
 
   const sorted = useMemo(() => sortRows(rows.data ?? [], sort.key, sort.desc), [rows.data, sort]);
+  // How many rows to show; starts again at one page whenever the filters or sorting change.
+  const listKey = JSON.stringify([filters, sort]);
+  const [page, setPage] = useState({ key: listKey, rows: PAGE });
+  const shownCount = page.key === listKey ? page.rows : PAGE;
+  const shown = sorted.length > shownCount ? sorted.slice(0, shownCount) : sorted;
   const clear = () => {
     setQuery(""); setZone(ALL); setSoil(ALL); setNoLocation(false);
     setRange({ minDepth: "", maxDepth: "", minWater: "", maxWater: "", from: "", to: "" });
@@ -149,7 +156,7 @@ export function Borewells() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sorted.map(({ borewell: b, strata }) => (
+              {shown.map(({ borewell: b, strata }) => (
                 <TableRow
                   key={b.id}
                   tabIndex={0}
@@ -192,7 +199,14 @@ export function Borewells() {
           )}
         </div>
         <div className="flex flex-wrap justify-between gap-2 px-4 py-2.5 text-xs text-muted-foreground">
-          <span>Showing {sorted.length} of {total.data?.length ?? "…"}</span>
+          <span className="flex items-center gap-3">
+            Showing {shown.length} of {sorted.length === total.data?.length ? sorted.length : `${sorted.length} found (${total.data?.length ?? "…"} in all)`}
+            {shown.length < sorted.length && (
+              <Button variant="outline" size="sm" onClick={() => setPage({ key: listKey, rows: shownCount + PAGE })}>
+                Show {Math.min(PAGE, sorted.length - shown.length)} more
+              </Button>
+            )}
+          </span>
           <span>All depths in feet</span>
         </div>
       </section>

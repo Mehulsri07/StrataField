@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { corridorPolygon, coverageFor, exampleLines, familyRuns, matchRuns, placeAlongLine } from './section';
+import { thinAlongLine, corridorPolygon, coverageFor, exampleLines, familyRuns, matchRuns, placeAlongLine } from './section';
 import type { StrataLayer } from './types';
 
 const L = (start: number, end: number, materialId: string): StrataLayer => ({
@@ -77,5 +77,27 @@ describe('coverage and example lines', () => {
     expect(lines.northSouth[0][1]).toBeCloseTo(80.95);
     expect(lines.westEast[0][0]).toBeCloseTo(26.85);
     expect(exampleLines([{ latitude: 26.8, longitude: 80.9 }])).toBeNull();
+  });
+});
+
+describe('thinAlongLine', () => {
+  const placed = Array.from({ length: 1000 }, (_, i) => ({ item: i, alongKm: (i / 1000) * 20, offsetKm: ((i * 37) % 100) / 50 - 1, foot: [0, 0] as [number, number] }));
+
+  it('keeps everything when there are few borewells', () => {
+    expect(thinAlongLine(placed.slice(0, 50), 20)).toHaveLength(50);
+  });
+
+  it('keeps at most the limit, spread along the line, closest to the line, in order', () => {
+    const kept = thinAlongLine(placed, 20, 80);
+    expect(kept).toHaveLength(80);
+    expect(kept.every((p, i) => i === 0 || p.alongKm > kept[i - 1].alongKm)).toBe(true);
+    expect(kept[0].alongKm).toBeLessThan(0.25);
+    expect(kept[kept.length - 1].alongKm).toBeGreaterThan(19.7);
+    // In each stretch, nothing kept is farther from the line than a borewell that was dropped there.
+    const inBin = (p: { alongKm: number }) => Math.floor((p.alongKm / 20) * 80);
+    for (const k of kept) {
+      const same = placed.filter(p => inBin(p) === inBin(k));
+      expect(Math.abs(k.offsetKm)).toBe(Math.min(...same.map(p => Math.abs(p.offsetKm))));
+    }
   });
 });
