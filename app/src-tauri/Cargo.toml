@@ -1,6 +1,6 @@
 [package]
 name = "stratafield"
-version = "1.0.0"
+version = "1.0.1"
 description = "StrataField: borewell logging and geological strata records"
 authors = ["Mehul"]
 license = "MIT"

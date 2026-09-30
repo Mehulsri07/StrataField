@@ -239,7 +239,8 @@ $env:STRATA_DATA_DIR = "$env:TEMP\strata-dev"; npm run dev
   signature (`.sig`) and `latest.json`.
 
 To release a new version: set the same version in `app/package.json`, `app/src-tauri/Cargo.toml`
-and `app/src-tauri/tauri.conf.json`, merge, then tag the merge commit (`git tag -a v1.0.1 -m ...`
+and `app/src-tauri/tauri.conf.json`, add a section for it at the top of [CHANGELOG.md](CHANGELOG.md)
+(it becomes the "What's new" part of the release notes; the release stops if it is missing), merge, then tag the merge commit (`git tag -a v1.0.1 -m ...`
 and `git push origin v1.0.1`). Check the draft release and publish it.
 
 ### Automatic updates
