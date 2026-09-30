@@ -17,6 +17,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   recent errors, with no borewell details. You see it before copying; nothing is sent by itself.
 - **Cross-sections as PDF.** **Save as PDF** on the Cross-section screen makes a report: the drawing
   with a key, what the line is, and a table of the borewells used along it.
+- **Heights in cross-sections.** Under **More options**, **Show heights above sea level** stands each
+  borewell at its ground height and draws the ground's shape, so layers line up by real height.
+  Heights come with the app (approximate, from satellite elevation data) and work without internet.
 
 ## [1.0.1] - 2026-09-30
 

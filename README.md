@@ -288,6 +288,14 @@ only Electron-related code left in `main` is the one-time import of the old app'
   QGIS).
 - Later, only if there is a clear need: sync between computers, several users, mobile.
 
+## Data sources
+
+- **Maps:** © OpenStreetMap contributors (ODbL). The downloadable Lucknow map is built with
+  Protomaps (`.github/workflows/map-data.yml`).
+- **Ground heights** (`app/src/assets/lucknow-elevation.bin`, built by `scripts/build-elevation.mjs`):
+  Terrain Tiles on AWS (https://registry.opendata.aws/terrain-tiles/), which around Lucknow come from
+  SRTM (NASA). Approximate: a few metres, partly including buildings in built-up areas.
+
 ## License
 
 MIT

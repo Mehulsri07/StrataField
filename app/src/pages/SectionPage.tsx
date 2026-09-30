@@ -3,8 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { useNavigate } from "react-router-dom";
 import { Marker, Polygon, Polyline, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
-import type { Section } from "@strata/core";
-import { COVERAGE_KM, MAX_SECTION_BOREWELLS, corridorPolygons, exampleLines, midpoints, placeAlongPath, thinAlongLine, type LatLon } from "@strata/core";
+import type { ElevationGrid, Section } from "@strata/core";
+import { METRES_TO_FEET, groundProfile, heightAt, parseElevationGrid, COVERAGE_KM, MAX_SECTION_BOREWELLS, corridorPolygons, exampleLines, midpoints, placeAlongPath, thinAlongLine, type LatLon } from "@strata/core";
 import { toast } from "sonner";
 import { Check, Eraser, FolderOpen, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Chip } from "@/components/app/Chip";
 import { useConfirm } from "@/components/app/Confirm";
 import { BaseMap } from "@/components/map/BaseMap";
 import { BorewellPins } from "@/components/map/BorewellPins";
-import { SectionDrawing, type SectionWell } from "@/components/geology/SectionDrawing";
+import { SectionDrawing, type SectionGround, type SectionWell } from "@/components/geology/SectionDrawing";
 import { FAMILY_COLOURS } from "@/components/geology/LayerDialog";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, isPreview } from "@/lib/api";
@@ -58,6 +58,8 @@ export function SectionPage() {
   const [half, setHalf] = useState(2);
   const [showEstimates, setShowEstimates] = useState(true);
   const [showWater, setShowWater] = useState(true);
+  const [showHeights, setShowHeights] = useState(false);
+  const [grid, setGrid] = useState<ElevationGrid | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [openSectionId, setOpenSectionId] = useState<string | null>(null);
   const [naming, setNaming] = useState<string | null>(null);
@@ -78,6 +80,28 @@ export function SectionPage() {
   }, [path, half, wells]);
   const step = b ? 3 : a ? 2 : 1;
 
+  // Ground heights (bundled with the app; loaded the first time heights are shown).
+  useEffect(() => {
+    if (!showHeights || grid) return;
+    import("@/assets/lucknow-elevation.bin?url")
+      .then((m) => fetch(m.default))
+      .then((r) => r.arrayBuffer())
+      .then((buf) => setGrid(parseElevationGrid(buf)))
+      .catch((e) => toast.error(`Ground heights could not be loaded: ${e}`));
+  }, [showHeights, grid]);
+  const ground: SectionGround | undefined = useMemo(() => {
+    if (!showHeights || !grid || path.length < 2) return undefined;
+    return {
+      // A borewell's own recorded ground height wins; otherwise the elevation data at its location.
+      heightFt: (w) => {
+        const b = w.borewell;
+        const m = b.groundElevationM ?? (b.latitude != null && b.longitude != null ? heightAt(grid, b.latitude, b.longitude) : null);
+        return m == null ? null : m * METRES_TO_FEET;
+      },
+      profile: groundProfile(grid, path, 200).map((g) => ({ km: g.km, ft: g.metres == null ? null : g.metres * METRES_TO_FEET })),
+    };
+  }, [showHeights, grid, path]);
+
   const setLine = (points: LatLon[], id: string | null = null) => { setPath(points); setSelectedKey(null); setOpenSectionId(id); setFitLine((n) => n + 1); };
   const tap = (p: LatLon) => { if (path.length < 2) { setPath([...path, p]); setSelectedKey(null); } };
   const clear = () => { setPath([]); setSelectedKey(null); setOpenSectionId(null); };
@@ -93,7 +117,7 @@ export function SectionPage() {
     if (!result) return;
     try {
       const { printableSvg, svgToPng, saveFile, fileName } = await import("@/lib/exporting");
-      const markup = renderToStaticMarkup(<SectionDrawing placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} forPrint />);
+      const markup = renderToStaticMarkup(<SectionDrawing placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} ground={ground} forPrint />);
       const png = await svgToPng(printableSvg(markup), 2);
       const name = saved.data?.find((s) => s.id === openSectionId)?.name ?? "Cross-section";
       const path = await saveFile(`${fileName(name)}.png`, "png", png.bytes);
@@ -110,7 +134,7 @@ export function SectionPage() {
       const name = saved.data?.find((s) => s.id === openSectionId)?.name ?? "Cross-section";
       const bytes = await buildSectionPdf({
         name, line: path, lengthKm: result.lengthKm, corridorKm: half, nearby: result.near,
-        drawingMarkup: renderToStaticMarkup(<SectionDrawing placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} forPrint />),
+        drawingMarkup: renderToStaticMarkup(<SectionDrawing placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} ground={ground} forPrint />),
         borewells: result.placed.map((p) => ({ borewell: p.item.borewell, alongKm: p.alongKm, offsetKm: p.offsetKm, layers: p.item.strata.length })),
       });
       const out = await saveFile(`${fileName(name)}.pdf`, "pdf", bytes);
@@ -126,7 +150,7 @@ export function SectionPage() {
       const existing = saved.data?.find((s) => s.id === openSectionId);
       const s: Section = {
         id: existing && existing.name === name ? existing.id : "",
-        name, line: path, corridorHalfKm: half, settings: { showEstimates, showWater }, createdAt: "", updatedAt: "",
+        name, line: path, corridorHalfKm: half, settings: { showEstimates, showWater, showHeights }, createdAt: "", updatedAt: "",
       };
       const out = await api.sections.save(s);
       setOpenSectionId(out.id);
@@ -142,6 +166,7 @@ export function SectionPage() {
     setHalf(s.corridorHalfKm);
     setShowEstimates(s.settings.showEstimates !== false);
     setShowWater(s.settings.showWater !== false);
+    setShowHeights(s.settings.showHeights === true);
     setLine(s.line, s.id);
   };
 
@@ -279,7 +304,7 @@ export function SectionPage() {
             </div>
             <div className="overflow-x-auto px-3 pt-2">
               <SectionDrawing
-                placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} selectedKey={selectedKey}
+                placed={result.placed} lengthKm={result.lengthKm} showEstimates={showEstimates} showWater={showWater} ground={ground} selectedKey={selectedKey}
                 onLayer={(layer) => { setSelectedKey(`l${layer.id}`); showLayer(layer); }}
                 onEstimate={(sel, key) => { setSelectedKey(key); showSelection(sel); }}
               />
@@ -290,14 +315,21 @@ export function SectionPage() {
               <Legend swatch={<><rect width="26" height="14" fill={FAMILY_COLOURS.CLAY} fillOpacity="0.22" /><path d="M0 13H26" stroke="var(--foreground)" strokeDasharray="1.5 4" /></>}>Rough estimate ({COVERAGE_KM.estimate}–{COVERAGE_KM.rough} km apart)</Legend>
               <Legend swatch={<rect width="26" height="14" fill="url(#p-diagonal)" stroke="var(--input)" />}>Not enough borewells</Legend>
               <Legend swatch={<path d="M0 7H26" stroke="var(--water)" strokeWidth="2.5" />}>Water level</Legend>
+              {ground && <Legend swatch={<path d="M0 9L9 5L17 8L26 4" stroke="#6b8e23" strokeWidth="2" fill="none" />}>Ground (approximate, from elevation data)</Legend>}
             </div>
             <details className="border-t border-border">
               <summary className="cursor-pointer px-4 py-2.5 text-[13px] font-medium text-muted-foreground">More options</summary>
               <div className="flex flex-wrap gap-5 px-4 pb-3 text-sm">
                 <label className="flex items-center gap-2"><Checkbox checked={showEstimates} onCheckedChange={(v) => setShowEstimates(!!v)} />Show estimated layers between borewells</label>
                 <label className="flex items-center gap-2"><Checkbox checked={showWater} onCheckedChange={(v) => setShowWater(!!v)} />Show water level</label>
+                <label className="flex items-center gap-2"><Checkbox checked={showHeights} onCheckedChange={(v) => setShowHeights(!!v)} />Show heights above sea level</label>
               </div>
             </details>
+            {ground && (
+              <p className="border-t border-border px-4 py-2.5 text-sm text-muted-foreground">
+                Borewells stand at their ground height, so layers line up by height above sea level. Heights come from satellite elevation data (SRTM, via Terrain Tiles on AWS) and are approximate, within a few metres; in built-up areas they partly include buildings. A borewell with a recorded ground height uses that instead.
+              </p>
+            )}
             <p className="border-t border-border px-4 py-2.5 text-sm text-muted-foreground">
               Only the coloured columns are measured. Everything between them is an estimate, and it fades where borewells are far apart. Click any layer to see where it comes from.
             </p>
