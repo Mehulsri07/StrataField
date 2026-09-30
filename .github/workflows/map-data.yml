@@ -1,0 +1,63 @@
+name: Map data
+
+# Builds the Lucknow map that StrataField downloads for use without internet (Settings → Map without
+# internet): a PMTiles file cut from Protomaps' daily OpenStreetMap build, attached to the
+# `map-data-lucknow` pre-release. Runs once a month so the map follows OpenStreetMap's updates, and
+# can be started by hand from the Actions tab.
+#
+# Map data © OpenStreetMap contributors (ODbL); built with Protomaps (https://protomaps.com).
+
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Lucknow and its surroundings: west, south, east, north.
+  BBOX: '80.75,26.65,81.15,27.05'
+  MAX_ZOOM: '15'
+  TAG: map-data-lucknow
+
+jobs:
+  build:
+    name: Build and publish the Lucknow map
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Get the pmtiles tool
+        run: |
+          gh release download --repo protomaps/go-pmtiles --pattern '*Linux_x86_64.tar.gz' --output pmtiles.tar.gz
+          tar -xzf pmtiles.tar.gz pmtiles
+          ./pmtiles version
+
+      - name: Find the newest OpenStreetMap build
+        run: |
+          for i in 0 1 2 3 4 5 6 7 8 9 10; do
+            day=$(date -u -d "-$i day" +%Y%m%d)
+            if curl -sfI "https://build.protomaps.com/$day.pmtiles" > /dev/null; then
+              echo "SOURCE=https://build.protomaps.com/$day.pmtiles" >> "$GITHUB_ENV"
+              echo "Using the build from $day"
+              exit 0
+            fi
+          done
+          echo "No Protomaps build found in the last 10 days" && exit 1
+
+      - name: Cut out Lucknow
+        run: |
+          ./pmtiles extract "$SOURCE" lucknow.pmtiles --bbox="$BBOX" --maxzoom="$MAX_ZOOM"
+          ./pmtiles show lucknow.pmtiles
+          size=$(stat -c %s lucknow.pmtiles)
+          echo "Map file: $((size / 1048576)) MB"
+          if [ "$size" -lt 1000000 ]; then echo "The map file is suspiciously small" && exit 1; fi
+
+      - name: Publish on the map-data release
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --title 'Map data: Lucknow' \
+              --notes 'The map StrataField downloads for use without internet (Settings → Map without internet). Rebuilt monthly. Map data © OpenStreetMap contributors (ODbL), built with Protomaps. This is not an app release.'
+          fi
+          gh release upload "$TAG" lucknow.pmtiles --repo "$GITHUB_REPOSITORY" --clobber

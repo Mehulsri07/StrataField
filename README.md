@@ -6,7 +6,7 @@ site. It shows the borewells on a map of the city with how deep the water is, an
 cross-sections of the layers underground between borewells.
 
 It is built for people in the field, not for developers: plain language, step-by-step screens, and
-everything works offline except map tiles and address lookup. Data stays on the computer.
+everything works offline (download the Lucknow map once in Settings) except address lookup. Data stays on the computer.
 
 **Current version: 1.0.0** (Tauri). Pilot city: Lucknow.
 
@@ -139,6 +139,7 @@ Everything is in one folder, `%APPDATA%\Strata` (Settings & backup shows it and 
 | `strata.db` | The SQLite database: borewells, layers, pipes, water readings, soil types, history, saved cross-sections, settings. |
 | `attachments/` | Copies of photos and files added to borewells, and the original Excel files of imports. |
 | `backups/` | Backups. One is made automatically each day (the last 10 are kept), plus any you make, plus safety copies before restoring or upgrading. |
+| `maps/` | The Lucknow map for use without internet, if downloaded in Settings (built monthly from OpenStreetMap data by `.github/workflows/map-data.yml`). |
 | `removed-files/` | Photos and files you removed, kept until no backup could need them, so restoring a backup brings them back. |
 
 - **One database for all Strata apps.** StrataVision will open the same `strata.db`; anything added

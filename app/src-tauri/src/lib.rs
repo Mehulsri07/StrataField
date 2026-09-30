@@ -1,5 +1,6 @@
 mod commands;
 mod geocode;
+mod offline_map;
 mod photo;
 mod state;
 
@@ -57,6 +58,10 @@ pub fn run() {
             commands::backup_restore,
             commands::legacy_import,
             commands::open_folder,
+            offline_map::offline_map_status,
+            offline_map::offline_map_download,
+            offline_map::offline_map_remove,
+            offline_map::offline_map_read,
             commands::setting_get,
             commands::setting_set,
             commands::geocode_address,
