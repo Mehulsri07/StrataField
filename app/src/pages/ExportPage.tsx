@@ -138,7 +138,7 @@ function Choice({ selected, onClick, title, body, icon }: { selected: boolean; o
   return (
     <button type="button" role="radio" aria-checked={selected} onClick={onClick}
       className={cn("grid grid-cols-[auto_1fr] items-start gap-x-3 rounded-md border px-3.5 py-3 text-left [&_svg]:size-5 [&_svg]:text-primary",
-        selected ? "border-primary bg-accent" : "border-border bg-card hover:border-input")}>
+        selected ? "border-primary bg-accent" : "border-border hover:border-input")}>
       {icon ? <span className="row-span-2 pt-0.5">{icon}</span> : <span className={cn("row-span-2 mt-1 size-4 rounded-full border-2", selected ? "border-primary bg-primary shadow-[inset_0_0_0_2px_var(--card)]" : "border-input")} />}
       <b className="text-sm">{title}</b>
       <span className="text-xs text-muted-foreground">{body}</span>

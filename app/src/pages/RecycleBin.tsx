@@ -41,7 +41,7 @@ export function RecycleBin() {
   return (
     <Page>
       <PageHeader title={text.pages.recycleBin.title} sub={text.pages.recycleBin.sub} />
-      <section className="min-w-0 rounded-md border border-border bg-card">
+      <section className="min-w-0 rounded-md border border-border">
         {items.error && <p className="px-4 py-3 text-sm text-destructive">{items.error}</p>}
         {rows.length > 0 && (
           <div className="overflow-x-auto">

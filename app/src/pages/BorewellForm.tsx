@@ -243,10 +243,10 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
           : restored && <Button variant="ghost" onClick={startOver}><X />Start over</Button>}
       />
       {restored && !editing && (
-        <p className="rounded-md border border-border bg-card px-4 py-2.5 text-sm">Picking up where you left off. Nothing has been saved yet.</p>
+        <p className="text-sm text-muted-foreground">Picking up where you left off. Nothing has been saved yet.</p>
       )}
 
-      <ol className="flex flex-wrap gap-1.5" aria-label="Steps">
+      <ol className="flex flex-wrap gap-x-6 border-b border-border" aria-label="Steps">
         {steps.map((s, i) => {
           const current = s.id === step;
           const reachable = visited.has(s.id) || i <= index;
@@ -258,13 +258,13 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
                 aria-current={current ? "step" : undefined}
                 onClick={() => go(s.id)}
                 className={cn(
-                  "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-medium",
-                  current ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
+                  "-mb-px flex items-center gap-1.5 border-b-2 pt-1 pb-2.5 text-[13px]",
+                  current ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground",
                   reachable && !current && "hover:text-foreground",
-                  !reachable && "opacity-50",
+                  !reachable && "opacity-60",
                 )}
               >
-                <span className="num">{i + 1}</span>{s.label}
+                <span className="num">{i + 1}.</span>{s.label}
               </button>
             </li>
           );
@@ -420,7 +420,7 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
   };
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-7">
       <Panel title="Address">
         <div className="grid gap-4 sm:grid-cols-4">
           <Field id="f-house" label="House or plot no."><Input id="f-house" value={f.houseNo} onChange={(e) => set({ houseNo: e.target.value })} /></Field>
@@ -476,7 +476,7 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
 function WayButton({ icon, title, body, onClick, busy, disabled }: { icon: React.ReactNode; title: string; body: string; onClick?: () => void; busy?: boolean; disabled?: boolean }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled || busy}
-      className="grid grid-cols-[auto_1fr] items-center gap-x-3 rounded-md border border-border bg-card px-3.5 py-3 text-left hover:border-primary disabled:opacity-50 disabled:hover:border-border [&_svg]:size-5 [&_svg]:text-primary">
+      className="grid grid-cols-[auto_1fr] items-center gap-x-3 rounded-md border border-border px-3.5 py-3 text-left hover:border-primary disabled:opacity-50 disabled:hover:border-border [&_svg]:size-5 [&_svg]:text-primary">
       <span className="row-span-2">{icon}</span>
       <b className="text-sm">{busy ? "Working…" : title}</b>
       <span className="text-xs text-muted-foreground">{body}</span>
@@ -491,7 +491,7 @@ function LayersStep({ draft, setDraft, materials, totalDepth, preview, layers, p
   preview: Borewell; layers: StrataLayer[]; pipes: PipeSegment[];
 }) {
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_320px]">
       <LayersEditor
         layers={draft.layers} pipes={draft.pipes} materials={materials} totalDepth={totalDepth}
         onChange={(next) => setDraft({ ...draft, ...next })}
@@ -524,8 +524,8 @@ function PhotosStep({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
   };
   const name = (p: string) => p.split(/[\\/]/).pop();
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Panel title="Photos" actions={<Button variant="outline" onClick={addPhotos} disabled={isPreview}><ImagePlus />Add photos</Button>} bodyClassName="p-0">
+    <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
+      <Panel title="Photos" actions={<Button variant="outline" onClick={addPhotos} disabled={isPreview}><ImagePlus />Add photos</Button>} framed>
         {draft.photos.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">Rig, cuttings or site photos. Optional.</p> : (
           <ul className="divide-y divide-border">
             {draft.photos.map((p) => (
@@ -538,7 +538,7 @@ function PhotosStep({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =>
           </ul>
         )}
       </Panel>
-      <Panel title="Files" actions={<Button variant="outline" onClick={addFiles} disabled={isPreview}><Paperclip />Add files</Button>} bodyClassName="p-0">
+      <Panel title="Files" actions={<Button variant="outline" onClick={addFiles} disabled={isPreview}><Paperclip />Add files</Button>} framed>
         {draft.files.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">Drilling log, reports or permits. Optional.</p> : (
           <ul className="divide-y divide-border">
             {draft.files.map((p) => (
@@ -573,7 +573,7 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
   const ft = (v: number | null | undefined) => (v == null ? null : <span className="num">{v} ft</span>);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-7">
       {problems.length > 0 ? (
         <div className="rounded-md border border-destructive/40 bg-danger-soft px-4 py-3 text-sm text-destructive">
           <b>Fix these before saving:</b>
@@ -585,7 +585,7 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
       {warnings.length > 0 && (
         <ul className="grid gap-1.5">{warnings.map((i) => <li key={i.message} className="flex items-center gap-2 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"><TriangleAlert className="size-4" />{i.message}</li>)}</ul>
       )}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
         {section("Basics", "basics", <>
           {row("Borewell ID", <span className="num">{f.borewellId}</span>)}
           {row("Owner", f.ownerName)}

@@ -116,8 +116,8 @@ export function BorewellDetail() {
         </TabsList>
 
         <TabsContent value="overview" className="pt-4">
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
-            <div className="grid min-w-0 gap-4">
+          <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <div className="grid min-w-0 gap-x-10 gap-y-7">
               <Panel title="Borewell details" actions={<BorewellStatus borewell={b} strata={r.strata} />}>
                 <dl className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-5 gap-y-4">
                   <Fact label="Total depth" value={b.totalDepth} unit="ft" />
@@ -159,7 +159,7 @@ export function BorewellDetail() {
               <Panel
                 title="Soil layers"
                 actions={<Button variant="ghost" render={<Link to={`/borewell/${b.id}/layers`} />}><Pencil />Edit</Button>}
-                bodyClassName="p-0"
+                framed
               >
                 <LayerRows record={r} onOpen={open} compact />
               </Panel>
@@ -181,11 +181,11 @@ export function BorewellDetail() {
           </div>
         </TabsContent>
 
-        <TabsContent value="layers" className="grid gap-4 pt-4">
-          <Panel title="Soil layers" bodyClassName="p-0" actions={<Button variant="outline" render={<Link to={`/borewell/${b.id}/layers`} />}><Pencil />Edit layers &amp; pipes</Button>}>
+        <TabsContent value="layers" className="grid gap-7 pt-4">
+          <Panel title="Soil layers" framed actions={<Button variant="outline" render={<Link to={`/borewell/${b.id}/layers`} />}><Pencil />Edit layers &amp; pipes</Button>}>
             <LayerRows record={r} onOpen={open} />
           </Panel>
-          <Panel title="Pipes" bodyClassName="p-0">
+          <Panel title="Pipes" framed>
             {r.pipes.length === 0 ? <EmptyNote>No pipes recorded yet.</EmptyNote> : (
               <Table>
                 <TableHeader><TableRow><TableHead className="text-right">From (ft)</TableHead><TableHead className="text-right">To (ft)</TableHead><TableHead className="text-right">Length (ft)</TableHead><TableHead>Type</TableHead><TableHead className="text-right">Size (inch)</TableHead></TableRow></TableHeader>
@@ -218,7 +218,7 @@ export function BorewellDetail() {
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">
-          <Panel title="Changes to this borewell" bodyClassName="p-0">
+          <Panel title="Changes to this borewell" framed>
             <ol className="divide-y divide-border">
               {r.history.map((h) => (
                 <li key={h.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-2.5 text-sm">
@@ -296,8 +296,8 @@ function WaterTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
   };
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <Panel title="Water readings" bodyClassName="p-0">
+    <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <Panel title="Water readings" framed>
         {r.waterReadings.length === 0 ? <EmptyNote>No water readings yet.</EmptyNote> : (
           <Table>
             <TableHeader><TableRow><TableHead>Measured on</TableHead><TableHead className="text-right">Water level (ft)</TableHead><TableHead className="text-right">While pumping (ft)</TableHead><TableHead>Notes</TableHead><TableHead /></TableRow></TableHeader>
@@ -383,7 +383,7 @@ function FilesTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
   };
   const icon = (kind: string) => (kind === "excel" ? <FileSpreadsheet className="size-4" /> : kind === "pdf" ? <FileText className="size-4" /> : <FileIcon className="size-4" />);
   return (
-    <Panel title="Files" actions={<Button variant="outline" onClick={add}><Paperclip />Add file</Button>} bodyClassName="p-0">
+    <Panel title="Files" actions={<Button variant="outline" onClick={add}><Paperclip />Add file</Button>} framed>
       {r.files.length === 0 ? <EmptyNote>No files yet. Add the drilling log, reports or permits for this borewell.</EmptyNote> : (
         <ul className="divide-y divide-border">
           {r.files.map((f) => (

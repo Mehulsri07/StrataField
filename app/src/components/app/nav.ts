@@ -21,13 +21,3 @@ export const NAV: NavItem[] = [
   { to: "/recycle-bin", label: text.nav.recycleBin, icon: Trash2, group: "app" },
   { to: "/settings", label: text.nav.settings, icon: Settings, group: "app" },
 ];
-
-/** Page title for the top bar, from the current path. */
-export function titleFor(pathname: string): string {
-  if (pathname.startsWith("/borewell/")) {
-    if (pathname.endsWith("/layers")) return text.pages.editLayers.title;
-    if (pathname.endsWith("/edit")) return "Edit details";
-    return text.pages.detail.title;
-  }
-  return NAV.find((n) => n.to === pathname)?.label ?? text.pages.notFound.title;
-}

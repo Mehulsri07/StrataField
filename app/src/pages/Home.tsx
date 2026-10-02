@@ -1,8 +1,8 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Borewell } from "@strata/core";
 import { waterColour, waterPoints } from "@strata/core";
-import { ChevronRight, FolderOpen, List, Map as MapIcon, Plus, Upload } from "lucide-react";
+import { ChevronRight, FolderOpen, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -77,37 +77,34 @@ export function Home() {
       <PageHeader
         title={text.pages.home.title}
         sub={newest ? `${text.app.city} · last borewell added ${formatWhen(newest.createdAt)}` : text.pages.home.sub(text.app.city)}
+        actions={<>
+          <Button variant="outline" render={<Link to="/import" />}><Upload />{text.nav.import}</Button>
+          <Button render={<Link to="/new" />}><Plus />{text.nav.newBorewell}</Button>
+        </>}
       />
-
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3">
-        <QuickAction to="/new" icon={<Plus />} title={text.nav.newBorewell} desc="Enter a new borewell's details" primary />
-        <QuickAction to="/import" icon={<Upload />} title={text.nav.import} desc="Add borewells from an Excel file" />
-        <QuickAction to="/borewells?focus=search" icon={<List />} title="Find a borewell" desc="Search by ID, owner or area" />
-        <QuickAction to="/map" icon={<MapIcon />} title="Open map" desc={`${plural(located.length, "borewell")} with a location`} />
-      </div>
 
       {loaded && all.length === 0 ? (
         <Panel>
-          <div className="grid justify-items-center gap-3 py-10 text-center">
+          <div className="grid justify-items-center gap-3 py-16 text-center">
             <p className="font-medium">No borewells yet</p>
             <p className="max-w-md text-sm text-muted-foreground">Add your first borewell, or bring in existing drilling logs from an Excel file. The map and numbers here fill in as you add borewells.</p>
           </div>
         </Panel>
       ) : (
         <>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3">
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-5 border-y border-border py-4 lg:grid-cols-4">
             <Stat label="Borewells" value={all.length} note={`${all.filter((i) => i.borewell.importMethod === "excel").length} from Excel · ${all.filter((i) => i.borewell.importMethod !== "excel").length} typed in or older app`} />
             <Stat label="With a location" value={located.length} of={all.length} note={all.length ? `${Math.round((located.length / all.length) * 100)}% show on the map` : ""} />
             <Stat label="Typical total depth" value={median(depths)} unit="ft" note={depths.length ? `from ${Math.min(...depths)} to ${Math.max(...depths)} ft` : "No depths entered yet"} />
             <Stat label="Typical water level" value={median(waters)} unit="ft" note={waters.length ? `${Math.min(...waters)} to ${Math.max(...waters)} ft below ground` : "No water levels entered yet"} />
-          </div>
+          </dl>
 
           <Panel
             title={`How deep is the water across ${text.app.city}?`}
             actions={<Button variant="ghost" size="sm" render={<Link to="/map" />}>Open full map<ChevronRight /></Button>}
-            bodyClassName="grid gap-4 p-0 lg:grid-cols-[minmax(0,1fr)_300px]"
+            bodyClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]"
           >
-            <div className="relative h-[380px] min-w-0 overflow-hidden">
+            <div className="relative h-[380px] min-w-0 overflow-hidden rounded-md border border-border">
               <BaseMap>
                 <WaterLayer points={points} />
                 <BorewellPins borewells={borewells} onSelect={(b) => navigate(`/borewell/${b.id}`)} />
@@ -115,7 +112,7 @@ export function Home() {
               </BaseMap>
               <div className="pointer-events-none absolute bottom-3 left-3 z-[500] max-w-[230px]"><WaterLegend /></div>
             </div>
-            <div className="grid content-start gap-4 p-4 lg:pl-0">
+            <div className="grid content-start gap-5">
               {byWater.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Add water levels to borewells that have a location to see where water is deep or shallow.</p>
               ) : (
@@ -135,11 +132,11 @@ export function Home() {
             </div>
           </Panel>
 
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_340px]">
             <Panel
               title="Recently added"
               actions={<Button variant="ghost" size="sm" render={<Link to="/borewells" />}>View all {all.length}<ChevronRight /></Button>}
-              bodyClassName="p-0 overflow-x-auto"
+              framed bodyClassName="overflow-x-auto"
             >
               <Table>
                 <TableHeader>
@@ -172,8 +169,8 @@ export function Home() {
               </Table>
             </Panel>
 
-            <div className="grid gap-4">
-              <Panel title="Needs attention" bodyClassName="grid gap-1 p-2">
+            <div className="grid gap-7">
+              <Panel title="Needs attention" bodyClassName="grid pt-1">
                 {located.length < all.length && (
                   <Attention tone="warn" to="/borewells?noLocation=1"
                     title={`${plural(all.length - located.length, "borewell")} without a location`}
@@ -200,7 +197,7 @@ export function Home() {
                     sub="Make a backup now, below" />
                 )}
                 {loaded && located.length === all.length && noLayers === 0 && !unlinked.data?.length && backupAgeDays <= BACKUP_OLD_DAYS && !!secondCopy.data?.folder && !secondCopy.data.lastError && copyAgeDays <= SECOND_COPY_OLD_DAYS && (
-                  <p className="px-2 py-3 text-sm text-muted-foreground">Nothing needs attention. Every borewell has a location and layers.</p>
+                  <p className="py-3 text-sm text-muted-foreground">Nothing needs attention. Every borewell has a location and layers.</p>
                 )}
               </Panel>
 
@@ -229,32 +226,16 @@ export function Home() {
   );
 }
 
-function QuickAction({ to, icon, title, desc, primary }: { to: string; icon: ReactNode; title: string; desc: string; primary?: boolean }) {
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "group grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-0.5 rounded-md border px-4 py-3 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
-        primary ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90" : "border-border bg-card hover:bg-muted",
-      )}
-    >
-      <span className={cn("row-span-2 grid size-9 place-items-center rounded-md [&_svg]:size-[18px]", primary ? "bg-primary-foreground/15" : "bg-accent text-accent-foreground")} aria-hidden="true">{icon}</span>
-      <b className="font-semibold">{title}</b>
-      <span className={cn("text-xs", primary ? "text-primary-foreground/85" : "text-muted-foreground")}>{desc}</span>
-    </Link>
-  );
-}
-
 function Stat({ label, value, unit, of, note }: { label: string; value: number | null; unit?: string; of?: number; note: string }) {
   return (
-    <div className="grid gap-1 rounded-md border border-border bg-card px-4 py-3">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <span className="num text-[26px] leading-none font-semibold">
+    <div className="grid content-start gap-0.5">
+      <dt className="text-[13px] text-muted-foreground">{label}</dt>
+      <dd className="num text-lg font-semibold">
         {value ?? "—"}
-        {value != null && unit && <small className="ml-1 text-sm font-normal text-muted-foreground">{unit}</small>}
-        {of != null && <small className="ml-1.5 text-sm font-normal text-muted-foreground">of {of}</small>}
-      </span>
-      <span className="text-xs text-muted-foreground">{note}</span>
+        {value != null && unit && <span className="ml-1 text-[13px] font-normal text-muted-foreground">{unit}</span>}
+        {of != null && <span className="ml-1.5 text-[13px] font-normal text-muted-foreground">of {of}</span>}
+      </dd>
+      <dd className="text-xs text-muted-foreground">{note}</dd>
     </div>
   );
 }
@@ -262,11 +243,11 @@ function Stat({ label, value, unit, of, note }: { label: string; value: number |
 function WaterBars({ title, list, max }: { title: string; list: Borewell[]; max: number }) {
   return (
     <div className="grid gap-1.5">
-      <h4 className="text-[13px] font-semibold">{title}</h4>
+      <h3 className="text-[13px] font-medium text-muted-foreground">{title}</h3>
       {list.map((b) => (
         <Link key={b.id} to={`/borewell/${b.id}`} className="grid grid-cols-[96px_1fr_36px] items-center gap-2 rounded-sm text-[13px] outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
           <span className="truncate" title={b.area}>{shortArea(b)}</span>
-          <span className="h-2 overflow-hidden rounded-sm bg-muted">
+          <span className="h-1.5 overflow-hidden rounded-full bg-muted">
             <span className="block h-full" style={{ width: `${(b.waterLevel! / max) * 100}%`, background: `rgb(${waterColour(b.waterLevel!).join(",")})` }} />
           </span>
           <span className="num text-right">{b.waterLevel}</span>
@@ -278,13 +259,13 @@ function WaterBars({ title, list, max }: { title: string; list: Borewell[]; max:
 
 function Attention({ tone, to, title, sub }: { tone: "warn" | "neutral"; to: string; title: string; sub: string }) {
   return (
-    <Link to={to} className="grid grid-cols-[4px_1fr_auto] items-center gap-3 rounded-md px-2 py-2 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
-      <span className={cn("h-full min-h-8 rounded-full", tone === "warn" ? "bg-warn" : "bg-input")} aria-hidden="true" />
+    <Link to={to} className="group grid grid-cols-[auto_1fr_auto] items-baseline gap-2.5 border-b border-border py-2.5 outline-none last:border-0 focus-visible:ring-3 focus-visible:ring-ring/50">
+      <span className={cn("size-1.5 -translate-y-px rounded-full", tone === "warn" ? "bg-warn" : "bg-input")} aria-hidden="true" />
       <span className="min-w-0">
-        <span className="block text-[13.5px] font-medium">{title}</span>
+        <span className="block font-medium group-hover:underline">{title}</span>
         <span className="block text-xs text-muted-foreground">{sub}</span>
       </span>
-      <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+      <ChevronRight className="size-4 self-center text-muted-foreground" aria-hidden="true" />
     </Link>
   );
 }

@@ -96,7 +96,7 @@ export function Borewells() {
         }
       />
 
-      <section className="min-w-0 rounded-md border border-border bg-card">
+      <section className="min-w-0 rounded-md border border-border">
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
           <div className="relative min-w-[240px] flex-[1_1_260px] max-w-[380px]">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />

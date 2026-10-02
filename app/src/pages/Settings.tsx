@@ -96,7 +96,7 @@ function Backups() {
     <Panel
       title={<span id="backups" className="scroll-mt-20">Backups</span>}
       actions={<Button onClick={backUpNow} disabled={busy != null || isPreview}>{busy === "create" ? "Backing up…" : "Back up now"}</Button>}
-      bodyClassName="grid gap-3 p-0"
+      framed bodyClassName="grid gap-3"
     >
       <p className="px-4 pt-3 text-[13px] text-muted-foreground">
         StrataField makes a backup every day by itself and keeps the last 10 on this computer. To keep a copy somewhere else too, set up a second copy below.
@@ -375,7 +375,7 @@ function SoilTypes() {
     <Panel
       title={<span id="soil-types" className="scroll-mt-20">Soil types</span>}
       actions={<Button variant="outline" onClick={() => open(blank)} disabled={isPreview}><Plus />Add soil type</Button>}
-      bodyClassName="p-0"
+      framed
     >
       <p className="px-4 pt-3 pb-2 text-[13px] text-muted-foreground">The soil types you can choose for a layer. Built-in types can have their colour and pattern changed but not be deleted.</p>
       <div className="overflow-x-auto">

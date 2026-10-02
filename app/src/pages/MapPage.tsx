@@ -81,9 +81,9 @@ export function MapPage() {
           )}
         </section>
 
-        <section className="flex min-h-0 flex-col rounded-md border border-border bg-card">
+        <section className="flex min-h-0 flex-col rounded-md border border-border">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <h3 className="font-heading text-base font-semibold">Borewells on the map</h3>
+            <h2 className="text-[15px] font-semibold">Borewells on the map</h2>
             <Chip className="ml-auto">{located.length}</Chip>
           </div>
           <ul className="min-h-0 flex-1 overflow-auto">
