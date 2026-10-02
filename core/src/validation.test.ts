@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkBorewell, checkLayers, checkPipes, hasProblems } from './validation';
+import { checkBorewell, checkLayers, checkPipes, hasProblems, missingDetails } from './validation';
 
 const L = (startDepth: number, endDepth: number, material = 'Clay') => ({ startDepth, endDepth, material, materialId: 'clay' });
 
@@ -52,5 +52,12 @@ describe('checkPipes', () => {
     const p = (s: number, e: number, t: 'plain' | 'slotted' = 'plain') => ({ startDepth: s, endDepth: e, pipeType: t });
     expect(checkPipes([p(0, 100), p(120, 140, 'slotted')], 200)).toEqual([]);
     expect(hasProblems(checkPipes([p(0, 100), p(90, 140, 'slotted')], 200))).toBe(true);
+  });
+});
+
+describe('missingDetails', () => {
+  it('names what an imported record still lacks', () => {
+    expect(missingDetails({ ownerName: ' ', waterLevel: null, date: '' })).toEqual(['owner', 'water level', 'date drilled']);
+    expect(missingDetails({ ownerName: 'Asha', waterLevel: 0, date: '2026-01-01' })).toEqual([]);
   });
 });

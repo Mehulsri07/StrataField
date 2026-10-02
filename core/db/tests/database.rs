@@ -512,6 +512,7 @@ fn an_excel_import_is_saved_as_one_batch_or_not_at_all() {
         borewell: input("BW-X1"),
         strata: vec![layer(0.0, 20.0, "clay")],
         pipes: vec![],
+        notes: vec![],
     };
     let mut bad_input = input("");
     bad_input.owner_name = "No ID".into();
@@ -674,6 +675,7 @@ fn an_imported_excel_file_is_kept_under_every_borewell_it_created() {
         borewell: input(id),
         strata: vec![layer(0.0, 20.0, "clay")],
         pipes: vec![],
+        notes: vec![],
     };
     let req = ImportRequest {
         file_name: "Field logs.xlsx".into(),
@@ -872,4 +874,37 @@ fn zones_can_be_renamed_and_merged() {
     assert!(db
         .with_tx(|tx| projects::rename(tx, "no-such-zone", "Zone 9"))
         .is_err());
+}
+
+#[test]
+fn import_notes_are_kept_in_history_and_recent_history_is_newest_first() {
+    let (dir, db) = open_temp();
+    let request = ImportRequest {
+        file_name: "site log.xlsx".into(),
+        borewells: vec![ImportedBorewell {
+            borewell: input("BW-IMP"),
+            notes: vec![
+                "No water level was found.".into(),
+                "No drilling date was found.".into(),
+            ],
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let result = db
+        .with_tx(|tx| repo::import_batch(tx, dir.path(), &request))
+        .unwrap();
+
+    let history = db
+        .with(|c| misc::history_for(c, "borewell", &result.borewell_ids[0]))
+        .unwrap();
+    assert!(history.iter().any(|h| {
+        h.summary
+        == "Notes from reading site log.xlsx: No water level was found. No drilling date was found."
+    }));
+
+    let recent = db.with(|c| misc::history_recent(c, 2)).unwrap();
+    assert_eq!(recent.len(), 2);
+    assert!(recent[0].id > recent[1].id);
+    assert_eq!(recent[0].summary, "Imported 1 borewell from site log.xlsx");
 }

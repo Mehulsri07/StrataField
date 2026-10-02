@@ -81,6 +81,16 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
   };
 }
 
+/** What the screen says about a file, as sentences; saved with the borewell so it can be read later. */
+function fileNotes(f: ImportFile): string[] {
+  return [
+    ...(f.mapping ? ["The file was not in the usual layout, so its columns were chosen on the Import screen."] : []),
+    ...(f.result?.metadata.detectedUnit === "m" ? ["The depths were in metres and were converted to feet."] : []),
+    // Without the "enter it below" endings, which only make sense on the Import screen.
+    ...(f.result?.anomalies ?? []).filter((a) => a.code !== "MATERIAL_UNKNOWN").map((a) => describe(a).replace(/ (Enter it below|Check them after importing)[^.]*\.$/, "")),
+  ];
+}
+
 const unknownNames = (r: ExcelParseResult | null) =>
   [...new Set((r?.strata ?? []).filter((l) => !l.materialId).map((l) => l.material.trim()).filter(Boolean))];
 
@@ -147,7 +157,7 @@ export function ImportPage() {
         const res = await api.importExcel({
           fileName: f.name, sourcePath: f.path, unrecognisedNames: names,
           resolutions: Object.fromEntries(names.map((nm) => [nm, f.resolutions[nm] && f.resolutions[nm] !== KEEP ? f.resolutions[nm] : ""])),
-          borewells: [{ borewell, strata, pipes }],
+          borewells: [{ borewell, strata, pipes, notes: fileNotes(f) }],
         });
         created.push({ name: f.name, id: res.borewellIds[0], code: borewell.borewellId! });
       }

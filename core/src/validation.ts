@@ -122,3 +122,15 @@ export function checkPipes(pipes: PipeLike[], totalDepth: number | null | undefi
 }
 
 export const hasProblems = (issues: Issue[]) => issues.some(i => i.severity === 'problem');
+
+/**
+ * Details a finished record should have but this one lacks, in plain words ("owner", "water
+ * level"). Imported logs often arrive without them; they are worth filling in, not errors.
+ */
+export function missingDetails(b: Pick<BorewellInput, 'ownerName' | 'waterLevel' | 'date'>): string[] {
+  return [
+    !b.ownerName?.trim() && 'owner',
+    b.waterLevel == null && 'water level',
+    !b.date && 'date drilled',
+  ].filter((v): v is string => !!v);
+}

@@ -110,9 +110,16 @@ try {
     delete window.__STRATA_TEST_CHOOSE__;
     const all = await __t.invoke('borewells_search', { filters: {} });
     const ex = all.find(i => i.borewell.importSource === 'Chinhat other layout.xlsx');
+    const kept = (await __t.invoke('history_recent', { limit: 50 })).find(h => h.summary.startsWith('Notes from reading Chinhat other layout.xlsx'))?.summary ?? '';
+    // What a borewell with details missing looks like in the list, and the filter for them.
+    location.hash = '#/borewells?missing=1';
+    await __t.until(() => [...document.querySelectorAll('main tbody tr')].some(r => /Chinhat other layout/.test(r.innerText)), 8000);
+    const missing = [...document.querySelectorAll('main tbody tr')].map(r => r.innerText.split('\\t').pop().trim());
     // Removed again so the counts later in this run stay as they were.
     if (ex) { await __t.invoke('borewell_delete', { id: ex.borewell.id }); await __t.invoke('borewell_delete_permanently', { id: ex.borewell.id }); }
-    return { status, layers: ex?.strata.map(l => l.startDepth + '-' + l.endDepth + ' ' + l.material).join(', ') };`);
+    return { status, kept, missing, layers: ex?.strata.map(l => l.startDepth + '-' + l.endDepth + ' ' + l.material).join(', ') };`);
+  check("The notes from the Import screen are kept in the borewell's history", /columns were chosen/.test(other.kept) && /No water level was found/.test(other.kept), other.kept);
+  check("Borewells: the Missing details filter lists only borewells with an owner, water level or date missing", other.missing.length >= 1 && other.missing.every(t => /^No /.test(t)), other.missing.join(" | "));
   check("An Excel file in another layout is imported after its columns are chosen", other.status && other.layers === "0-30 Clay, 30-90 Fine Sand, 90-150 Coarse Sand", JSON.stringify(other));
 
   // ── Zones: rename, then merge ──────────────────────────────────────────
@@ -139,6 +146,18 @@ try {
     return { renamed, asked, merged, left: (await __t.invoke('projects_list')).map(z => z.name).filter(n => /^Zone (9|Nine)/.test(n)) };`);
   check("Settings: a zone can be renamed", zones.renamed === "Zone 9", zones.renamed);
   check("…and renaming it to another zone's name merges the two, after asking", /Merge/.test(zones.asked) && zones.merged === "Zone Nine" && zones.left.join() === "Zone Nine", JSON.stringify(zones));
+
+  // ── Activity: every change, newest first ───────────────────────────────
+  const activity = await page(`
+    location.hash = '#/activity';
+    await __t.until(() => document.querySelectorAll('main ol li').length > 3, 8000);
+    const all = document.querySelectorAll('main ol li').length;
+    const first = document.querySelector('main ol li').innerText;
+    __t.type(document.querySelector('main input[type="search"]'), 'Aliganj site log');
+    await __t.until(() => document.querySelectorAll('main ol li').length < all, 5000);
+    const found = [...document.querySelectorAll('main ol li')].map(li => li.innerText.replace(/\\s+/g, ' '));
+    return { all, first, found, link: !!document.querySelector('main ol li a[href*="/borewell/"]') };`);
+  check("Activity lists every change, newest first, and can be searched", activity.all > 3 && activity.found.length >= 1 && activity.found.every(t => /Aliganj site log/.test(t)) && activity.link, JSON.stringify(activity).slice(0, 300));
 
   // ── Correcting a location from a photo's GPS ───────────────────────────
   const fixed = await page(`

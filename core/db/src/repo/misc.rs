@@ -23,6 +23,25 @@ pub fn history_for(conn: &Connection, entity: &str, entity_id: &str) -> Result<V
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// The newest changes across everything (borewells, imports, soil types...), newest first.
+pub fn history_recent(conn: &Connection, limit: i64) -> Result<Vec<HistoryEntry>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, entity, entity_id, action, changed_at, summary FROM record_history
+         ORDER BY id DESC LIMIT ?1",
+    )?;
+    let rows = stmt.query_map([limit], |r| {
+        Ok(HistoryEntry {
+            id: r.get(0)?,
+            entity: r.get(1)?,
+            entity_id: r.get(2)?,
+            action: r.get(3)?,
+            changed_at: r.get(4)?,
+            summary: r.get(5)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 pub fn list_sections(conn: &Connection) -> Result<Vec<Section>> {
     let mut stmt = conn.prepare(
         "SELECT id, name, line_json, corridor_half_km, settings_json, created_at, updated_at FROM sections ORDER BY updated_at DESC",
