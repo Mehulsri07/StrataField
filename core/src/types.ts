@@ -333,6 +333,8 @@ export interface ImportedBorewell {
   borewell: BorewellInput;
   strata: Partial<StrataLayer>[];
   pipes: Partial<PipeSegment>[];
+  /** What the Import screen said about the file; kept in the borewell's history. */
+  notes?: string[];
 }
 
 export interface ImportRequest {

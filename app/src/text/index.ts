@@ -23,6 +23,7 @@ export const text = {
     newBorewell: "New borewell",
     import: "Import Excel",
     export: "Export",
+    activity: "Activity",
     recycleBin: "Recycle bin",
     settings: "Settings & backup",
   },
@@ -49,6 +50,7 @@ export const text = {
 
   support: {
     button: "Copy details for support",
+    openLog: "Open the error log",
     title: "Details for support",
     explain: "If something is not working, send this to whoever helps you with StrataField, for example by email. It shows the versions, how much data there is, the state of backups and recent errors. It contains no borewell details, and nothing is sent unless you send it.",
     copy: "Copy",
@@ -107,6 +109,7 @@ export const text = {
     newBorewell: { title: "New borewell", sub: "Enter a borewell's details step by step." },
     import: { title: "Import Excel", sub: "Add borewells from an Excel drilling log." },
     export: { title: "Export", sub: "Make PDF reports and Excel files." },
+    activity: { title: "Activity", sub: "Everything that was added, imported, changed or deleted, newest first." },
     recycleBin: { title: "Recycle bin", sub: "Deleted borewells. Restore them or delete them for good." },
     settings: { title: "Settings & backup", sub: "Backups, soil types and how StrataField looks." },
     detail: { title: "Borewell" },

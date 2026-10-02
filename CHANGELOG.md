@@ -3,6 +3,18 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Find what still needs filling in after importing.** A borewell with no owner, water level or
+  drilling date now says so in the Borewells list, a **Missing details** button lists just those,
+  and Home's "Needs attention" counts them.
+- **Import notes are kept.** What the Import screen said about a file (no water level, converted
+  from metres, a second log on the sheet...) is saved in that borewell's History.
+- **Activity.** A new screen lists every change across all borewells, newest first, with a search box.
+- **Open the error log.** Settings & backup → About has a button that opens the log of problems kept
+  on this computer.
+
 ## [1.0.6] - 2026-10-03
 
 ### Fixed

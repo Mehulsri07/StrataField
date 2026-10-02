@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Borewell, BorewellListItem, YearWater } from "@strata/core";
-import { isRecentWater, median, recentCutoff, waterByYear } from "@strata/core";
+import { isRecentWater, median, missingDetails, recentCutoff, waterByYear } from "@strata/core";
 import { ChevronRight, FolderOpen, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ export function Home() {
   const depths = borewells.map((b) => b.totalDepth).filter((v): v is number => v != null);
   const waters = current.map((b) => b.waterLevel!);
   const noLayers = all.filter((i) => i.strata.length === 0).length;
+  const incomplete = borewells.filter((b) => missingDetails(b).length > 0).length;
   const lastBackup = backups.data?.[0] ?? null;
   const backupAgeDays = lastBackup ? (now - new Date(lastBackup.createdAt.replace(" ", "T")).getTime()) / 86_400_000 : Infinity;
   const lastCopy = secondCopy.data?.lastCopiedAt;
@@ -154,6 +155,11 @@ export function Home() {
                     title={`${plural(noLayers, "borewell")} without soil layers`}
                     sub="Open the borewell and choose Edit layers & pipes" />
                 )}
+                {incomplete > 0 && (
+                  <Attention tone="warn" to="/borewells?missing=1"
+                    title={`${plural(incomplete, "borewell")} with details missing`}
+                    sub="No owner, water level or date; common after importing" />
+                )}
                 {(unlinked.data?.length ?? 0) > 0 && (
                   <Attention tone="warn" to="/settings#soil-names"
                     title={`${plural(unlinked.data!.length, "soil name")} not recognised`}
@@ -169,7 +175,7 @@ export function Home() {
                     title={lastBackup ? `No backup for ${Math.floor(backupAgeDays)} days` : "No backup yet"}
                     sub="Make a backup now, below" />
                 )}
-                {loaded && located.length === all.length && noLayers === 0 && !unlinked.data?.length && backupAgeDays <= BACKUP_OLD_DAYS && !!secondCopy.data?.folder && !secondCopy.data.lastError && copyAgeDays <= SECOND_COPY_OLD_DAYS && (
+                {loaded && located.length === all.length && noLayers === 0 && incomplete === 0 && !unlinked.data?.length && backupAgeDays <= BACKUP_OLD_DAYS && !!secondCopy.data?.folder && !secondCopy.data.lastError && copyAgeDays <= SECOND_COPY_OLD_DAYS && (
                   <p className="py-3 text-sm text-muted-foreground">Nothing needs attention. Every borewell has a location and layers.</p>
                 )}
               </Panel>

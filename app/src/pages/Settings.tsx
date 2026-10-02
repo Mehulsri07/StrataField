@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import type { BackupInfo, LegacyImportReport, LithologyFamily, Material, Project } from "@strata/core";
 import { DEFAULT_PROJECT } from "@strata/core";
-import { BookOpen, FolderOpen, LifeBuoy, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
+import { BookOpen, FileText, FolderOpen, LifeBuoy, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -596,6 +596,7 @@ function About() {
         )}
         <Button variant="ghost" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} disabled={isPreview}><BookOpen />{text.guide.open}</Button>
         <Button variant="ghost" onClick={showSupport}><LifeBuoy />{text.support.button}</Button>
+        <Button variant="ghost" onClick={() => api.openLog().catch((e) => toast.info(String(e)))} disabled={isPreview}><FileText />{text.support.openLog}</Button>
         <Button variant="ghost" onClick={() => api.backups.openFolder("data").catch((e) => toast.error(String(e)))} disabled={isPreview}><FolderOpen />Open data folder</Button>
       </div>
       {update.state === "none" && info.data && <p className="text-sm text-muted-foreground" role="status">{text.updates.upToDate(info.data.version)}</p>}

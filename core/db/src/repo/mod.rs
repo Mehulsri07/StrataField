@@ -31,6 +31,9 @@ pub struct ImportedBorewell {
     pub borewell: BorewellInput,
     pub strata: Vec<StrataLayer>,
     pub pipes: Vec<PipeSegment>,
+    /// What the Import screen said about this file ("No water level was found..."), kept in the
+    /// borewell's history so it can still be read after importing.
+    pub notes: Vec<String>,
 }
 
 /// One Excel import, after the user has checked the preview and resolved unrecognised names.
@@ -107,6 +110,21 @@ pub fn import_batch(
                 params![new_id(), b.id, stored, req.file_name, now()],
             )?;
         }
+        if !item.notes.is_empty() {
+            record_history(
+                conn,
+                "borewell",
+                &b.id,
+                "import",
+                &format!(
+                    "Notes from reading {}: {}",
+                    req.file_name,
+                    item.notes.join(" ")
+                ),
+                None,
+                None,
+            )?;
+        }
         ids.push(b.id);
     }
     record_history(
@@ -114,7 +132,12 @@ pub fn import_batch(
         "import",
         &batch_id,
         "import",
-        &format!("Imported {} borewells from {}", ids.len(), req.file_name),
+        &format!(
+            "Imported {} borewell{} from {}",
+            ids.len(),
+            if ids.len() == 1 { "" } else { "s" },
+            req.file_name
+        ),
         None,
         None,
     )?;

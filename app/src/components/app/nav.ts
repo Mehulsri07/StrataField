@@ -1,4 +1,4 @@
-import { Download, House, Layers, List, Map, Plus, Settings, Trash2, Upload, type LucideIcon } from "lucide-react";
+import { Download, History, House, Layers, List, Map, Plus, Settings, Trash2, Upload, type LucideIcon } from "lucide-react";
 import { text } from "@/text";
 
 export interface NavItem {
@@ -18,6 +18,7 @@ export const NAV: NavItem[] = [
   { to: "/new", label: text.nav.newBorewell, icon: Plus, group: "data" },
   { to: "/import", label: text.nav.import, icon: Upload, group: "data" },
   { to: "/export", label: text.nav.export, icon: Download, group: "data" },
+  { to: "/activity", label: text.nav.activity, icon: History, group: "app" },
   { to: "/recycle-bin", label: text.nav.recycleBin, icon: Trash2, group: "app" },
   { to: "/settings", label: text.nav.settings, icon: Settings, group: "app" },
 ];

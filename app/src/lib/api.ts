@@ -7,7 +7,7 @@ import { convertFileSrc, invoke as tauriInvoke, isTauri } from "@tauri-apps/api/
 import type {
   Attachment, BackupInfo, Borewell, BorewellInput, BorewellListItem, BorewellRecord, ImportRequest,
   ImportResult, LegacyImportReport, Material, Photo, PipeSegment, Project, SearchFilters, Section,
-  StartupStatus, StrataLayer, WaterReading, GeocodeResult,
+  StartupStatus, StrataLayer, WaterReading, GeocodeResult, HistoryEntry,
 } from "@strata/core";
 
 export interface SecondCopy {
@@ -150,6 +150,10 @@ export const api = {
 
   /** Versions, counts, backup status and recent errors, for "Copy details for support". */
   supportDetails: () => invoke<string>("support_details"),
+  /** Opens the error log kept on this computer in Notepad. */
+  openLog: () => invoke<void>("open_log"),
+  /** The newest changes across all borewells, newest first. */
+  recentHistory: (limit: number) => invoke<HistoryEntry[]>("history_recent", { limit }),
 
   /** Opens the getting-started guide installed with the app, in the web browser. */
   openGuide: () => invoke<void>("open_guide"),

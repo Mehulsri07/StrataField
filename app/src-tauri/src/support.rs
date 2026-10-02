@@ -55,6 +55,19 @@ pub fn log_error(state: State<AppState>, source: String, message: String) {
     );
 }
 
+/// Opens the error log in the usual program for text files (Notepad).
+#[tauri::command]
+pub fn open_log(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let file = log_file(Path::new(&state.startup.data_folder));
+    if !file.is_file() {
+        return Err("The log is empty: nothing has gone wrong on this computer.".into());
+    }
+    app.opener()
+        .open_path(file.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Could not open the log: {e}"))
+}
+
 /// The text for "Copy details for support".
 #[tauri::command]
 pub fn support_details(app: AppHandle, state: State<AppState>) -> String {

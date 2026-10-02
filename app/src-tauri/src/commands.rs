@@ -258,6 +258,12 @@ pub fn import_save(
 
 // ── Cross-sections ──────────────────────────────────────────────────────
 
+/// The newest changes across all borewells, for the Activity screen.
+#[tauri::command]
+pub fn history_recent(state: State<AppState>, limit: i64) -> Res<Vec<HistoryEntry>> {
+    read(&state, |_, c| misc::history_recent(c, limit.clamp(1, 2000)))
+}
+
 #[tauri::command]
 pub fn sections_list(state: State<AppState>) -> Res<Vec<Section>> {
     read(&state, |_, c| misc::list_sections(c))

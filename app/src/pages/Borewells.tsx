@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { BorewellListItem, SearchFilters } from "@strata/core";
+import { missingDetails } from "@strata/core";
 import { ArrowDown, ArrowUp, ChevronDown, Plus, Search, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export function Borewells() {
   const [zone, setZone] = useState(() => params.get("zone") ?? ALL);
   const [soil, setSoil] = useState(ALL);
   const [noLocation, setNoLocation] = useState(() => params.get("noLocation") === "1");
+  const [incomplete, setIncomplete] = useState(() => params.get("missing") === "1");
   const [more, setMore] = useState(false);
   const [range, setRange] = useState({ minDepth: "", maxDepth: "", minWater: "", maxWater: "", from: "", to: "" });
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "date", desc: true });
@@ -60,21 +62,21 @@ export function Borewells() {
     dateFrom: range.from || undefined,
     dateTo: range.to || undefined,
   };
-  const filtered = Object.entries(filters).some(([k, v]) => v !== undefined && !(k === "query" && v === ""));
+  const filtered = incomplete || Object.entries(filters).some(([k, v]) => v !== undefined && !(k === "query" && v === ""));
 
   const rows = useLoad(JSON.stringify(filters), () => api.borewells.search(filters));
   const total = useLoad("all", () => api.borewells.search({}));
   const zones = useLoad("projects", () => api.projects.list());
   const materials = useLoad("materials", () => api.materials.list());
 
-  const sorted = useMemo(() => sortRows(rows.data ?? [], sort.key, sort.desc), [rows.data, sort]);
+  const sorted = useMemo(() => sortRows((rows.data ?? []).filter((i) => !incomplete || missingDetails(i.borewell).length > 0), sort.key, sort.desc), [rows.data, sort, incomplete]);
   // How many rows to show; starts again at one page whenever the filters or sorting change.
-  const listKey = JSON.stringify([filters, sort]);
+  const listKey = JSON.stringify([filters, sort, incomplete]);
   const [page, setPage] = useState({ key: listKey, rows: PAGE });
   const shownCount = page.key === listKey ? page.rows : PAGE;
   const shown = sorted.length > shownCount ? sorted.slice(0, shownCount) : sorted;
   const clear = () => {
-    setQuery(""); setZone(ALL); setSoil(ALL); setNoLocation(false);
+    setQuery(""); setZone(ALL); setSoil(ALL); setNoLocation(false); setIncomplete(false);
     setRange({ minDepth: "", maxDepth: "", minWater: "", maxWater: "", from: "", to: "" });
   };
   const toggleSort = (key: SortKey) => setSort((s) => ({ key, desc: s.key === key ? !s.desc : key !== "borewellId" }));
@@ -121,6 +123,10 @@ export function Borewells() {
           <Button variant={noLocation ? "secondary" : "outline"} aria-pressed={noLocation} onClick={() => setNoLocation((v) => !v)}
             className={cn(noLocation && "border-primary bg-accent text-accent-foreground")}>
             No location
+          </Button>
+          <Button variant={incomplete ? "secondary" : "outline"} aria-pressed={incomplete} onClick={() => setIncomplete((v) => !v)}
+            className={cn(incomplete && "border-primary bg-accent text-accent-foreground")}>
+            Missing details
           </Button>
           <Button variant="ghost" aria-expanded={more} onClick={() => setMore((v) => !v)}>
             More filters <ChevronDown className={cn("transition-transform", more && "rotate-180")} />
