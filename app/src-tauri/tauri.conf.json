@@ -65,7 +65,8 @@
     "copyright": "© 2026 Mehul",
     "longDescription": "Record borewells, soil layers, pipes and water levels; see them on a map and in cross-sections. Works offline; data stays on this computer.",
     "resources": {
-      "resources/Getting started.html": "Getting started.html"
+      "resources/Getting started.html": "Getting started.html",
+      "resources/StrataField User Manual.pdf": "StrataField User Manual.pdf"
     }
   },
   "plugins": {

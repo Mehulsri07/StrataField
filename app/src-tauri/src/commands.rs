@@ -374,24 +374,30 @@ pub fn open_folder(app: tauri::AppHandle, state: State<AppState>, which: String)
         .map_err(|e| format!("Could not open the folder: {e}"))
 }
 
-/// Opens the getting-started guide that is installed with the app, in the usual web browser.
+/// Opens a document that is installed with the app: the getting-started guide (in the web browser)
+/// or the user manual (in the usual PDF program).
 #[tauri::command]
-pub fn open_guide(app: tauri::AppHandle) -> Res<()> {
+pub fn open_guide(app: tauri::AppHandle, manual: Option<bool>) -> Res<()> {
     use tauri::Manager;
     use tauri_plugin_opener::OpenerExt;
-    let guide = app
+    let (file, what) = if manual.unwrap_or(false) {
+        ("StrataField User Manual.pdf", "user manual")
+    } else {
+        ("Getting started.html", "getting-started guide")
+    };
+    let path = app
         .path()
         .resource_dir()
         .map_err(|e| e.to_string())?
-        .join("Getting started.html");
-    if !guide.is_file() {
-        return Err(
-            "The getting-started guide is missing. Reinstall StrataField to bring it back.".into(),
-        );
+        .join(file);
+    if !path.is_file() {
+        return Err(format!(
+            "The {what} is missing. Reinstall StrataField to bring it back."
+        ));
     }
     app.opener()
-        .open_path(guide.to_string_lossy(), None::<&str>)
-        .map_err(|e| format!("Could not open the guide: {e}"))
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| format!("Could not open the {what}: {e}"))
 }
 
 /// Imports data from the older StrataField app. Start-up does this automatically once;

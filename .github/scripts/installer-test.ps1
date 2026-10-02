@@ -73,6 +73,12 @@ if (-not (Test-Path $guide)) { Fail "the getting-started guide was not installed
 $guideShortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Getting started with StrataField.lnk' -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $guideShortcut) { Fail "no Start menu shortcut to the getting-started guide" }
 Write-Host "Guide installed, with Start menu shortcut $($guideShortcut.FullName)"
+$manual = Join-Path $installDir 'StrataField User Manual.pdf'
+if (-not (Test-Path $manual)) { Fail "the user manual was not installed ($manual)" }
+if ((Get-Item $manual).Length -lt 200KB) { Fail "the user manual is too small to be the real one ($((Get-Item $manual).Length) bytes)" }
+$manualShortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'StrataField User Manual.lnk' -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $manualShortcut) { Fail "no Start menu shortcut to the user manual" }
+Write-Host "User manual installed, with Start menu shortcut $($manualShortcut.FullName)"
 
 Step "2. First start"
 $first = Start-App
@@ -103,6 +109,7 @@ if ($p.ExitCode -ne 0) { Fail "uninstaller exited with code $($p.ExitCode)" }
 if (Test-Path $exePath) { Fail "the app is still there after uninstalling" }
 if (-not (Test-Path $db)) { Fail "uninstalling deleted the user's data" }
 if (Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Getting started with StrataField.lnk' -ErrorAction SilentlyContinue) { Fail "the guide's Start menu shortcut was left behind" }
+if (Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'StrataField User Manual.lnk' -ErrorAction SilentlyContinue) { Fail "the manual's Start menu shortcut was left behind" }
 Write-Host "App removed; data kept at $db"
 
 $summary = @"

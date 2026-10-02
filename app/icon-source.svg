@@ -1,10 +1,71 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- StrataField app icon: a borewell's layer column with the water line, on the brand accent -->
-  <rect x="32" y="32" width="960" height="960" rx="200" fill="#0D6883"/>
-  <rect x="272" y="190" width="480" height="120" fill="#D4C5A0"/>
-  <rect x="272" y="310" width="480" height="150" fill="#8B6914"/>
-  <rect x="272" y="460" width="480" height="150" fill="#E8C84A"/>
-  <rect x="272" y="610" width="480" height="224" fill="#C49A3C"/>
-  <rect x="272" y="190" width="480" height="644" fill="none" stroke="#062630" stroke-width="16"/>
-  <path d="M200 505H824" stroke="#FFFFFF" stroke-width="30" stroke-dasharray="64 40"/>
+  <!--
+    StrataField app icon: a block of ground cut open to show its layers, with a borewell core through
+    it and a location pin above. The app's icons (app/src-tauri/icons) are made from this file:
+      npx tauri icon icon-source.svg -o (a scratch folder)     [run inside app/]
+    then copy 32x32.png, 128x128.png, 128x128@2x.png and icon.ico. The small mark inside the app
+    (BrandMark in AppShell.tsx) and on the manual's cover is a simplified copy of the same drawing.
+  -->
+  <rect x="32" y="32" width="960" height="960" rx="212" fill="#F2F0E1"/>
+  <g fill="#D6CDB0">
+    <circle cx="170" cy="210" r="5"/><circle cx="262" cy="118" r="4"/><circle cx="820" cy="150" r="5"/><circle cx="905" cy="300" r="4"/>
+    <circle cx="118" cy="520" r="4"/><circle cx="150" cy="800" r="5"/><circle cx="330" cy="905" r="4"/><circle cx="700" cy="915" r="5"/>
+    <circle cx="880" cy="760" r="4"/><circle cx="915" cy="560" r="5"/><circle cx="600" cy="110" r="4"/><circle cx="420" cy="150" r="3"/>
+  </g>
+
+  <g transform="translate(512 520) scale(1.16) translate(-512 -520)" stroke-linejoin="round" stroke-linecap="round">
+    <!-- The open box above the ground -->
+    <path d="M206 410V372L458 250M818 410V372L566 250" fill="none" stroke="#2C3A44" stroke-width="8"/>
+
+    <!-- The ground's surface -->
+    <path d="M206 410L512 270L818 410L512 550Z" fill="#5C6670"/>
+    <path d="M276 404L474 494M748 404L550 494" fill="none" stroke="#E4DCC6" stroke-width="5"/>
+
+    <!-- Layers on the left face -->
+    <path d="M206 410L512 550V585Q370 540 206 445Z" fill="#56706B"/>
+    <path d="M206 445Q370 540 512 585V665Q380 640 206 520Z" fill="#A9C39A"/>
+    <path d="M206 520Q380 640 512 665V770Q350 690 206 600Z" fill="#D2955F"/>
+    <path d="M206 600Q350 690 512 770V860L206 690Z" fill="#9A8D78"/>
+    <!-- Layers on the right face -->
+    <path d="M818 410L512 550V585Q654 540 818 445Z" fill="#4E6661"/>
+    <path d="M818 445Q654 540 512 585V665Q644 640 818 520Z" fill="#9DB88E"/>
+    <path d="M818 520Q644 640 512 665V770Q674 690 818 600Z" fill="#C48653"/>
+    <path d="M818 600Q674 690 512 770V860L818 690Z" fill="#8E826E"/>
+    <path d="M214 566Q370 668 512 716M810 566Q654 668 512 716" fill="none" stroke="#EBC9A0" stroke-width="4"/>
+
+    <!-- Stones in the bottom layer -->
+    <g fill="#4A5258">
+      <ellipse cx="250" cy="655" rx="13" ry="8"/><ellipse cx="300" cy="700" rx="10" ry="7"/><ellipse cx="350" cy="715" rx="14" ry="8"/>
+      <ellipse cx="405" cy="760" rx="11" ry="7"/><ellipse cx="455" cy="790" rx="13" ry="8"/><ellipse cx="300" cy="668" rx="7" ry="5"/>
+      <ellipse cx="420" cy="805" rx="8" ry="5"/><ellipse cx="480" cy="825" rx="9" ry="6"/><ellipse cx="240" cy="690" rx="7" ry="5"/>
+      <ellipse cx="774" cy="655" rx="13" ry="8"/><ellipse cx="724" cy="700" rx="10" ry="7"/><ellipse cx="674" cy="715" rx="14" ry="8"/>
+      <ellipse cx="619" cy="760" rx="11" ry="7"/><ellipse cx="569" cy="790" rx="13" ry="8"/><ellipse cx="724" cy="668" rx="7" ry="5"/>
+      <ellipse cx="604" cy="805" rx="8" ry="5"/><ellipse cx="544" cy="825" rx="9" ry="6"/><ellipse cx="784" cy="690" rx="7" ry="5"/>
+    </g>
+
+    <!-- Lines between the layers, and the block's outline -->
+    <g fill="none" stroke="#2C3A44" stroke-width="7">
+      <path d="M206 445Q370 540 512 585Q654 540 818 445"/>
+      <path d="M206 520Q380 640 512 665Q644 640 818 520"/>
+      <path d="M206 600Q350 690 512 770Q674 690 818 600"/>
+    </g>
+    <path d="M206 410L512 550L818 410M512 770V860M206 410V690L512 860L818 690V410" fill="none" stroke="#2C3A44" stroke-width="9"/>
+
+    <!-- The borewell core -->
+    <path d="M470 456V694A42 20 0 0 0 554 694V456Z" fill="#B99A74"/>
+    <path d="M470 566A42 16 0 0 0 554 566V640A42 16 0 0 1 470 640Z" fill="#E7D8B6"/>
+    <path d="M470 640A42 16 0 0 0 554 640V694A42 20 0 0 1 470 694Z" fill="#A27C58"/>
+    <path d="M478 676Q494 664 510 676T544 674" fill="none" stroke="#2C3A44" stroke-width="5"/>
+    <g fill="#2C3A44"><circle cx="488" cy="486" r="3.5"/><circle cx="530" cy="478" r="3"/><circle cx="540" cy="548" r="3.5"/><circle cx="484" cy="540" r="3"/></g>
+    <path d="M512 492C512 492 496 516 496 528A16 16 0 0 0 528 528C528 516 512 492 512 492Z" fill="#6BB3DE" stroke="#2C3A44" stroke-width="5"/>
+    <g transform="translate(512 606)" fill="#2C3A44"><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(0)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(45)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(90)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(135)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(180)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(225)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(270)"/><rect x="-4.5" y="-23" width="9" height="11" rx="2" transform="rotate(315)"/><circle r="15"/></g>
+    <circle cx="512" cy="606" r="6" fill="#E7D8B6"/>
+    <path d="M470 566A42 16 0 0 0 554 566M470 640A42 16 0 0 0 554 640" fill="none" stroke="#2C3A44" stroke-width="6"/>
+    <path d="M470 456V694A42 20 0 0 0 554 694V456" fill="none" stroke="#2C3A44" stroke-width="9"/>
+    <ellipse cx="512" cy="456" rx="42" ry="16" fill="#CDB38D" stroke="#2C3A44" stroke-width="9"/>
+
+    <!-- The location pin -->
+    <path d="M512 448C478 404 458 378 458 346A54 54 0 1 1 566 346C566 378 546 404 512 448Z" fill="#A5C596" stroke="#2C3A44" stroke-width="9"/>
+    <circle cx="512" cy="346" r="20" fill="#F2F0E1" stroke="#2C3A44" stroke-width="7"/>
+  </g>
 </svg>

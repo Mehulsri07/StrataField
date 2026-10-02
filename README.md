@@ -122,6 +122,7 @@ StrataField/
 │       └── tests/              Database, backup and old-data import tests
 ├── .github/                    CI checks, installer test, release workflow
 ├── INSTALL.md                  Install guide for users
+├── docs/manual/                The user manual's text and screenshots (built into a PDF by scripts/build-manual.mjs)
 └── Cargo.toml, package.json    Rust and npm workspaces
 ```
 

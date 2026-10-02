@@ -594,6 +594,7 @@ function About() {
               : update.progress === null ? text.updates.downloading : text.updates.downloadingPct(Math.round(update.progress * 100))}
           </Button>
         )}
+        <Button variant="ghost" onClick={() => api.openManual().catch((e) => toast.error(String(e)))} disabled={isPreview}><BookOpen />{text.guide.openManual}</Button>
         <Button variant="ghost" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} disabled={isPreview}><BookOpen />{text.guide.open}</Button>
         <Button variant="ghost" onClick={showSupport}><LifeBuoy />{text.support.button}</Button>
         <Button variant="ghost" onClick={() => api.openLog().catch((e) => toast.info(String(e)))} disabled={isPreview}><FileText />{text.support.openLog}</Button>

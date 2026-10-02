@@ -61,6 +61,8 @@ export const text = {
   guide: {
     open: "Open the getting-started guide",
     short: "Getting started",
+    manual: "User manual",
+    openManual: "Open the user manual",
   },
 
   updates: {

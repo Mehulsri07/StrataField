@@ -14,6 +14,15 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **Activity.** A new screen lists every change across all borewells, newest first, with a search box.
 - **Open the error log.** Settings & backup → About has a button that opens the log of problems kept
   on this computer.
+- **A user manual with pictures.** A PDF that walks through every screen is installed with
+  StrataField. Open it from **User manual** at the bottom of the menu, from Settings & backup →
+  About, or from the Start menu.
+
+### Changed
+- **A new logo.** A block of ground cut open to show its layers, with a borewell core and a location
+  pin, on the app's icon, in the menu and on the manual's cover.
+- The status in the Borewells list names everything a record lacks ("No location, owner") instead of
+  only the first thing.
 
 ## [1.0.6] - 2026-10-03
 
