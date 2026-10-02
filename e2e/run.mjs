@@ -262,10 +262,18 @@ try {
     const listed = popup.innerText.replace(/\\s+/g, ' ');
     __t.btn('SPOT-2016', popup).click();
     const card = await __t.until(() => document.querySelector('[role="dialog"][aria-label="SPOT-2016 details"]'), 5000).catch(() => null);
+    // Which readings count: the last 3 years by default (the 2016 one is left out), or all of them.
+    const since = () => /going by readings since 2023/.test(__t.text());
+    const byDefault = since();
+    await __t.choose(document.querySelector('[aria-label="Which water readings to use"]'), 'All readings');
+    const all = !since();
+    await __t.choose(document.querySelector('[aria-label="Which water readings to use"]'), 'Readings from the last 3 years');
+    const back = since();
     for (const x of [a, b]) { await __t.invoke('borewell_delete', { id: x.id }); await __t.invoke('borewell_delete_permanently', { id: x.id }); }
-    return { listed, opened: !!card };`);
+    return { listed, opened: !!card, byDefault, all, back };`);
   check("Map: borewells at the same spot are listed, newest first, and each can be opened",
     /2 borewells here/.test(stack.listed) && stack.listed.indexOf("SPOT-2026") < stack.listed.indexOf("SPOT-2016") && stack.opened, JSON.stringify(stack));
+  check("Map: old water readings are left out by default, and \"All readings\" brings them back", stack.byDefault && stack.all && stack.back, JSON.stringify(stack));
 
   // ── Map without internet (needs internet once, to download it) ─────────
   if (process.env.E2E_OFFLINE_MAP !== "0") {

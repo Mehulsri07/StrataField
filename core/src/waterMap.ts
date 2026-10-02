@@ -114,24 +114,29 @@ export function waterColour(feet: number): [number, number, number] {
 
 /**
  * Water levels measured years apart cannot be compared: the water moves. Only levels from the last
- * few years before the newest one count as "the water level now".
+ * few years before the newest one count as "the water level now". The user can change how many
+ * years, or use the whole record (0).
  */
 export const RECENT_YEARS = 3;
 
 type Measured = { waterLevel: number | null; waterLevelOn?: string | null };
 
-/** The earliest date (ISO) a water level may have to count as recent; '' when no level has a date. */
-export function recentCutoff(items: Measured[]): string {
+/**
+ * The earliest date (ISO) a water level may have to count as recent: `years` before the newest one.
+ * '' (everything counts) when `years` is 0 or no level has a date.
+ */
+export function recentCutoff(items: Measured[], years = RECENT_YEARS): string {
+  if (!years) return '';
   const newest = items.reduce((m, b) => (b.waterLevel != null && b.waterLevelOn && b.waterLevelOn > m ? b.waterLevelOn : m), '');
-  return newest && `${Number(newest.slice(0, 4)) - RECENT_YEARS}${newest.slice(4, 10)}`;
+  return newest && `${Number(newest.slice(0, 4)) - years}${newest.slice(4, 10)}`;
 }
 
 /** True when this water level is recent enough to stand for today's (levels without a date count). */
 export const isRecentWater = (b: Measured, cutoff: string) => b.waterLevel != null && (!b.waterLevelOn || b.waterLevelOn >= cutoff);
 
 /** Borewells usable for the water map: located, with a recent water level. */
-export function waterPoints<T extends Measured & { latitude: number | null; longitude: number | null }>(items: T[]): WaterPoint[] {
-  const cutoff = recentCutoff(items);
+export function waterPoints<T extends Measured & { latitude: number | null; longitude: number | null }>(items: T[], years = RECENT_YEARS): WaterPoint[] {
+  const cutoff = recentCutoff(items, years);
   return items
     .filter(b => b.latitude != null && b.longitude != null && isRecentWater(b, cutoff))
     .map(b => ({ latitude: b.latitude!, longitude: b.longitude!, waterLevel: b.waterLevel! }));

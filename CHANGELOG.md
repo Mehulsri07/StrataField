@@ -19,7 +19,8 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 
 - **Water levels from years ago no longer blur today's picture.** The water colours on the map and
   the "typical water level" on Home use only readings from the last three years before your newest
-  one, and say so. Borewells with older readings stay on the map as grey pins.
+  one, and say so. Borewells with older readings stay on the map as grey pins. A box on Home and on
+  the Map lets you choose the last year, 3 years, 5 years, or all readings; the choice is remembered.
 - **Newest borewells on Home** are the most recently drilled, not the most recently typed in or
   imported.
 - **Borewells at the same spot.** Clicking a numbered group on the map that zooming cannot separate

@@ -95,6 +95,13 @@ describe('recent water levels', () => {
     expect(recentCutoff([at(null, null)])).toBe('');
   });
 
+  it('uses the number of years asked for, or the whole record', () => {
+    expect(recentCutoff(wells, 1)).toBe('2025-09-22');
+    expect(waterPoints(wells, 1).map(p => p.waterLevel)).toEqual([110, 80]);
+    expect(recentCutoff(wells, 0)).toBe('');
+    expect(waterPoints(wells, 0).map(p => p.waterLevel)).toEqual([60, 95, 110, 80]);
+  });
+
   it('leaves old levels out of the water map, and keeps levels that have no date', () => {
     expect(waterPoints(wells).map(p => p.waterLevel)).toEqual([95, 110, 80]);
   });

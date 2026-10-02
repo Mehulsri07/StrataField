@@ -4,6 +4,7 @@ import L from "leaflet";
 import Supercluster from "supercluster";
 import type { Borewell } from "@strata/core";
 import { isRecentWater, recentCutoff, waterColour } from "@strata/core";
+import { useWaterYears } from "@/lib/hooks";
 
 /** Up to this zoom, clicking a group zooms in to separate it; a group that needs more is at one spot. */
 const SEPARATES_BY = 17;
@@ -27,7 +28,8 @@ export function BorewellPins({ borewells, selectedId, onSelect, faint }: Props) 
     return s;
   }, [located]);
   const byId = useMemo(() => new Map(located.map((b) => [b.id, b])), [located]);
-  const cutoff = useMemo(() => recentCutoff(located), [located]);
+  const [years] = useWaterYears();
+  const cutoff = useMemo(() => recentCutoff(located, years), [located, years]);
   /** Borewells at one spot, listed in a popup. */
   const [stack, setStack] = useState<{ at: [number, number]; ids: string[] } | null>(null);
 

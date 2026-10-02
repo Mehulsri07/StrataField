@@ -8,11 +8,12 @@ import { Page, PageHeader } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BaseMap } from "@/components/map/BaseMap";
 import { BorewellPins, FitBorewells } from "@/components/map/BorewellPins";
-import { WaterLayer, WaterLegend } from "@/components/map/WaterLayer";
+import { WaterLayer, WaterLegend, WaterPeriod } from "@/components/map/WaterLayer";
 import { StrataStrip } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/data";
+import { useWaterYears } from "@/lib/hooks";
 import { text } from "@/text";
 import { cn } from "cn";
 
@@ -31,8 +32,9 @@ export function MapPage() {
   const borewells = useMemo(() => all.map((i) => i.borewell), [all]);
   const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
   const missing = borewells.length - located.length;
-  const points = useMemo(() => waterPoints(borewells), [borewells]);
-  const cutoff = useMemo(() => recentCutoff(borewells), [borewells]);
+  const [years] = useWaterYears();
+  const points = useMemo(() => waterPoints(borewells, years), [borewells, years]);
+  const cutoff = useMemo(() => recentCutoff(borewells, years), [borewells, years]);
   const selected = all.find((i) => i.borewell.id === selectedId);
   const focus = useMemo(() => borewells.find((b) => b.id === focusId), [borewells, focusId]);
 
@@ -43,6 +45,7 @@ export function MapPage() {
         sub={`${located.length} borewell${located.length === 1 ? " has" : "s have"} a location. ${showWater ? `Colours show how deep the water is${borewells.some((b) => b.waterLevel != null && !isRecentWater(b, cutoff)) ? `, going by readings since ${cutoff.slice(0, 4)}` : ""}. Darker means deeper.` : "Water colours are turned off."}`}
         actions={
           <>
+            <WaterPeriod />
             {missing > 0 && (
               <Button variant="outline" render={<Link to="/borewells?noLocation=1" />}>
                 <Chip tone="warn">{missing}</Chip> without a location

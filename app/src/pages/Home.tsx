@@ -9,10 +9,11 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BaseMap } from "@/components/map/BaseMap";
 import { BorewellPins, FitBorewells } from "@/components/map/BorewellPins";
-import { WaterLayer, WaterLegend } from "@/components/map/WaterLayer";
+import { WaterLayer, WaterLegend, WaterPeriod } from "@/components/map/WaterLayer";
 import { patternFill } from "@/components/geology/patterns";
 import { api, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
+import { useWaterYears } from "@/lib/hooks";
 import { formatDate, formatWhen } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
@@ -41,11 +42,12 @@ export function Home() {
   const all = useMemo(() => items.data ?? [], [items.data]);
   const borewells = useMemo(() => all.map((i) => i.borewell), [all]);
   const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
-  const points = useMemo(() => waterPoints(borewells), [borewells]);
+  const [years] = useWaterYears();
+  const points = useMemo(() => waterPoints(borewells, years), [borewells, years]);
   // Newest by drilling date (then by when it was added), so importing old logs does not make them "new".
   const recent = useMemo(() => [...all].sort((a, b) => b.borewell.date.localeCompare(a.borewell.date) || b.borewell.createdAt.localeCompare(a.borewell.createdAt)).slice(0, 6), [all]);
   // Water levels measured years ago say little about the water now, so only recent ones are used.
-  const cutoff = useMemo(() => recentCutoff(borewells), [borewells]);
+  const cutoff = useMemo(() => recentCutoff(borewells, years), [borewells, years]);
   const current = borewells.filter((b) => isRecentWater(b, cutoff));
   const olderLeftOut = borewells.some((b) => b.waterLevel != null && !isRecentWater(b, cutoff));
   const byWater = useMemo(() => located.filter((b) => isRecentWater(b, cutoff)).sort((a, b) => b.waterLevel! - a.waterLevel!), [located, cutoff]);
@@ -108,7 +110,7 @@ export function Home() {
         <>
           <Panel
             title={`How deep is the water across ${text.app.city}?`}
-            actions={<Button variant="ghost" size="sm" render={<Link to="/map" />}>Open full map<ChevronRight /></Button>}
+            actions={<><WaterPeriod size="sm" /><Button variant="ghost" size="sm" render={<Link to="/map" />}>Open full map<ChevronRight /></Button></>}
             bodyClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]"
           >
             <div className="relative h-[460px] min-w-0 overflow-hidden rounded-md border border-border">
