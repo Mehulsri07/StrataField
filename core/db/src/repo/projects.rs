@@ -1,5 +1,5 @@
 use crate::db::{new_id, now};
-use crate::error::{DbError, Result};
+use crate::error::Result;
 use crate::models::Project;
 use rusqlite::{params, Connection, OptionalExtension};
 
@@ -49,31 +49,4 @@ pub fn id_for_name(conn: &Connection, name: &str) -> Result<String> {
         params![id, name, ts],
     )?;
     Ok(id)
-}
-
-pub fn rename(conn: &Connection, id: &str, new_name: &str) -> Result<()> {
-    let new_name = new_name.trim();
-    if new_name.is_empty() {
-        return Err(DbError::Invalid("Enter a project name.".into()));
-    }
-    let clash: Option<String> = conn
-        .query_row(
-            "SELECT id FROM projects WHERE name = ?1 COLLATE NOCASE AND id <> ?2",
-            params![new_name, id],
-            |r| r.get(0),
-        )
-        .optional()?;
-    if clash.is_some() {
-        return Err(DbError::Invalid(format!(
-            "A project called \u{201c}{new_name}\u{201d} already exists."
-        )));
-    }
-    let n = conn.execute(
-        "UPDATE projects SET name = ?2, updated_at = ?3 WHERE id = ?1",
-        params![id, new_name, now()],
-    )?;
-    if n == 0 {
-        return Err(DbError::NotFound("This project".into()));
-    }
-    Ok(())
 }

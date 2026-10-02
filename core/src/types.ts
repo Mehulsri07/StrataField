@@ -264,23 +264,12 @@ export interface ExcelParseResult {
   failureReason?: string;         // set when success is false; shown to the user
 }
 
-// ─── Unmapped Material (for data cleanup) ───────────────────────────────────
-
-export interface UnmappedMaterial {
-  material: string;       // free-text value in strata_layers
-  layerCount: number;     // how many layers use this value
-  suggestedMatch: string | null;  // best fuzzy match from materials dictionary
-  suggestedMatchId: string | null;
-}
-
 // ─── Search & Filters ────────────────────────────────────────────────────────
 
 export interface SearchFilters {
   query?: string;
-  field?: SearchField;
   dateFrom?: string;
   dateTo?: string;
-  city?: string;
   project?: string;
   materialId?: string;
   minDepth?: number;
@@ -291,33 +280,6 @@ export interface SearchFilters {
   showDeleted?: boolean;     // list the Recycle bin instead
 }
 
-export type SearchField =
-  | 'all'
-  | 'borewellId'
-  | 'ownerName'
-  | 'area'
-  | 'city'
-  | 'project'
-  | 'material';
-
-// ─── Export ──────────────────────────────────────────────────────────────────
-
-export type ExportFormat = 'pdf' | 'excel';
-export type ExportMode = 'single' | 'bundle';
-
-export interface ExportOptions {
-  format: ExportFormat;
-  mode: ExportMode;
-  borewellIds: string[];
-  filters?: {
-    location?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    owner?: string;
-    project?: string;
-  };
-}
-
 // ─── Geocoding ───────────────────────────────────────────────────────────────
 
 export interface GeocodeResult {
@@ -325,10 +287,6 @@ export interface GeocodeResult {
   longitude: number;
   displayName: string;
 }
-
-// ─── Settings ────────────────────────────────────────────────────────────────
-
-export type ThemeMode = 'dark' | 'light';
 
 // ─── Backups, start-up and import ────────────────────────────────────────────
 

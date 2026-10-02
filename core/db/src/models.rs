@@ -210,11 +210,8 @@ pub struct BorewellListItem {
 #[serde(rename_all = "camelCase", default)]
 pub struct SearchFilters {
     pub query: String,
-    /// 'all' | 'borewellId' | 'ownerName' | 'area' | 'city' | 'project' | 'material'
-    pub field: String,
     pub date_from: Option<String>,
     pub date_to: Option<String>,
-    pub city: Option<String>,
     pub project: Option<String>,
     pub material_id: Option<String>,
     pub min_depth: Option<f64>,

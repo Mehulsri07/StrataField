@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Panel } from "@/components/app/Page";
 import { PipeSwatch } from "./patterns";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 // Rows keep numbers as the text the user typed, so half-typed values ("12.") are not lost.
 export interface LayerRow { key: string; start: string; end: string; materialId: string; remarks: string; waterBearing: boolean }

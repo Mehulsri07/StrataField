@@ -97,7 +97,7 @@ StrataField/
 │   │   │   └── ui/             shadcn/ui building blocks (buttons, dialogs, selects…)
 │   │   ├── lib/                api.ts (talks to Rust), data loading, PDF/picture export,
 │   │   │                       theme, browser-preview sample data
-│   │   └── text/en.ts          All wording shown to users, in one place
+│   │   └── text/index.ts       All wording shown to users, in one place
 │   └── src-tauri/              The Rust side of the app
 │       ├── src/commands.rs     Every command the screens can call
 │       ├── src/state.rs        Start-up: open the database, import old data, daily backup
@@ -168,7 +168,7 @@ a problem privately.
 
 These come from the project plan and apply to anyone (or any AI assistant) changing the code:
 
-- **Plain language.** Users are not technical. All wording goes in `app/src/text/en.ts`.
+- **Plain language.** Users are not technical. All wording goes in `app/src/text/index.ts`.
 - **Never make estimates look measured.** Layers between borewells are drawn faded and dashed, and
   clicking one shows which borewells it came from.
 - **Geology follows position, not IDs.** A cross-section orders borewells by where they sit along the

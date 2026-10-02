@@ -6,7 +6,6 @@ import { NotFound } from "@/components/app/Page";
 const Home = lazy(() => import("@/pages/Home").then((m) => ({ default: m.Home })));
 const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })));
 const RecycleBin = lazy(() => import("@/pages/RecycleBin").then((m) => ({ default: m.RecycleBin })));
-const DesignSystem = lazy(() => import("@/pages/DesignSystem").then((m) => ({ default: m.DesignSystem })));
 const Borewells = lazy(() => import("@/pages/Borewells").then((m) => ({ default: m.Borewells })));
 const BorewellDetail = lazy(() => import("@/pages/BorewellDetail").then((m) => ({ default: m.BorewellDetail })));
 const BorewellForm = lazy(() => import("@/pages/BorewellForm").then((m) => ({ default: m.BorewellForm })));
@@ -36,7 +35,6 @@ export default function App() {
         <Route path="export" element={<ExportPage />} />
         <Route path="recycle-bin" element={<RecycleBin />} />
         <Route path="settings" element={<Settings />} />
-        <Route path="design" element={<DesignSystem />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

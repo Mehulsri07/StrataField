@@ -4,6 +4,7 @@
  * include buildings and trees. A borewell's own recorded ground height is always preferred.
  */
 import type { LatLon } from './section';
+import { kmBetween } from './waterMap';
 
 export interface ElevationGrid {
   cols: number;
@@ -46,8 +47,7 @@ export function heightAt(g: ElevationGrid, latitude: number, longitude: number):
 /** Ground heights (metres) at `count` evenly spaced places along a line with bends. */
 export function groundProfile(g: ElevationGrid, path: LatLon[], count = 200): { km: number; metres: number | null }[] {
   if (path.length < 2) return [];
-  const kmOf = (a: LatLon, b: LatLon) => Math.hypot((a[0] - b[0]) * 110.57, (a[1] - b[1]) * 111.32 * Math.cos((((a[0] + b[0]) / 2) * Math.PI) / 180));
-  const parts = path.slice(1).map((q, i) => ({ a: path[i], b: q, km: kmOf(path[i], q) }));
+  const parts = path.slice(1).map((q, i) => ({ a: path[i], b: q, km: kmBetween(path[i][0], path[i][1], q[0], q[1]) }));
   const total = parts.reduce((s, p) => s + p.km, 0);
   const out: { km: number; metres: number | null }[] = [];
   for (let n = 0; n < count; n++) {

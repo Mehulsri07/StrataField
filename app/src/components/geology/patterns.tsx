@@ -4,7 +4,7 @@
  * Mount <PatternDefs /> once (the app shell does); anything can then use fill="url(#p-<name>)".
  */
 import type { StrataLayer } from "@strata/core";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 export const PATTERNS = ["lines", "dots", "diagonal", "circles", "crosses", "unrecorded", "solid"] as const;
 

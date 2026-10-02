@@ -24,7 +24,7 @@ import { api, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { formatWhen } from "@/lib/format";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 const handleIcon = (label: string) =>
   L.divIcon({ className: "", html: `<div class="strata-handle">${label}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });

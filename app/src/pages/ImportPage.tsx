@@ -15,7 +15,7 @@ import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string }
 

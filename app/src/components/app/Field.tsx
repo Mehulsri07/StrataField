@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 /** A labelled form field with an optional hint and message. Messages are plain sentences. */
 export function Field({ id, label, hint, error, warning, className, children }: {

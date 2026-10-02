@@ -17,7 +17,7 @@ import { api, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, formatWhen } from "@/lib/format";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 const median = (values: number[]) => {
   if (values.length === 0) return null;
