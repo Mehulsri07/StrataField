@@ -8,7 +8,7 @@ cross-sections of the layers underground between borewells.
 It is built for people in the field, not for developers: plain language, step-by-step screens, and
 everything works offline (download the Lucknow map once in Settings) except address lookup. Data stays on the computer.
 
-**Current version: 1.0.4** (Tauri). Pilot city: Lucknow.
+**Current version: 1.0.5** (Tauri). Pilot city: Lucknow.
 
 > **Just want to install it?** See [INSTALL.md](INSTALL.md).
 
