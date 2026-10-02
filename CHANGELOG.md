@@ -3,6 +3,17 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Fixed
+- **Import Excel reads the whole drilling log.** The owner, address, city, date, hole size, pipe
+  size and water level written beside the layers are now filled in (they were being missed).
+- **Thick layers come in as one layer.** A log written in 10 ft steps no longer turns "Clay, Clay,
+  Clay" into three layers; rows of the same soil that touch are joined. Pipes are joined the same way.
+- **Plain pipe is no longer missed.** Screens and plain pipe sit in neighbouring columns in the
+  logs, and only the screens were being read.
+- An imported borewell's ID starts as the file's name; the site name goes into Owner.
+
 ## [1.0.5] - 2026-10-02
 
 ### Changed

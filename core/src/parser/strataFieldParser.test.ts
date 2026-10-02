@@ -92,7 +92,7 @@ afterAll(() => {
 
 describe('thick layers', () => {
   it('does not warn about gaps when layers are simply thicker than usual', () => {
-    const rows = buildStandardRows([20, 40, 60, 100, 160].map((depth) => ({ depth, material: 'Clay' })));
+    const rows = buildStandardRows([20, 40, 60, 100, 160].map((depth, i) => ({ depth, material: i % 2 ? 'Sand' : 'Clay' })));
     const result = smartParseExcel(createTemp(rows));
     expect(result.anomalies.filter((a) => a.code === 'DEPTH_GAP')).toEqual([]);
     expect(result.strata.map((l) => [l.startDepth, l.endDepth])).toEqual([[0, 20], [20, 40], [40, 60], [60, 100], [100, 160]]);
@@ -106,7 +106,7 @@ describe('anomaly detection', () => {
       { depth: 10, material: 'Clay' },
       { depth: 20, material: 'Sand' },
       { depth: 15, material: 'Clay' },   // ← backwards — should be flagged
-      { depth: 30, material: 'Sand' },
+      { depth: 30, material: 'Gravel' },
     ]);
     const filePath = createTemp(rows);
     const result = smartParseExcel(filePath);
@@ -355,7 +355,8 @@ describe('sheets that are not in the standard layout', () => {
     const r = parseStrataRows(headed, m);
     expect(r.success).toBe(true);
     expect(r.strata.map(l => [l.startDepth, l.endDepth, l.materialId])).toEqual([[0, 30, 'clay'], [40, 90, 'fine_sand'], [90, 150, 'coarse_sand']]);
-    expect(r.pipes.map(p => p.pipeType)).toEqual(['plain', 'slotted', 'slotted']);
+    // The two screen rows touch, so they are one piece of pipe.
+    expect(r.pipes.map(p => [p.pipeType, p.startDepth, p.endDepth])).toEqual([['plain', 0, 30], ['slotted', 40, 150]]);
   });
 
   it('guesses the columns without a heading row: rising numbers and the words beside them', () => {
@@ -368,5 +369,45 @@ describe('sheets that are not in the standard layout', () => {
   it('converts metres when the user says the depths are in metres', () => {
     const r = parseStrataRows(headed, { ...guessMapping(headed)!, unit: 'm' });
     expect(r.strata[0].endDepth).toBeCloseTo(30 * EXPECTED_METRES_TO_FEET, 3);
+  });
+});
+
+describe('a field log as it is really written', () => {
+  // The shape of the real files (made-up values): a letterhead, the two headings, then the site,
+  // address and details down the first column beside the layer rows, depths in 10 ft steps with the
+  // soil repeated on every row, screens in column 4 and plain pipe in column 5, and the date at the end.
+  const side = ['Verma Residence', 'Sector 9, Indira Nagar', 'Lucknow.', null, null, 'Total Lowering = 130 ft', 'Slot = 20G/16',
+    'Water Level =  85 ft', 'Bore Dia = 12" / 140 ft', 'Tube Well =  8"/130 ft'];
+  const soils = ['Clay', 'Clay', 'Clay', 'Sand', 'Sand', 'Clay', 'Clay', 'Clay', 'Clay', 'Sand ', 'Sand', 'Sand', 'Clay', 'Clay'];
+  const rows: (string | number | null)[][] = [
+    [null, null, null, null, 'Example Drilling Co, Lucknow'],
+    [],
+    [null, null, 'Streta Chart', null, null, 'Lowering Assambly'],
+    ['Site:', 'G.L.', '12"', 'G.L.', null, 'G.L.', '8"'],
+    ...soils.map((soil, i) => {
+      const depth = (i + 1) * 10, screen = depth > 90 && depth <= 120, pipe = depth <= 130;
+      return [side[i] ?? null, depth, null, soil, pipe && screen ? 'Ribbed Screen' : null, pipe && !screen ? 'Plain pipe' : null, null, pipe ? depth : null];
+    }),
+    [], [],
+    ['Date : 14/3/2019', null, 'Client', null, null, null, 'Driller'],
+  ];
+  const r = parseStrataRows(rows);
+
+  it('joins rows of the same soil into one layer', () => {
+    expect(r.strata.map(l => [l.startDepth, l.endDepth, l.material])).toEqual([
+      [0, 30, 'Clay'], [30, 50, 'Sand'], [50, 90, 'Clay'], [90, 120, 'Sand'], [120, 140, 'Clay'],
+    ]);
+  });
+
+  it('reads the pipe from either pipe column, and joins it into pieces', () => {
+    expect(r.pipes.map(p => [p.pipeType, p.startDepth, p.endDepth])).toEqual([['plain', 0, 90], ['slotted', 90, 120], ['plain', 120, 130]]);
+  });
+
+  it('reads the details written beside and below the layers', () => {
+    expect(r.metadata).toMatchObject({
+      ownerName: 'Verma Residence', address: 'Sector 9, Indira Nagar', city: 'Lucknow',
+      waterLevel: 85, boreDia: 12, totalDepth: 140, pipeDia: 8, date: '2019-03-14', detectedUnit: 'ft',
+    });
+    expect(r.anomalies.map(a => a.code)).toEqual([]);
   });
 });
