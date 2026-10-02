@@ -60,15 +60,22 @@ export function AppShell() {
   );
 }
 
+/** The app's logo at menu size: the icon (app/icon-source.svg) without its fine detail. */
 function BrandMark() {
   return (
-    <svg width="22" height="22" viewBox="0 0 26 26" aria-hidden="true" className="shrink-0">
-      <rect x="1" y="1" width="24" height="24" rx="5" fill="var(--primary)" />
-      <rect x="6" y="5" width="14" height="3.5" fill="#D4C5A0" />
-      <rect x="6" y="8.5" width="14" height="4" fill="#8B6914" />
-      <rect x="6" y="12.5" width="14" height="4" fill="#E8C84A" />
-      <rect x="6" y="16.5" width="14" height="4.5" fill="#C49A3C" />
-      <path d="M5 13.8H21" stroke="#fff" strokeWidth="1.2" strokeDasharray="2 1.5" />
+    <svg width="24" height="24" viewBox="0 0 1024 1024" aria-hidden="true" className="shrink-0">
+      <rect x="32" y="32" width="960" height="960" rx="212" fill="#F2F0E1" stroke="var(--sidebar-border)" strokeWidth="24" />
+      <g transform="translate(512 520) scale(1.16) translate(-512 -520)" strokeLinejoin="round">
+        <path d="M206 410L512 270L818 410L512 550Z" fill="#5C6670" />
+        <path d="M206 410L512 550L818 410V445Q654 540 512 585Q370 540 206 445Z" fill="#56706B" />
+        <path d="M206 445Q370 540 512 585Q654 540 818 445V520Q644 640 512 665Q380 640 206 520Z" fill="#A9C39A" />
+        <path d="M206 520Q380 640 512 665Q644 640 818 520V600Q674 690 512 770Q350 690 206 600Z" fill="#D2955F" />
+        <path d="M206 600Q350 690 512 770Q674 690 818 600V690L512 860L206 690Z" fill="#9A8D78" />
+        <path d="M206 410L512 270L818 410V690L512 860L206 690Z" fill="none" stroke="#2C3A44" strokeWidth="22" />
+        <path d="M470 456V694A42 20 0 0 0 554 694V456Z" fill="#CDB38D" stroke="#2C3A44" strokeWidth="18" />
+        <path d="M512 448C478 404 458 378 458 346A54 54 0 1 1 566 346C566 378 546 404 512 448Z" fill="#A5C596" stroke="#2C3A44" strokeWidth="18" />
+        <circle cx="512" cy="346" r="20" fill="#F2F0E1" />
+      </g>
     </svg>
   );
 }
@@ -119,8 +126,8 @@ function Sidebar({ summary }: { summary: Summary | null }) {
       </nav>
       <div className="mt-auto flex items-center gap-1 pl-2.5 text-xs text-muted-foreground">
         {!isPreview && (
-          <button type="button" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} className="inline-flex items-center gap-1.5 rounded-sm text-left hover:text-foreground">
-            <BookOpen className="size-3.5" aria-hidden="true" /> {text.guide.short}
+          <button type="button" onClick={() => api.openManual().catch((e) => toast.error(String(e)))} className="inline-flex items-center gap-1.5 rounded-sm text-left hover:text-foreground">
+            <BookOpen className="size-3.5" aria-hidden="true" /> {text.guide.manual}
           </button>
         )}
         <Tooltip>
