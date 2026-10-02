@@ -95,6 +95,8 @@ export const api = {
   },
   projects: {
     list: () => invoke<Project[]>("projects_list"),
+    /** Renames a zone; a name another zone already has merges the two. */
+    rename: (id: string, name: string) => invoke<void>("project_rename", { id, name }),
   },
 
   attachments: {
