@@ -31,7 +31,7 @@ export function Borewells() {
 
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [zone, setZone] = useState(ALL);
+  const [zone, setZone] = useState(() => params.get("zone") ?? ALL);
   const [soil, setSoil] = useState(ALL);
   const [noLocation, setNoLocation] = useState(() => params.get("noLocation") === "1");
   const [more, setMore] = useState(false);

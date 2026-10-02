@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NEIGHBOURHOOD_KM, WaterIndex, estimateWater, kmBetween, recentCutoff, waterColour, waterPoints, WATER_RAMP } from './waterMap';
+import { NEIGHBOURHOOD_KM, WaterIndex, estimateWater, kmBetween, recentCutoff, waterByYear, waterColour, waterPoints, WATER_RAMP } from './waterMap';
 
 // Aminabad and Hazratganj, Lucknow (about 1.9 km apart)
 const aminabad = { latitude: 26.846, longitude: 80.927, waterLevel: 124 };
@@ -104,5 +104,17 @@ describe('recent water levels', () => {
 
   it('leaves old levels out of the water map, and keeps levels that have no date', () => {
     expect(waterPoints(wells).map(p => p.waterLevel)).toEqual([95, 110, 80]);
+  });
+});
+
+describe('water level by year', () => {
+  const at = (waterLevel: number | null, waterLevelOn: string | null) => ({ waterLevel, waterLevelOn });
+
+  it('groups levels by the year they were measured, oldest first', () => {
+    const years = waterByYear([at(110, '2026-09-22'), at(60, '2016-05-01'), at(70, '2016-11-30'), at(90, '2026-01-02'), at(100, '2026-03-03'), at(null, null), at(80, null)]);
+    expect(years).toEqual([
+      { year: 2016, typical: 65, shallowest: 60, deepest: 70, count: 2 },
+      { year: 2026, typical: 100, shallowest: 90, deepest: 110, count: 3 },
+    ]);
   });
 });

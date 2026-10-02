@@ -21,3 +21,10 @@ export function parseCoordinatePair(text: string): { latitude: number; longitude
   if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
   return { latitude, longitude };
 }
+
+/** The middle value (to one decimal when it falls between two); null when there are none. */
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const s = [...values].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : Math.round(((s[m - 1] + s[m]) / 2) * 10) / 10;
+}
