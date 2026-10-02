@@ -73,7 +73,7 @@ function Measured({ s, onOpenBorewell, onEditLayers }: {
   return (
     <>
       <DialogHeader>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pr-8">
           <MaterialSwatch color={layer.color} pattern={layer.pattern} size={32} className="rounded-md" />
           <div className="min-w-0">
             <DialogTitle className="font-heading text-xl">{layer.material}</DialogTitle>
@@ -151,7 +151,7 @@ function Estimated({ s, onOpenBorewell }: { s: Extract<LayerSelection, { kind: "
   return (
     <>
       <DialogHeader>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pr-8">
           <svg width="32" height="32" className="shrink-0 rounded-md" aria-hidden="true">
             <rect width="32" height="32" fill={FAMILY_COLOURS[s.family]} fillOpacity={s.confidence === "rough" ? 0.35 : 0.6} />
             <path d="M0 31H32" stroke="var(--foreground)" strokeDasharray={s.confidence === "rough" ? "1.5 4" : "6 4"} />
