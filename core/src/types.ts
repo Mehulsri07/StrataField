@@ -76,6 +76,7 @@ export interface Borewell {
   importSource: string | null; // file name or null
   importMethod: 'excel' | 'manual' | 'legacy';
   deletedAt: string | null;  // ISO datetime if in the Recycle bin, else null
+  waterLevelOn: string | null; // date the water level was measured (newest reading, else the drilling date)
 }
 
 /** What screens send to create or update a borewell. A new project name creates the project. */

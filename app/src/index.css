@@ -230,6 +230,21 @@
 .dark .strata-map .leaflet-tile-pane {
     filter: brightness(0.62) contrast(1.15) saturate(0.7);
 }
+/* Popups (borewells at one spot) follow the palette in light and dark. */
+.strata-map .leaflet-popup-content-wrapper,
+.strata-map .leaflet-popup-tip {
+    background: var(--card);
+    color: var(--card-foreground);
+    box-shadow: var(--shadow-panel);
+}
+.strata-map .leaflet-popup-content-wrapper {
+    border-radius: var(--radius);
+}
+.strata-map .leaflet-popup-content {
+    margin: 10px 12px;
+    min-width: 190px;
+    font-size: 13px;
+}
 .strata-cluster {
     display: grid;
     place-items: center;

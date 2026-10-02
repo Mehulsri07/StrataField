@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { CircleMarker, Marker, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { CircleMarker, Marker, Popup, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import Supercluster from "supercluster";
 import type { Borewell } from "@strata/core";
-import { waterColour } from "@strata/core";
+import { isRecentWater, recentCutoff, waterColour } from "@strata/core";
+import { useWaterYears } from "@/lib/hooks";
+
+/** Up to this zoom, clicking a group zooms in to separate it; a group that needs more is at one spot. */
+const SEPARATES_BY = 17;
 
 type Props = { borewells: Borewell[]; selectedId?: string | null; onSelect?: (b: Borewell) => void; faint?: boolean };
 
 /**
- * One pin per borewell, coloured by its water level. Pins close together are grouped into a count
- * bubble when zoomed out; clicking a bubble zooms in to separate them.
+ * One pin per borewell, coloured by its water level (grey when the level is years old). Pins close
+ * together are grouped into a count bubble; clicking a bubble zooms in to separate them, or lists
+ * the borewells when they are at the same spot and no zoom would.
  */
 export function BorewellPins({ borewells, selectedId, onSelect, faint }: Props) {
   const map = useMap();
@@ -18,11 +23,15 @@ export function BorewellPins({ borewells, selectedId, onSelect, faint }: Props) 
 
   const located = useMemo(() => borewells.filter((b) => b.latitude != null && b.longitude != null), [borewells]);
   const index = useMemo(() => {
-    const s = new Supercluster<{ id: string }>({ radius: 44, maxZoom: 15 });
+    const s = new Supercluster<{ id: string }>({ radius: 44, maxZoom: 20 });
     s.load(located.map((b) => ({ type: "Feature", properties: { id: b.id }, geometry: { type: "Point", coordinates: [b.longitude!, b.latitude!] } })));
     return s;
   }, [located]);
   const byId = useMemo(() => new Map(located.map((b) => [b.id, b])), [located]);
+  const [years] = useWaterYears();
+  const cutoff = useMemo(() => recentCutoff(located, years), [located, years]);
+  /** Borewells at one spot, listed in a popup. */
+  const [stack, setStack] = useState<{ at: [number, number]; ids: string[] } | null>(null);
 
   const b = view.bounds;
   const clusters = index.getClusters([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], Math.round(view.zoom));
@@ -39,15 +48,22 @@ export function BorewellPins({ borewells, selectedId, onSelect, faint }: Props) 
               key={`c${c.id}`}
               position={[lat, lon]}
               icon={L.divIcon({ className: "", html: `<div class="strata-cluster" style="width:${size}px;height:${size}px">${count}</div>`, iconSize: [size, size] })}
-              eventHandlers={{ click: () => map.flyTo([lat, lon], Math.min(index.getClusterExpansionZoom(c.id as number), 17)) }}
+              eventHandlers={{
+                click: () => {
+                  const zoom = index.getClusterExpansionZoom(c.id as number);
+                  if (zoom <= SEPARATES_BY) map.flyTo([lat, lon], zoom);
+                  else setStack({ at: [lat, lon], ids: index.getLeaves(c.id as number, Infinity).map((p) => p.properties.id) });
+                },
+              }}
               keyboard
-              title={`${count} borewells here. Click to zoom in.`}
+              title={`${count} borewells here. Click to see them.`}
             />
           );
         }
         const bw = byId.get((c.properties as { id: string }).id)!;
         const selected = bw.id === selectedId;
-        const [r, g, bl] = bw.waterLevel != null ? waterColour(bw.waterLevel) : [150, 160, 170];
+        const recent = isRecentWater(bw, cutoff);
+        const [r, g, bl] = recent ? waterColour(bw.waterLevel!) : [150, 160, 170];
         return (
           <CircleMarker
             key={selected ? `${bw.id}-selected` : bw.id} // Leaflet applies className only when a shape is created
@@ -66,11 +82,26 @@ export function BorewellPins({ borewells, selectedId, onSelect, faint }: Props) 
           >
             <Tooltip direction="top" offset={[0, -6]}>
               <b>{bw.borewellId}</b> · {bw.area || bw.city}
-              {bw.waterLevel != null && <> · water {bw.waterLevel} ft</>}
+              {bw.waterLevel != null && <> · water {bw.waterLevel} ft{!recent && bw.waterLevelOn && ` in ${bw.waterLevelOn.slice(0, 4)}`}</>}
             </Tooltip>
           </CircleMarker>
         );
       })}
+      {stack && (
+        <Popup position={stack.at} eventHandlers={{ remove: () => setStack(null) }}>
+          <b className="font-semibold">{stack.ids.length} borewells here</b>
+          <ul className="mt-1.5 grid max-h-56 gap-px overflow-y-auto">
+            {stack.ids.map((id) => byId.get(id)!).sort((a, b) => b.date.localeCompare(a.date)).map((bw) => (
+              <li key={bw.id}>
+                <button type="button" className="flex w-full items-baseline gap-3 rounded-sm px-1.5 py-1 text-left hover:bg-accent" onClick={() => { setStack(null); onSelect?.(bw); }}>
+                  <span className="font-medium text-primary">{bw.borewellId}</span>
+                  <span className="num ml-auto text-xs text-muted-foreground">{bw.date.slice(0, 4)}{bw.waterLevel != null && ` · ${bw.waterLevel} ft`}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Popup>
+      )}
     </>
   );
 }

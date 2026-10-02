@@ -3,6 +3,8 @@ import { useMap } from "react-leaflet";
 import L from "leaflet";
 import type { WaterPoint } from "@strata/core";
 import { WaterIndex, waterColour, WATER_RAMP } from "@strata/core";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useWaterYears } from "@/lib/hooks";
 
 const MARGIN_DEG = 0.035; // about 3.5 km around the borewells
 const CELLS = 180; // grid resolution across the longer side
@@ -57,6 +59,24 @@ export function WaterLayer({ points, opacity = 0.75 }: { points: WaterPoint[]; o
   }, [map, points, opacity]);
 
   return null;
+}
+
+const PERIODS = [
+  { value: "1", label: "Readings from the last year" },
+  { value: "3", label: "Readings from the last 3 years" },
+  { value: "5", label: "Readings from the last 5 years" },
+  { value: "0", label: "All readings" },
+];
+
+/** Chooses which water readings count, on every screen: the last 1, 3 or 5 years, or all of them. */
+export function WaterPeriod({ className, size = "default" }: { className?: string; size?: "sm" | "default" }) {
+  const [years, setYears] = useWaterYears();
+  return (
+    <Select value={String(years)} onValueChange={(v) => v != null && setYears(Number(v))} items={PERIODS}>
+      <SelectTrigger size={size} className={className} aria-label="Which water readings to use"><SelectValue /></SelectTrigger>
+      <SelectContent>{PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+    </Select>
+  );
 }
 
 /** Gradient legend for the water-depth colours, in feet below ground. */

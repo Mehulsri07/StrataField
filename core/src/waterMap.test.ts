@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NEIGHBOURHOOD_KM, WaterIndex, estimateWater, kmBetween, waterColour, waterPoints, WATER_RAMP } from './waterMap';
+import { NEIGHBOURHOOD_KM, WaterIndex, estimateWater, kmBetween, recentCutoff, waterColour, waterPoints, WATER_RAMP } from './waterMap';
 
 // Aminabad and Hazratganj, Lucknow (about 1.9 km apart)
 const aminabad = { latitude: 26.846, longitude: 80.927, waterLevel: 124 };
@@ -83,5 +83,26 @@ describe('WaterIndex (many borewells)', () => {
     const t0 = performance.now();
     for (let y = 0; y < 180; y++) for (let x = 0; x < 180; x++) index.estimate(26.7 + (y / 180) * 0.3, 80.8 + (x / 180) * 0.3);
     expect(performance.now() - t0).toBeLessThan(1500);
+  });
+});
+
+describe('recent water levels', () => {
+  const at = (waterLevel: number | null, waterLevelOn: string | null) => ({ latitude: 26.85, longitude: 80.95, waterLevel, waterLevelOn });
+  const wells = [at(60, '2016-05-01'), at(95, '2024-03-10'), at(110, '2026-09-22'), at(null, null), at(80, null)];
+
+  it('counts back from the newest level, not from today', () => {
+    expect(recentCutoff(wells)).toBe('2023-09-22');
+    expect(recentCutoff([at(null, null)])).toBe('');
+  });
+
+  it('uses the number of years asked for, or the whole record', () => {
+    expect(recentCutoff(wells, 1)).toBe('2025-09-22');
+    expect(waterPoints(wells, 1).map(p => p.waterLevel)).toEqual([110, 80]);
+    expect(recentCutoff(wells, 0)).toBe('');
+    expect(waterPoints(wells, 0).map(p => p.waterLevel)).toEqual([60, 95, 110, 80]);
+  });
+
+  it('leaves old levels out of the water map, and keeps levels that have no date', () => {
+    expect(waterPoints(wells).map(p => p.waterLevel)).toEqual([95, 110, 80]);
   });
 });

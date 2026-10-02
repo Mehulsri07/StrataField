@@ -100,7 +100,7 @@ export const SAMPLE_BOREWELLS: BorewellListItem[] = RAW.map(([code, owner, area,
     locationAccuracyM: null, groundElevationM: null, elevationSource: null, boreDia: depth > 300 ? 10 : 8, pipeDia: depth > 300 ? 6 : 5,
     totalDepth: depth, waterLevel: water, dynamicWaterLevel: null, depthUnit: "ft", drillingMethod: depth > 290 ? "DTH" : "ROTARY",
     recordQuality: "good", remarks: "", date, createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T10:00:00.000Z`,
-    importBatchId: null, importSource: source === "excel" ? "field-logs.xlsx" : null, importMethod: source, deletedAt: null,
+    importBatchId: null, importSource: source === "excel" ? "field-logs.xlsx" : null, importMethod: source, deletedAt: null, waterLevelOn: date,
   };
   return { borewell, strata: strataFor(id, depth, lat, lon, i + 3) };
 });
