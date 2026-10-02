@@ -14,6 +14,10 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   and **Import Excel** are buttons at the top right, and the counts are one quiet row.
 - **The steps of New borewell** are plain numbered words with a line under the current one.
 
+### Fixed
+- In the layer popup, the label at the top right (for example "Estimate") no longer sits under the
+  close button.
+
 ## [1.0.2] - 2026-09-30
 
 ### New
