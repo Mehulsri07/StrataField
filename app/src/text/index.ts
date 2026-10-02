@@ -12,6 +12,7 @@
 export const text = {
   app: {
     name: "StrataField",
+    about: "Borewell records, soil layers and groundwater levels, kept on this computer. Built for drilling work in Lucknow: nothing is sent anywhere, and everything except address look-up works without internet.",
     city: "Lucknow",
   },
 

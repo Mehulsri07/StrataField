@@ -3,7 +3,7 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
-## [Unreleased]
+## [1.0.7] - 2026-10-03
 
 ### New
 - **Find what still needs filling in after importing.** A borewell with no owner, water level or
@@ -23,6 +23,7 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   pin, on the app's icon, in the menu and on the manual's cover.
 - The status in the Borewells list names everything a record lacks ("No location, owner") instead of
   only the first thing.
+- Settings & backup → About shows the logo and a short description of StrataField.
 
 ## [1.0.6] - 2026-10-03
 
