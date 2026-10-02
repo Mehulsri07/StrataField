@@ -258,8 +258,9 @@ try {
     location.hash = '#/'; await __t.wait(300); location.hash = '#/map?select=' + b.id; await __t.wait(2500); // let the map settle on them
     const bubble = await __t.until(() => [...document.querySelectorAll('.strata-cluster')].find(c => c.innerText.trim() === '2'), 10000);
     bubble.click();
-    const popup = await __t.until(() => document.querySelector('.leaflet-popup-content'), 5000);
-    const listed = popup.innerText.replace(/\\s+/g, ' ');
+    // Wait for the list itself, and read it without depending on the popup having finished appearing.
+    const popup = await __t.until(() => { const p = document.querySelector('.leaflet-popup-content'); return p && /SPOT-2016/.test(p.textContent) ? p : null; }, 8000);
+    const listed = [...popup.querySelectorAll('b, button')].map(e => e.textContent.trim()).join(' | ');
     __t.btn('SPOT-2016', popup).click();
     const card = await __t.until(() => document.querySelector('[role="dialog"][aria-label="SPOT-2016 details"]'), 5000).catch(() => null);
     // Which readings count: the last 3 years by default (the 2016 one is left out), or all of them.
