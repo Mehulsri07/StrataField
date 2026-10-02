@@ -3,7 +3,7 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
-## [Unreleased]
+## [1.0.4] - 2026-10-02
 
 ### New
 - **Import Excel files in other layouts.** When a file is not laid out like the usual drilling log,
@@ -16,7 +16,6 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **Home says more at a glance.** The heading now tells you how many borewells you have and how deep
   the water typically is. The map is taller, and the newest borewells are drawn side by side as
   columns on one depth scale, with their water levels, instead of a table.
-
 - **Water levels from years ago no longer blur today's picture.** The water colours on the map and
   the "typical water level" on Home use only readings from the last three years before your newest
   one, and say so. Borewells with older readings stay on the map as grey pins. A box on Home and on
