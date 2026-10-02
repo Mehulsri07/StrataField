@@ -8,7 +8,10 @@ const COLUMNS: &str = "b.id, b.project_id, COALESCE(p.name, ''), b.borewell_id, 
     b.address, b.latitude, b.longitude, b.location_source, b.location_accuracy_m, b.ground_elevation_m,
     b.elevation_source, b.bore_dia, b.pipe_dia, b.total_depth, b.water_level, b.dynamic_water_level,
     b.depth_unit, b.drilling_method, b.record_quality, b.remarks, b.date, b.created_at, b.updated_at,
-    b.import_batch_id, b.import_source, b.import_method, b.deleted_at";
+    b.import_batch_id, b.import_source, b.import_method, b.deleted_at,
+    CASE WHEN b.water_level IS NULL THEN NULL ELSE COALESCE(
+        (SELECT MAX(w.measured_on) FROM water_readings w WHERE w.borewell_id = b.id AND w.static_level IS NOT NULL),
+        NULLIF(b.date, '')) END";
 
 const FROM: &str = "FROM borewells b LEFT JOIN projects p ON p.id = b.project_id";
 
@@ -45,6 +48,7 @@ fn map_row(r: &Row) -> rusqlite::Result<Borewell> {
         import_source: r.get(28)?,
         import_method: r.get(29)?,
         deleted_at: r.get(30)?,
+        water_level_on: r.get(31)?,
     })
 }
 

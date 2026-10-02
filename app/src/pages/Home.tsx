@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Borewell, BorewellListItem } from "@strata/core";
-import { waterColour, waterPoints } from "@strata/core";
+import { isRecentWater, recentCutoff, waterColour, waterPoints } from "@strata/core";
 import { ChevronRight, FolderOpen, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { WaterLayer, WaterLegend } from "@/components/map/WaterLayer";
 import { patternFill } from "@/components/geology/patterns";
 import { api, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatWhen } from "@/lib/format";
+import { formatDate, formatWhen } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
 
@@ -42,10 +42,15 @@ export function Home() {
   const borewells = useMemo(() => all.map((i) => i.borewell), [all]);
   const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
   const points = useMemo(() => waterPoints(borewells), [borewells]);
-  const recent = useMemo(() => [...all].sort((a, b) => b.borewell.createdAt.localeCompare(a.borewell.createdAt)).slice(0, 6), [all]);
-  const byWater = useMemo(() => located.filter((b) => b.waterLevel != null).sort((a, b) => b.waterLevel! - a.waterLevel!), [located]);
+  // Newest by drilling date (then by when it was added), so importing old logs does not make them "new".
+  const recent = useMemo(() => [...all].sort((a, b) => b.borewell.date.localeCompare(a.borewell.date) || b.borewell.createdAt.localeCompare(a.borewell.createdAt)).slice(0, 6), [all]);
+  // Water levels measured years ago say little about the water now, so only recent ones are used.
+  const cutoff = useMemo(() => recentCutoff(borewells), [borewells]);
+  const current = borewells.filter((b) => isRecentWater(b, cutoff));
+  const olderLeftOut = borewells.some((b) => b.waterLevel != null && !isRecentWater(b, cutoff));
+  const byWater = useMemo(() => located.filter((b) => isRecentWater(b, cutoff)).sort((a, b) => b.waterLevel! - a.waterLevel!), [located, cutoff]);
   const depths = borewells.map((b) => b.totalDepth).filter((v): v is number => v != null);
-  const waters = borewells.map((b) => b.waterLevel).filter((v): v is number => v != null);
+  const waters = current.map((b) => b.waterLevel!);
   const noLayers = all.filter((i) => i.strata.length === 0).length;
   const lastBackup = backups.data?.[0] ?? null;
   const backupAgeDays = lastBackup ? (now - new Date(lastBackup.createdAt.replace(" ", "T")).getTime()) / 86_400_000 : Infinity;
@@ -82,10 +87,10 @@ export function Home() {
           <div className="min-w-0 flex-1 basis-[420px]">
             <h1 className="text-[30px] leading-[1.15] font-semibold tracking-[-0.02em]">{plural(all.length, "borewell")} across {text.app.city}</h1>
             <p className="mt-2.5 max-w-[62ch] text-base text-muted-foreground">
-              {waters.length > 0 && <>Water is typically <Num>{median(waters)} ft</Num> below ground{waters.length > 1 && ` (${Math.min(...waters)} to ${Math.max(...waters)} ft)`}. </>}
+              {waters.length > 0 && <>Water is typically <Num>{median(waters)} ft</Num> below ground{waters.length > 1 && ` (${Math.min(...waters)} to ${Math.max(...waters)} ft)`}{olderLeftOut && `, going by readings since ${cutoff.slice(0, 4)}`}. </>}
               {depths.length > 0 && <>Borewells go about <Num>{median(depths)} ft</Num> deep. </>}
               {located.length === all.length ? "All of them are on the map." : <><Num>{located.length}</Num> of {all.length} are on the map.</>}
-              {newest && ` Last added ${formatWhen(newest.createdAt)}.`}
+              {newest && (newest.date ? ` Last drilled ${formatDate(newest.date)}.` : ` Last added ${formatWhen(newest.createdAt)}.`)}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">{actions}</div>
@@ -128,7 +133,7 @@ export function Home() {
                       <WaterBars title="Shallowest water" list={byWater.slice(Math.max(Math.ceil(byWater.length / 2), byWater.length - 5)).reverse()} max={byWater[0].waterLevel!} />
                     </>
                   )}
-                  <p className="text-xs text-muted-foreground">Feet below ground. Colours between borewells are estimates, and they fade out far from any borewell.</p>
+                  <p className="text-xs text-muted-foreground">Feet below ground{olderLeftOut && `, from readings since ${cutoff.slice(0, 4)}`}. Colours between borewells are estimates, and they fade out far from any borewell.</p>
                 </>
               )}
             </div>

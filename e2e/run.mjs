@@ -251,6 +251,22 @@ try {
       heat: !!document.querySelector('.leaflet-image-layer, .leaflet-overlay-pane canvas, .leaflet-overlay-pane img') };`);
   check("The map shows the borewells with water-depth colours", map.pins >= 1 && map.heat, JSON.stringify(map));
 
+  // ── Borewells at the same spot: listed, since no zoom separates them ────
+  const stack = await page(`
+    const mk = (code, date, waterLevel) => __t.invoke('borewell_create', { input: { borewellId: code, ownerName: 'Same spot', city: 'Lucknow', date, waterLevel, latitude: 26.95, longitude: 81.05 } });
+    const a = await mk('SPOT-2016', '2016-05-01', 60), b = await mk('SPOT-2026', '2026-09-01', 90);
+    location.hash = '#/'; await __t.wait(300); location.hash = '#/map?select=' + b.id; await __t.wait(2500); // let the map settle on them
+    const bubble = await __t.until(() => [...document.querySelectorAll('.strata-cluster')].find(c => c.innerText.trim() === '2'), 10000);
+    bubble.click();
+    const popup = await __t.until(() => document.querySelector('.leaflet-popup-content'), 5000);
+    const listed = popup.innerText.replace(/\\s+/g, ' ');
+    __t.btn('SPOT-2016', popup).click();
+    const card = await __t.until(() => document.querySelector('[role="dialog"][aria-label="SPOT-2016 details"]'), 5000).catch(() => null);
+    for (const x of [a, b]) { await __t.invoke('borewell_delete', { id: x.id }); await __t.invoke('borewell_delete_permanently', { id: x.id }); }
+    return { listed, opened: !!card };`);
+  check("Map: borewells at the same spot are listed, newest first, and each can be opened",
+    /2 borewells here/.test(stack.listed) && stack.listed.indexOf("SPOT-2026") < stack.listed.indexOf("SPOT-2016") && stack.opened, JSON.stringify(stack));
+
   // ── Map without internet (needs internet once, to download it) ─────────
   if (process.env.E2E_OFFLINE_MAP !== "0") {
     const offline = await page(`

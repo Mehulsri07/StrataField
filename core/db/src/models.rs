@@ -37,6 +37,9 @@ pub struct Borewell {
     pub import_source: Option<String>,
     pub import_method: String,
     pub deleted_at: Option<String>,
+    /// When the water level was measured: the newest reading's date, or the drilling date when
+    /// there are no readings. `None` without a water level.
+    pub water_level_on: Option<String>,
 }
 
 /// What a screen sends to create or update a borewell. The project is given by name;

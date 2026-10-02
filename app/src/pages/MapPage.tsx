@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { Borewell } from "@strata/core";
-import { waterColour, waterPoints } from "@strata/core";
+import { isRecentWater, recentCutoff, waterColour, waterPoints } from "@strata/core";
 import { Droplets, Layers, Maximize, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/app/Page";
@@ -32,6 +32,7 @@ export function MapPage() {
   const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
   const missing = borewells.length - located.length;
   const points = useMemo(() => waterPoints(borewells), [borewells]);
+  const cutoff = useMemo(() => recentCutoff(borewells), [borewells]);
   const selected = all.find((i) => i.borewell.id === selectedId);
   const focus = useMemo(() => borewells.find((b) => b.id === focusId), [borewells, focusId]);
 
@@ -39,7 +40,7 @@ export function MapPage() {
     <Page className="max-w-none">
       <PageHeader
         title={`${text.pages.map.title} · ${text.app.city}`}
-        sub={`${located.length} borewell${located.length === 1 ? " has" : "s have"} a location. ${showWater ? "Colours show how deep the water is. Darker means deeper." : "Water colours are turned off."}`}
+        sub={`${located.length} borewell${located.length === 1 ? " has" : "s have"} a location. ${showWater ? `Colours show how deep the water is${borewells.some((b) => b.waterLevel != null && !isRecentWater(b, cutoff)) ? `, going by readings since ${cutoff.slice(0, 4)}` : ""}. Darker means deeper.` : "Water colours are turned off."}`}
         actions={
           <>
             {missing > 0 && (
@@ -94,7 +95,7 @@ export function MapPage() {
                   onClick={() => setSelectedId(b.id)}
                   className={cn("grid w-full grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-border px-4 py-2.5 text-left hover:bg-muted", b.id === selectedId && "bg-accent")}
                 >
-                  <WaterDot b={b} />
+                  <WaterDot b={b} cutoff={cutoff} />
                   <span className="min-w-0">
                     <span className="num block truncate text-[13px] font-medium">{b.borewellId}</span>
                     <span className="block truncate text-xs text-muted-foreground">{b.area || b.city}</span>
@@ -114,8 +115,8 @@ export function MapPage() {
   );
 }
 
-function WaterDot({ b }: { b: Borewell }) {
-  const c = b.waterLevel != null ? waterColour(b.waterLevel) : [150, 160, 170];
+function WaterDot({ b, cutoff }: { b: Borewell; cutoff: string }) {
+  const c = isRecentWater(b, cutoff) ? waterColour(b.waterLevel!) : [150, 160, 170];
   return <span className="size-3 rounded-full border border-card" style={{ background: `rgb(${c.join(",")})` }} aria-hidden="true" />;
 }
 

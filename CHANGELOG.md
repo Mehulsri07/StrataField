@@ -17,6 +17,14 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   the water typically is. The map is taller, and the newest borewells are drawn side by side as
   columns on one depth scale, with their water levels, instead of a table.
 
+- **Water levels from years ago no longer blur today's picture.** The water colours on the map and
+  the "typical water level" on Home use only readings from the last three years before your newest
+  one, and say so. Borewells with older readings stay on the map as grey pins.
+- **Newest borewells on Home** are the most recently drilled, not the most recently typed in or
+  imported.
+- **Borewells at the same spot.** Clicking a numbered group on the map that zooming cannot separate
+  now lists the borewells there, newest first, so each one can be opened.
+
 ### Fixed
 - Import Excel: the borewell details are no longer squeezed on a laptop-sized window.
 
