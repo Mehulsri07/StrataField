@@ -66,6 +66,14 @@ export function readSheetRows(data: Uint8Array | ArrayBuffer): any[][] {
 
 const num = (cell: unknown) => parseFloat(String(cell ?? ''));
 const round1 = (n: number) => Math.round(n * 10) / 10;
+const cellAt = (row: any[] | undefined, re: RegExp) => (row || []).findIndex(c => typeof c === 'string' && re.test(c));
+/** A size written like 15" (inches). */
+const inches = (cell: unknown) => { const m = /^\s*([0-9.]+)\s*"/.exec(String(cell ?? '')); return m ? parseFloat(m[1]) : null; };
+/** A soil or pipe name: a word, not a depth ("16 mt"), a size (15") or a ground-level mark ("G. L."). */
+const isLabel = (cell: unknown) => typeof cell === 'string' && /[a-z]{3}/i.test(cell) && !/^\s*[\d.]+\s*[a-z."']{0,5}\s*$/i.test(cell);
+
+const SOIL_HEADING = /str[ae]ta\s*chart/i;
+const PIPE_HEADING = /lowering\s*ass[ae]mbly/i;
 
 /**
  * A first guess at where the layers are: from a heading row ("From", "To"/"Depth", "Soil type"...)
@@ -120,167 +128,180 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     return makeFailResult('File contains too few rows to parse.', anomalies);
   }
 
-  // 2. Detect standard format: look for "Streta Chart" header row
-  let headerRowIdx = -1;
-  let secondHeaderIdx = -1;
-
-  for (let i = 0; !mapping && i < rows.length; i++) {
-    const rowText = (rows[i] || []).map(c => String(c || '')).join(' ');
-    if (STRETA_HEADER_PATTERNS.some(p => p.test(rowText))) {
-      if (headerRowIdx === -1) {
-        headerRowIdx = i;
-      } else if (secondHeaderIdx === -1) {
-        secondHeaderIdx = i;
-        addAnomaly(anomalies, 'MULTI_BOREWELL_SHEET', 'warning',
-          `Multiple borewell sections detected. Second header at row ${i + 1}. Only the first borewell is parsed.`);
-        break;
-      }
+  // 1. Find the borewell's block: the first heading row with a soil chart. (A sheet may begin with
+  //    a pipe-only page, and may hold further borewells below; only the first is read.)
+  let headerRowIdx = -1, endIdx = rows.length;
+  if (mapping) {
+    // The user has said where the layers are; rows above them are read for details.
+    headerRowIdx = mapping.firstRow;
+  } else {
+    const headers = rows.map((r, i) => (STRETA_HEADER_PATTERNS.some(p => p.test((r || []).join(' '))) ? i : -1)).filter(i => i >= 0);
+    headerRowIdx = headers.find(i => cellAt(rows[i], SOIL_HEADING) >= 0) ?? headers[0] ?? -1;
+    if (headerRowIdx === -1) {
+      addAnomaly(anomalies, 'NON_STANDARD_FORMAT', 'critical',
+        'Could not detect standard "Streta Chart" header. This file requires manual column mapping.');
+      return makeFailResult('Non-standard format detected.', anomalies);
+    }
+    const next = headers.find(i => i > headerRowIdx);
+    if (next !== undefined) {
+      endIdx = next;
+      addAnomaly(anomalies, 'MULTI_BOREWELL_SHEET', 'warning',
+        `Multiple borewell sections detected. Second header at row ${next + 1}. Only the first borewell is parsed.`);
     }
   }
 
-  // With a mapping the user has said where the layers are; rows above them are read for details.
-  if (mapping) headerRowIdx = mapping.firstRow;
-
-  // Non-standard format detection
-  if (headerRowIdx === -1) {
-    addAnomaly(anomalies, 'NON_STANDARD_FORMAT', 'critical',
-      'Could not detect standard "Streta Chart" header. This file requires manual column mapping.');
-    return makeFailResult('Non-standard format detected.', anomalies);
-  }
+  // 2. Where things are, from the headings. Usually the soil chart is on the left ("Streta Chart"
+  //    in column 2: depths one column to its left, soil names under it or one to its right) and the
+  //    pipe on the right ("Lowering Assambly" in column 5: pipe names under it or one to its left,
+  //    assembly depths two to its right). Some logs mirror this, with the pipe first.
+  const S = mapping ? -1 : cellAt(rows[headerRowIdx], SOIL_HEADING), L = mapping ? -1 : cellAt(rows[headerRowIdx], PIPE_HEADING);
+  const mirrored = S >= 1 && L >= 1 && L < S;
+  const soilMarkCol = S >= 1 ? S - 1 : 1, soilNameCols = S >= 1 ? [S, S + 1] : [2, 3];
+  const pipeNameCols = mirrored ? [L, L + 1] : S >= 1 && L > S ? [L - 1, L] : [4, 5];
+  const pipeMarkCol = mirrored ? L - 1 : S >= 1 && L > S ? L + 2 : 7;
 
   // 3. Find G.L. (Ground Level) row — data starts after it
   let glRowIdx = -1;
-  const searchEnd = secondHeaderIdx > 0 ? secondHeaderIdx : rows.length;
-
-  for (let i = headerRowIdx + 1; i < searchEnd; i++) {
-    const row = rows[i] || [];
-    const firstCell = String(row[0] || '').trim();
-    if (GL_PATTERNS.some(p => p.test(firstCell))) {
+  for (let i = headerRowIdx + 1; i < endIdx; i++) {
+    if (GL_PATTERNS.some(p => p.test(String((rows[i] || [])[0] || '').trim()))) {
       glRowIdx = i;
       break;
     }
   }
-
   const dataStartIdx = mapping ? mapping.firstRow : glRowIdx >= 0 ? glRowIdx + 1 : headerRowIdx + 2;
-  const depthCol = mapping?.depthCol ?? 1, materialCol = mapping?.materialCol ?? 3;
-  const pipeCol = mapping ? mapping.pipeCol ?? -1 : 4, fromCol = mapping?.fromCol ?? -1;
-  // In the standard layout the pipe type sits in column 4 (screens) or 5 (plain pipe).
-  const pipeCell = (row: any[]) => String(row[pipeCol] || (mapping ? '' : row[5]) || '').trim();
+  const dataEndIdx = endIdx;
 
   // 4. Extract metadata. The details are written in the first column, mostly beside the layer rows.
-  const metadata = extractMetadata(rows, searchEnd);
+  //    The hole and pipe sizes are also written under the two headings, for logs without detail lines.
+  const metadata = extractMetadata(rows, endIdx);
+  if (!mapping) {
+    const under = rows[headerRowIdx + 1] || [];
+    if (metadata.boreDia === null && S >= 0) metadata.boreDia = inches(under[S]);
+    if (metadata.pipeDia === null && L >= 0) metadata.pipeDia = inches(under[L]) ?? inches(under[L + 1]);
+  }
 
-  // 5. Detect units from metadata text + interval sizes
-  const detectedUnit = mapping?.unit ?? detectUnit(rows, headerRowIdx, dataStartIdx, searchEnd, anomalies);
+  // 5. Detect units from a unit written beside a depth, metadata text, or interval sizes
+  const detectedUnit = mapping?.unit ?? detectUnit(rows, headerRowIdx, dataStartIdx, endIdx, anomalies, [soilMarkCol, 0, pipeMarkCol]);
   metadata.detectedUnit = detectedUnit;
   const conversionFactor = detectedUnit === 'm' ? METRES_TO_FEET : 1;
 
   // 6. Parse strata layers and pipes
   const strata: ParsedStrataLayer[] = [];
   const pipes: ParsedPipeSegment[] = [];
-  let prevEndDepth = 0;
 
-  const dataEndIdx = secondHeaderIdx > 0 ? secondHeaderIdx : rows.length;
+  if (mapping) {
+    const depthCol = mapping.depthCol, materialCol = mapping.materialCol, fromCol = mapping.fromCol ?? -1;
+    const pipeCell = (row: any[]) => String(row[mapping.pipeCol ?? -1] || '').trim();
+    let prevEndDepth = 0;
 
-  for (let i = dataStartIdx; i < dataEndIdx; i++) {
-    const row = rows[i] || [];
+    for (let i = dataStartIdx; i < dataEndIdx; i++) {
+      const row = rows[i] || [];
 
-    // Depth column = the end of each interval (column 1 in the standard layout)
-    const depthRaw = num(row[depthCol]);
-    if (isNaN(depthRaw) || depthRaw <= 0) continue;
+      // Depth column = the end of each interval (column 1 in the standard layout)
+      const depthRaw = num(row[depthCol]);
+      if (isNaN(depthRaw) || depthRaw <= 0) continue;
 
-    const depthFt = depthRaw * conversionFactor;
+      const depthFt = depthRaw * conversionFactor;
 
-    // Non-monotonic depth check
-    if (depthFt <= prevEndDepth) {
-      addAnomaly(anomalies, 'DEPTH_NON_MONOTONIC', 'warning',
-        `Row ${i + 1}: Depth ${depthRaw} ${detectedUnit} is not monotonically increasing. Skipped.`, i);
-      continue;
-    }
-
-    const materialRaw = String(row[materialCol] || '').trim();
-    if (!materialRaw) continue;
-
-    // Normalise material name
-    const { normalised, materialId, color, pattern, unknown } = normaliseMaterial(materialRaw);
-    if (unknown) {
-      addAnomaly(anomalies, 'MATERIAL_UNKNOWN', 'warning',
-        `Row ${i + 1}: Material "${materialRaw}" not in dictionary. Kept as-is.`, i);
-    }
-
-    // No gap check here: each row gives a layer's bottom and the layer starts where the previous
-    // one ended, so rows never leave a gap. A big step between rows is just a thick layer.
-
-    // A "From" column can leave a gap after the previous layer; it can never reach back into it.
-    const fromFt = num(row[fromCol]) * conversionFactor;
-    const startDepth = fromFt > prevEndDepth && fromFt < depthFt ? fromFt : prevEndDepth;
-
-    strata.push({
-      startDepth,
-      endDepth: depthFt,
-      material: normalised,
-      materialId,
-      color,
-      pattern,
-    });
-
-    const pipeRaw = pipeCell(row);
-    if (pipeRaw) {
-      const pipeResult = parsePipeType(pipeRaw);
-      if (pipeResult) {
-        pipes.push({
-          startDepth,
-          endDepth: depthFt,
-          pipeType: pipeResult.pipeType,
-          pipeSubtype: pipeResult.subtype,
-          originalLabel: pipeRaw,
-        });
-      } else {
-        addAnomaly(anomalies, 'PIPE_TYPE_UNKNOWN', 'warning',
-          `Row ${i + 1}: Pipe type "${pipeRaw}" not recognised. Defaulted to plain.`, i);
-        pipes.push({
-          startDepth,
-          endDepth: depthFt,
-          pipeType: 'plain',
-          pipeSubtype: 'PLAIN',
-          originalLabel: pipeRaw,
-        });
+      // Non-monotonic depth check
+      if (depthFt <= prevEndDepth) {
+        addAnomaly(anomalies, 'DEPTH_NON_MONOTONIC', 'warning',
+          `Row ${i + 1}: Depth ${depthRaw} ${detectedUnit} is not monotonically increasing. Skipped.`, i);
+        continue;
       }
+
+      const materialRaw = String(row[materialCol] || '').trim();
+      if (!materialRaw) continue;
+
+      // Normalise material name
+      const { normalised, materialId, color, pattern, unknown } = normaliseMaterial(materialRaw);
+      if (unknown) {
+        addAnomaly(anomalies, 'MATERIAL_UNKNOWN', 'warning',
+          `Row ${i + 1}: Material "${materialRaw}" not in dictionary. Kept as-is.`, i);
+      }
+
+      // No gap check here: each row gives a layer's bottom and the layer starts where the previous
+      // one ended, so rows never leave a gap. A big step between rows is just a thick layer.
+
+      // A "From" column can leave a gap after the previous layer; it can never reach back into it.
+      const fromFt = num(row[fromCol]) * conversionFactor;
+      const startDepth = fromFt > prevEndDepth && fromFt < depthFt ? fromFt : prevEndDepth;
+
+      strata.push({
+        startDepth,
+        endDepth: depthFt,
+        material: normalised,
+        materialId,
+        color,
+        pattern,
+      });
+
+      const pipeRaw = pipeCell(row);
+      if (pipeRaw) {
+        const pipeResult = parsePipeType(pipeRaw);
+        if (pipeResult) {
+          pipes.push({
+            startDepth,
+            endDepth: depthFt,
+            pipeType: pipeResult.pipeType,
+            pipeSubtype: pipeResult.subtype,
+            originalLabel: pipeRaw,
+          });
+        } else {
+          addAnomaly(anomalies, 'PIPE_TYPE_UNKNOWN', 'warning',
+            `Row ${i + 1}: Pipe type "${pipeRaw}" not recognised. Defaulted to plain.`, i);
+          pipes.push({
+            startDepth,
+            endDepth: depthFt,
+            pipeType: 'plain',
+            pipeSubtype: 'PLAIN',
+            originalLabel: pipeRaw,
+          });
+        }
+      }
+
+      prevEndDepth = depthFt;
     }
-
-    prevEndDepth = depthFt;
-  }
-
-  // 6b. A log drawn to scale: names and depth marks are on different rows. Each name takes the
-  //     next depth mark at or below it as the end of its layer (or pipe piece).
-  if (!mapping && strata.length === 0) {
-    const drawn = (nameCols: number[], markCol: number) => {
-      const names: { row: number; name: string }[] = [], marks: { row: number; depth: number }[] = [];
+  } else {
+    // One rule covers every way these logs are written (a row every 10 ft, a row every 3 m pipe
+    // with depths only where the soil changes, or names and depths drawn to scale on separate rows):
+    // at each depth, the piece that ends there is the one named on that row, or else the last one
+    // named above it since the previous depth.
+    const read = (nameCols: number[], markCol: number, flagBackwards: boolean) => {
+      const pieces: { row: number; name: string; startDepth: number; endDepth: number }[] = [];
+      let from = 0, pending: { row: number; name: string } | null = null;
       for (let i = dataStartIdx; i < dataEndIdx; i++) {
         const row = rows[i] || [];
-        const depth = num(row[markCol]);
-        if (depth > 0) marks.push({ row: i, depth: round1(depth * conversionFactor) });
-        const name = nameCols.map(c => row[c]).find(c => typeof c === 'string' && c.trim() && isNaN(num(c)));
-        if (name) names.push({ row: i, name: name.trim() });
-      }
-      const pieces: { row: number; name: string; startDepth: number; endDepth: number }[] = [];
-      let from = 0, m = 0;
-      for (const n of names) {
-        while (m < marks.length && (marks[m].row < n.row || marks[m].depth <= from)) m++;
-        if (m === marks.length) break;
-        pieces.push({ ...n, startDepth: from, endDepth: marks[m].depth });
-        from = marks[m++].depth;
+        const label = nameCols.map(c => row[c]).find(isLabel);
+        if (label) pending = { row: i, name: String(label).trim() };
+        const raw = num(row[markCol]);
+        if (!(raw > 0)) continue;
+        const depth = detectedUnit === 'm' ? round1(raw * METRES_TO_FEET) : raw;
+        if (depth <= from) {
+          if (flagBackwards) {
+            addAnomaly(anomalies, 'DEPTH_NON_MONOTONIC', 'warning',
+              `Row ${i + 1}: Depth ${raw} ${detectedUnit} is not monotonically increasing. Skipped.`, i);
+          }
+        } else if (pending) {
+          pieces.push({ ...pending, startDepth: from, endDepth: depth });
+          from = depth;
+        }
+        pending = null;
       }
       return pieces;
     };
-    for (const piece of drawn([2, 3], 1)) {
+
+    for (const piece of read(soilNameCols, soilMarkCol, true)) {
       const { normalised, materialId, color, pattern, unknown } = normaliseMaterial(piece.name);
       if (unknown) {
         addAnomaly(anomalies, 'MATERIAL_UNKNOWN', 'warning', `Row ${piece.row + 1}: Material "${piece.name}" not in dictionary. Kept as-is.`, piece.row);
       }
       strata.push({ startDepth: piece.startDepth, endDepth: piece.endDepth, material: normalised, materialId, color, pattern });
     }
-    for (const piece of drawn([4, 5], 7)) {
+
+    // The pipe has its own depths (the assembly column); a log without them shares the soil's.
+    const ownDepths = rows.slice(dataStartIdx, dataEndIdx).some(r => num((r || [])[pipeMarkCol]) > 0);
+    for (const piece of read(pipeNameCols, ownDepths ? pipeMarkCol : soilMarkCol, false)) {
       const kind = parsePipeType(piece.name);
       if (!kind) {
         addAnomaly(anomalies, 'PIPE_TYPE_UNKNOWN', 'warning', `Row ${piece.row + 1}: Pipe type "${piece.name}" not recognised. Defaulted to plain.`, piece.row);
@@ -367,8 +388,9 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
 
     // Site block: the name, then the address over one or more lines, then the city, ending at a
     // blank cell or at the first detail line ("Water Level = ...").
-    if (col0Lower === 'site:' || col0Lower === 'site') {
-      const lines: string[] = [];
+    const site = /^site\s*:?\s*[-–]?\s*(.*)$/i.exec(col0);
+    if (site && (site[1] || /^site\s*:?$/i.test(col0)) && !/^sites?\s+\w+\s*=/.test(col0Lower)) {
+      const lines: string[] = site[1] ? [site[1].trim()] : [];
       for (let k = i + 1; k < endIdx && lines.length < 6; k++) {
         const line = String((rows[k] || [])[0] || '').trim();
         if (!line || /[=:]/.test(line)) break;
@@ -413,9 +435,9 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
 
 // ─── Unit Detection ─────────────────────────────────────────────────────────
 
-function detectUnit(rows: any[][], headerRowIdx: number, dataStartIdx: number, dataEndIdx: number, anomalies: ParseAnomaly[]): DepthUnit {
+function detectUnit(rows: any[][], headerRowIdx: number, dataStartIdx: number, dataEndIdx: number, anomalies: ParseAnomaly[], cols = [1, 0, 7]): DepthUnit {
   // 0. A unit written beside a depth ("16 mt", "Bore Dia = 12" / 370 ft") settles it.
-  const beside = rows.slice(0, dataEndIdx).flatMap(r => [0, 1, 7].map(c => String((r || [])[c] ?? ''))).join(' | ');
+  const beside = rows.slice(0, dataEndIdx).flatMap(r => cols.map(c => String((r || [])[c] ?? ''))).join(' | ');
   const metres = /\d\s*(?:m|mt|mtr|mtrs|met(?:er|re)s?)\b/i.test(beside), feet = /\d\s*(?:ft|feet|foot)\b/i.test(beside);
   if (metres !== feet) return metres ? 'm' : 'ft';
 
@@ -431,7 +453,7 @@ function detectUnit(rows: any[][], headerRowIdx: number, dataStartIdx: number, d
   const depths: number[] = [];
   for (let i = dataStartIdx; i < Math.min(dataEndIdx, dataStartIdx + 10); i++) {
     const row = rows[i] || [];
-    const val = parseFloat(String(row[1] || ''));
+    const val = parseFloat(String(row[cols[0]] || ''));
     if (!isNaN(val) && val > 0) depths.push(val);
   }
 

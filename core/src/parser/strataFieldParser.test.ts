@@ -227,10 +227,10 @@ describe('unit conversion', () => {
 
     expect(result.metadata.detectedUnit).toBe('m');
 
-    // Each strata endDepth must equal the original metre value × 3.28084 (METRES_TO_FEET)
+    // Each strata endDepth is the metre value × 3.28084 (METRES_TO_FEET), to a tenth of a foot
     metreDepths.forEach((depthM, idx) => {
-      const expectedFt = depthM * EXPECTED_METRES_TO_FEET;
-      expect(result.strata[idx].endDepth).toBeCloseTo(expectedFt, 4);
+      const expectedFt = Math.round(depthM * EXPECTED_METRES_TO_FEET * 10) / 10;
+      expect(result.strata[idx].endDepth).toBe(expectedFt);
     });
   });
 
@@ -264,7 +264,7 @@ describe('unit conversion', () => {
 
     // The metadata unit hint should have been picked up
     expect(result.metadata.detectedUnit).toBe('m');
-    expect(result.strata[0].endDepth).toBeCloseTo(3.28084, 4);  // 1m × 3.28084 ft/m
+    expect(result.strata[0].endDepth).toBe(3.3);  // 1 m × 3.28084 ft/m, to a tenth of a foot
   });
 });
 
@@ -469,5 +469,69 @@ describe('the site block', () => {
     expect(log(['Example Hospital', 'Plot 12', 'Gomti Nagar', 'Lucknow'])).toMatchObject({ ownerName: 'Example Hospital', address: 'Plot 12, Gomti Nagar', city: 'Lucknow' });
     expect(log(['Example Hospital', 'Gomti Nagar', 'Lucknow.'])).toMatchObject({ ownerName: 'Example Hospital', address: 'Gomti Nagar', city: 'Lucknow' });
     expect(log(['Example Hospital', 'Gomti Nagar'])).toMatchObject({ ownerName: 'Example Hospital', address: 'Gomti Nagar', city: null });
+  });
+});
+
+describe('a field log with a row for every 3 m pipe', () => {
+  // Made-up values in the shape of real logs: the soil is on every row, its depth is written only
+  // where the soil changes, and the pipe has its own depth on every row (the assembly column).
+  const soil = ['Clay', 'Clay', 'Clay', 'Sand', 'Sand', 'Clay', 'Sand', 'Sand', 'Clay', 'Clay'];
+  const soilEnds: Record<number, number> = { 2: 9, 4: 14, 5: 18, 7: 24, 9: 40 };
+  const screen = [false, false, false, true, true, false, true, true];
+  const rows: (string | number | null)[][] = [
+    [null, null, 'Streta Chart', null, null, 'Lowering Assambly'],
+    ['Site: Example Farm, Kasba', 'G. L. ', '14"', 'G. L.', null, 'A G L', '6"'],
+    ...soil.map((name, i) => [i === 3 ? 'Bore Dia = 14" / 40 Mt' : null, soilEnds[i] ?? null, null, name,
+      screen[i] === true ? 'Ribbed Screen' : null, screen[i] === false ? 'Plain pipe' : null, null, i < screen.length ? (i + 1) * 3 : null]),
+    [], ['Date :  ', null, 'Client'],
+  ];
+  const r = parseStrataRows(rows);
+  const ft = (m: number) => Math.round(m * EXPECTED_METRES_TO_FEET * 10) / 10;
+
+  it('ends each layer at the depth written where the soil changes', () => {
+    expect(r.strata.map(l => [l.startDepth, l.endDepth, l.material])).toEqual([
+      [0, ft(9), 'Clay'], [ft(9), ft(14), 'Sand'], [ft(14), ft(18), 'Clay'], [ft(18), ft(24), 'Sand'], [ft(24), ft(40), 'Clay'],
+    ]);
+  });
+
+  it('reads the pipe from its own depths, not the soil depths', () => {
+    expect(r.pipes.map(p => [p.pipeType, p.startDepth, p.endDepth])).toEqual([
+      ['plain', 0, ft(9)], ['slotted', ft(9), ft(15)], ['plain', ft(15), ft(18)], ['slotted', ft(18), ft(24)],
+    ]);
+  });
+
+  it('takes a site name written on the same line as "Site:", and the sizes under the headings', () => {
+    expect(r.metadata).toMatchObject({ ownerName: 'Example Farm, Kasba', boreDia: 14, pipeDia: 6, totalDepth: ft(40), detectedUnit: 'm' });
+  });
+});
+
+describe('a sheet that starts with a pipe-only page and has the soil chart on the right', () => {
+  // Made-up values in the shape of a real log: first a page listing only the pipes, then the
+  // borewell with the pipe list on the left and the soil chart on the right.
+  const pipePage: (string | number | null)[][] = [
+    [null, null, 'Lowering Assambly'], ['Site:', 'G. L. ', '8"', 'G. L.'],
+    ['Example School', null, null, '6 Mtr Plain Pipe', null, 2], [null, '9 Mtr', null, '3 Mtr Plain Pipe', null, 1], [],
+  ];
+  const rows: (string | number | null)[][] = [
+    ...pipePage,
+    [null, null, 'Lowering Assambly', null, null, null, null, 'Streta Chart'],
+    ['Site:', 'G. L. ', '8"', 'G. L.', null, null, 'G. L. ', '15"', 'G. L.'],
+    ['Example School', null, null, '6 Mtr Plain Pipe', null, 4, null, null, 'Clay'],
+    ['Aliganj', null, null, null, null, null, '5 Mtr', null, 'Clay'],
+    ['Lucknow', '9 Mtr', null, '3 Mtr Plain Pipe', null, 3, null, null, 'Sand'],
+    [null, null, null, '6 Mtr Slotted Pipe', null, 2, '12 Mtr', null, 'Sand'],
+    [null, '15 Mtr', null, null, null, null, null, null, 'Clay'],
+    [null, '18 Mtr', null, '3 Mtr Plain Pipe', null, 1, null, null, 'Clay'],
+    [null, null, null, null, null, null, '20 Mtr', null, 'Clay'],
+  ];
+  const r = parseStrataRows(rows);
+  const ft = (m: number) => Math.round(m * EXPECTED_METRES_TO_FEET * 10) / 10;
+
+  it('reads the borewell block, with soil and pipe each from their own side', () => {
+    expect(r.strata.map(l => [l.startDepth, l.endDepth, l.material])).toEqual([[0, ft(5), 'Clay'], [ft(5), ft(12), 'Sand'], [ft(12), ft(20), 'Clay']]);
+    expect(r.pipes.map(p => [p.pipeType, p.startDepth, p.endDepth])).toEqual([['plain', 0, ft(9)], ['slotted', ft(9), ft(15)], ['plain', ft(15), ft(18)]]);
+    expect(r.metadata).toMatchObject({ ownerName: 'Example School', address: 'Aliganj', city: 'Lucknow', boreDia: 15, pipeDia: 8 });
+    expect(r.anomalies.map(a => a.code)).not.toContain('MULTI_BOREWELL_SHEET');
+    expect(r.strata.every(l => l.materialId)).toBe(true);
   });
 });

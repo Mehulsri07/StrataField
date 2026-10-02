@@ -19,6 +19,12 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   and the total depth and water level are converted to feet along with the layers.
 - **Site, address and city.** A site written over four lines (name, address, area, city) no longer
   puts the area in City; the last line is the city and the lines between are the address.
+- **Pipes in logs with a row per 3 m pipe.** The pipe is now read against its own depths (the
+  assembly column), so screens between soil changes are no longer lost.
+- **More layouts read.** A log with the pipe list on the left and the soil chart on the right, a
+  sheet that starts with a pipe-only page, a site name written on the same line as "Site:", and
+  hole and pipe sizes written only under the headings.
+- Depths converted from metres are rounded to a tenth of a foot.
 - An imported borewell's ID starts as the file's name; the site name goes into Owner.
 
 ## [1.0.5] - 2026-10-02
