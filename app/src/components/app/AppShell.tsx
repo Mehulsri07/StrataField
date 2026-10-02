@@ -61,9 +61,9 @@ export function AppShell() {
 }
 
 /** The app's logo at menu size: the icon (app/icon-source.svg) without its fine detail. */
-function BrandMark() {
+export function BrandMark({ size = 24 }: { size?: number }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 1024 1024" aria-hidden="true" className="shrink-0">
+    <svg width={size} height={size} viewBox="0 0 1024 1024" aria-hidden="true" className="shrink-0">
       <rect x="32" y="32" width="960" height="960" rx="212" fill="#F2F0E1" stroke="var(--sidebar-border)" strokeWidth="24" />
       <g transform="translate(512 520) scale(1.16) translate(-512 -520)" strokeLinejoin="round">
         <path d="M206 410L512 270L818 410L512 550Z" fill="#5C6670" />

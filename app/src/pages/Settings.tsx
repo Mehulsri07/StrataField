@@ -13,6 +13,7 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { Field } from "@/components/app/Field";
 import { useConfirm } from "@/components/app/Confirm";
+import { BrandMark } from "@/components/app/AppShell";
 import { MaterialSwatch, PATTERNS } from "@/components/geology/patterns";
 import { api, files, isPreview, type SecondCopy } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
@@ -578,9 +579,15 @@ function About() {
     }
   };
   return (
-    <Panel title="About" bodyClassName="grid gap-3">
+    <Panel title="About" bodyClassName="grid gap-4">
+      <div className="flex items-center gap-4">
+        <BrandMark size={56} />
+        <div>
+          <p className="text-base font-semibold">{text.app.name}{info.data && <span className="ml-2 text-[13px] font-normal text-muted-foreground">{text.status.version(info.data.version)}</span>}</p>
+          <p className="max-w-[62ch] text-[13px] text-muted-foreground">{text.app.about}</p>
+        </div>
+      </div>
       <dl className="grid grid-cols-[160px_1fr] gap-x-4 gap-y-2 text-[13px]">
-        <dt className="text-muted-foreground">Version</dt><dd>{info.data ? `${info.data.name} ${info.data.version}` : "…"}</dd>
         <dt className="text-muted-foreground">Your data is kept in</dt><dd className="num break-all">{status?.dataFolder ?? "…"}</dd>
         <dt className="text-muted-foreground">Shared with</dt><dd>StrataVision, when it is installed, uses the same data. Anything added in one shows up in the other.</dd>
       </dl>
