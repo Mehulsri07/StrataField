@@ -3,6 +3,16 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Import Excel files in other layouts.** When a file is not laid out like the usual drilling log,
+  StrataField guesses which columns hold the depths and soil names, shows the start of the file,
+  and lets you correct the choice (including a "from" depth, pipe type, and feet or metres).
+
+### Fixed
+- Import Excel: the borewell details are no longer squeezed on a laptop-sized window.
+
 ## [1.0.3] - 2026-10-02
 
 ### Changed

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Borewell, BorewellInput, ExcelParseResult, Material, ParseAnomaly, StrataLayer } from "@strata/core";
 import { parseNumber } from "@strata/core";
+import type { ColumnMapping } from "@strata/core/parser";
 import { toast } from "sonner";
 import { CircleCheck, FileSpreadsheet, TriangleAlert, Upload, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,9 +20,16 @@ import { cn } from "cn";
 
 interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string }
 
+/** The Excel reader, loaded when the first file is chosen (it is large, and only this screen uses it). */
+let parser: typeof import("@strata/core/parser") | null = null;
+
 interface ImportFile {
   path: string;
   name: string;
+  /** The start of the sheet, shown when the user has to say where the layers are. */
+  rows: unknown[][];
+  /** Set when the sheet is not in the standard layout: the columns in use (a guess until the user changes it). */
+  mapping: ColumnMapping | null;
   result: ExcelParseResult | null;
   readError: string | null;
   include: boolean;
@@ -31,6 +39,7 @@ interface ImportFile {
 }
 
 const KEEP = "__keep__";
+const NONE = "none";
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const stem = (p: string) => baseName(p).replace(/\.[^.]+$/, "");
 const n = (v: number | null | undefined) => (v == null ? "" : String(v));
@@ -50,7 +59,7 @@ function describe(a: ParseAnomaly): string {
     case "DATE_MISSING": return "No drilling date was found. Enter it below if you know it.";
     case "SITE_NAME_MISSING": return "No site or owner name was found. Enter it below.";
     case "NO_STRATA_FOUND": return "No soil layers were found in this file.";
-    case "NON_STANDARD_FORMAT": return "This file is not laid out like a drilling log StrataField knows, so it cannot be read automatically.";
+    case "NON_STANDARD_FORMAT": return "This file is not laid out like a drilling log StrataField knows. Choose where the depths and soil names are.";
     case "PIPE_TYPE_UNKNOWN": return `A pipe type was not recognised and was set to plain pipe${row}.`;
     default: return a.message;
   }
@@ -94,14 +103,16 @@ export function ImportPage() {
       const paths = await files.choose({ title: "Choose Excel drilling logs", multiple: true, filters: files.excelFilters });
       if (!paths.length) return;
       setBusy(true);
-      const { parseStrataWorkbook } = await import("@strata/core/parser");
+      const { readSheetRows, parseStrataRows, guessMapping } = (parser ??= await import("@strata/core/parser"));
       const read = await Promise.all(paths.filter((p) => !list.some((f) => f.path === p)).map(async (path): Promise<ImportFile> => {
         try {
-          const bytes = await api.readSpreadsheet(path);
-          const result = parseStrataWorkbook(new Uint8Array(bytes));
-          return { path, name: baseName(path), result, readError: null, include: result.success && result.strata.length > 0, details: initialDetails(path, result), resolutions: {} };
+          const rows = readSheetRows(new Uint8Array(await api.readSpreadsheet(path)));
+          let result = parseStrataRows(rows), mapping: ColumnMapping | null = null;
+          // A sheet laid out differently: start from a guess at the columns, which the user then checks.
+          if (!result.success && (mapping = guessMapping(rows))) result = parseStrataRows(rows, mapping);
+          return { path, name: baseName(path), rows, mapping, result, readError: null, include: result.success && result.strata.length > 0, details: initialDetails(path, result), resolutions: {} };
         } catch (e) {
-          return { path, name: baseName(path), result: null, readError: String(e), include: false, details: initialDetails(path, null), resolutions: {} };
+          return { path, name: baseName(path), rows: [], mapping: null, result: null, readError: String(e), include: false, details: initialDetails(path, null), resolutions: {} };
         }
       }));
       setList([...list, ...read]);
@@ -179,7 +190,7 @@ export function ImportPage() {
           {isPreview && <p className="text-xs text-muted-foreground">Choosing files works in the StrataField app, not in the browser preview.</p>}
         </div>
       ) : (
-        <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid items-start gap-x-8 gap-y-7 lg:grid-cols-[240px_minmax(0,1fr)]">
           <Panel title={`Files (${list.length})`} framed>
             <ul className="divide-y divide-border">
               {list.map((file, i) => {
@@ -191,7 +202,8 @@ export function ImportPage() {
                     <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setCurrent(i)}>
                       <span className="block truncate text-[13px] font-medium">{file.name}</span>
                       <span className="block text-xs">
-                        {!ok ? <span className="text-destructive">Cannot be read</span>
+                        {!ok ? <span className="text-destructive">{file.rows.length ? "Choose the columns" : "Cannot be read"}</span>
+                          : file.mapping ? <span className="text-warn">Check the columns</span>
                           : notes > 0 || unknownNames(file.result).length ? <span className="text-warn">Needs a look</span>
                           : <span className="text-ok">Ready</span>}
                       </span>
@@ -226,6 +238,16 @@ function resolveLayer(l: ExcelParseResult["strata"][number], resolutions: Record
 function FileReview({ file: f, materials, takenIds, onChange }: {
   file: ImportFile; materials: Material[]; takenIds: Set<string>; onChange: (patch: Partial<ImportFile>) => void;
 }) {
+  // Shown whenever the sheet is not in the standard layout, so the columns can always be changed.
+  const picker = (f.mapping || (!readable(f) && f.rows.length > 0)) && <ColumnPicker file={f} onChange={onChange} />;
+  if (!readable(f) && picker) {
+    return (
+      <div className="grid gap-7">
+        {picker}
+        <Note strong>No soil layers were found with these choices. Change them above, or add this borewell by hand with New borewell and attach the file to it.</Note>
+      </div>
+    );
+  }
   if (!readable(f)) {
     return (
       <Panel title={f.name}>
@@ -254,8 +276,9 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
   } as Borewell;
 
   return (
-    <div className="grid items-start gap-x-10 gap-y-7 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="grid min-w-0 gap-x-10 gap-y-7">
+    <div className="grid items-start gap-x-8 gap-y-7 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid min-w-0 gap-7">
+        {picker}
         {(notes.length > 0 || f.result?.metadata.detectedUnit === "m") && (
           <Panel title="Notes from reading the file" bodyClassName="grid gap-1.5">
             {f.result?.metadata.detectedUnit === "m" && <Note>The depths in this file were in metres and have been converted to feet.</Note>}
@@ -306,6 +329,70 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
         <BorewellProfile borewell={preview} strata={strata} pipes={pipes} height={440} />
       </Panel>
     </div>
+  );
+}
+
+/** For a sheet that is not in the standard layout: which columns hold the depths, soil names and pipes. */
+function ColumnPicker({ file: f, onChange }: { file: ImportFile; onChange: (patch: Partial<ImportFile>) => void }) {
+  const m: ColumnMapping = f.mapping ?? { depthCol: 0, materialCol: 1, firstRow: 0, fromCol: null, pipeCol: null, unit: "ft" };
+  const shown = f.rows.slice(0, 40);
+  const width = Math.max(2, ...shown.map((r) => r?.length ?? 0));
+  const letter = (c: number) => (c < 26 ? String.fromCharCode(65 + c) : String(c + 1));
+  const columns = Array.from({ length: width }, (_, c) => ({ value: String(c), label: `Column ${letter(c)}` }));
+  const optional = [{ value: NONE, label: "Not in this file" }, ...columns];
+  const rowItems = shown.map((_, i) => ({ value: String(i), label: `Row ${i + 1}` }));
+  const col = (v: string | null) => (v == null || v === NONE ? null : Number(v));
+  const used = new Set([m.depthCol, m.materialCol, m.fromCol, m.pipeCol]);
+
+  const set = (patch: Partial<ColumnMapping>) => {
+    const mapping = { ...m, ...patch };
+    const result = parser!.parseStrataRows(f.rows, mapping);
+    onChange({ mapping, result, include: result.success, details: initialDetails(f.path, result), resolutions: {} });
+  };
+
+  return (
+    <Panel title="Where the layers are in this file" bodyClassName="grid gap-4">
+      <p className="text-sm text-muted-foreground">
+        This file is not laid out like the drilling logs StrataField knows, so it made a guess. Check each choice against the start of the file, shown below.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Pick id="c-to" label="Layer ends at" value={String(m.depthCol)} items={columns} onPick={(v) => set({ depthCol: Number(v) })} />
+        <Pick id="c-soil" label="Soil name" value={String(m.materialCol)} items={columns} onPick={(v) => set({ materialCol: Number(v) })} />
+        <Pick id="c-row" label="First layer row" value={String(m.firstRow)} items={rowItems} onPick={(v) => set({ firstRow: Number(v) })} />
+        <Pick id="c-from" label="Layer starts at" value={m.fromCol == null ? NONE : String(m.fromCol)} items={optional} onPick={(v) => set({ fromCol: col(v) })} />
+        <Pick id="c-pipe" label="Pipe type" value={m.pipeCol == null ? NONE : String(m.pipeCol)} items={optional} onPick={(v) => set({ pipeCol: col(v) })} />
+        <Pick id="c-unit" label="Depths are in" value={m.unit} items={[{ value: "ft", label: "Feet" }, { value: "m", label: "Metres" }]} onPick={(v) => set({ unit: v === "m" ? "m" : "ft" })} />
+      </div>
+      <div className="max-h-64 overflow-auto rounded-md border border-border">
+        <table className="w-full border-collapse text-xs">
+          <thead className="sticky top-0 bg-muted text-muted-foreground">
+            <tr>
+              <th className="px-2 py-1.5 text-right font-medium">Row</th>
+              {columns.map((c, i) => <th key={c.value} className={cn("px-2 py-1.5 text-left font-medium", used.has(i) && "text-foreground")}>{letter(i)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((r, i) => (
+              <tr key={i} className={cn("border-t border-border", i < m.firstRow && "text-muted-foreground")}>
+                <td className="px-2 py-1 text-right text-muted-foreground">{i + 1}</td>
+                {columns.map((c, j) => <td key={c.value} className={cn("max-w-40 truncate px-2 py-1", used.has(j) && i >= m.firstRow && "bg-accent")}>{String(r?.[j] ?? "")}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+function Pick({ id, label, value, items, onPick }: { id: string; label: string; value: string; items: { value: string; label: string }[]; onPick: (v: string) => void }) {
+  return (
+    <Field id={id} label={label}>
+      <Select value={value} onValueChange={(v) => v != null && onPick(v)} items={items}>
+        <SelectTrigger id={id} className="w-full"><SelectValue /></SelectTrigger>
+        <SelectContent>{items.map((i) => <SelectItem key={i.value} value={i.value}>{i.label}</SelectItem>)}</SelectContent>
+      </Select>
+    </Field>
   );
 }
 

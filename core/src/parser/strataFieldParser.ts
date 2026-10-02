@@ -42,18 +42,75 @@ const UNIT_M_PATTERNS = [/met[re]{2}/i, /\bmtr?\b/i, /\bm\b/];
 
 // ─── Core Parser ────────────────────────────────────────────────────────────
 
+/** Where the layers are in a sheet that is not laid out the standard way. Columns and rows count from 0. */
+export interface ColumnMapping {
+  /** The depth where each layer ends. */
+  depthCol: number;
+  /** The depth where each layer starts, when the sheet has one; otherwise a layer starts where the last ended. */
+  fromCol?: number | null;
+  materialCol: number;
+  pipeCol?: number | null;
+  /** The first row that holds a layer. */
+  firstRow: number;
+  unit: DepthUnit;
+}
+
+/** The first sheet of a workbook as rows of cells. */
+export function readSheetRows(data: Uint8Array | ArrayBuffer): any[][] {
+  const workbook = xlsx.read(data, { type: 'array' });
+  return xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+}
+
+const num = (cell: unknown) => parseFloat(String(cell ?? ''));
+
+/**
+ * A first guess at where the layers are: from a heading row ("From", "To"/"Depth", "Soil type"...)
+ * when there is one, otherwise from the column of rising numbers and the wordiest column beside it.
+ */
+export function guessMapping(rows: any[][]): ColumnMapping | null {
+  const find = (row: any[], re: RegExp) => row.findIndex(c => typeof c === 'string' && re.test(c));
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const row = rows[i] || [];
+    const materialCol = find(row, /soil|material|strata|streta|formation|litholog/i);
+    const depthCol = find(row, /^\s*to\b|depth/i);
+    if (materialCol < 0 || depthCol < 0 || materialCol === depthCol) continue;
+    const fromCol = find(row, /^\s*from\b/i), pipeCol = find(row, /pipe|casing|assembly/i);
+    return {
+      depthCol, materialCol, firstRow: i + 1,
+      fromCol: fromCol >= 0 ? fromCol : null,
+      pipeCol: pipeCol >= 0 && pipeCol !== materialCol ? pipeCol : null,
+      unit: /\(m\)|met(re|er)/i.test(row.join(' ')) ? 'm' : 'ft',
+    };
+  }
+  // No heading row: the depth column is the one with the most rising numbers.
+  const width = Math.max(0, ...rows.map(r => r?.length ?? 0));
+  let best: { col: number; rowsWith: number[] } | null = null;
+  for (let c = 0; c < width; c++) {
+    const rowsWith: number[] = [];
+    let last = 0;
+    rows.forEach((r, i) => { const v = num(r?.[c]); if (v > last) { rowsWith.push(i); last = v; } });
+    if (rowsWith.length >= 3 && (!best || rowsWith.length > best.rowsWith.length)) best = { col: c, rowsWith };
+  }
+  if (!best) return null;
+  const words = (c: number) => best!.rowsWith.filter(i => typeof rows[i]?.[c] === 'string' && rows[i][c].trim()).length;
+  let materialCol = -1;
+  for (let c = 0; c < width; c++) if (c !== best.col && words(c) > (materialCol < 0 ? 0 : words(materialCol))) materialCol = c;
+  if (materialCol < 0) return null;
+  const firstRow = best.rowsWith.find(i => typeof rows[i]?.[materialCol] === 'string') ?? best.rowsWith[0];
+  return { depthCol: best.col, materialCol, firstRow, fromCol: null, pipeCol: null, unit: 'ft' };
+}
+
 /**
  * Parses a workbook from its raw bytes. Reading the file is the caller's job
  * (the app reads it through Tauri; tests read it with node:fs), so this runs anywhere.
  */
-export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseResult {
-  const anomalies: ParseAnomaly[] = [];
+export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer, mapping?: ColumnMapping): ExcelParseResult {
+  return parseStrataRows(readSheetRows(data), mapping);
+}
 
-  // 1. Read workbook
-  const workbook = xlsx.read(data, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  const rows: any[][] = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+/** Reads the layers from a sheet's rows: the standard layout, or wherever `mapping` says they are. */
+export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelParseResult {
+  const anomalies: ParseAnomaly[] = [];
 
   if (!rows || rows.length < 3) {
     return makeFailResult('File contains too few rows to parse.', anomalies);
@@ -63,7 +120,7 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
   let headerRowIdx = -1;
   let secondHeaderIdx = -1;
 
-  for (let i = 0; i < rows.length; i++) {
+  for (let i = 0; !mapping && i < rows.length; i++) {
     const rowText = (rows[i] || []).map(c => String(c || '')).join(' ');
     if (STRETA_HEADER_PATTERNS.some(p => p.test(rowText))) {
       if (headerRowIdx === -1) {
@@ -76,6 +133,9 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
       }
     }
   }
+
+  // With a mapping the user has said where the layers are; rows above them are read for details.
+  if (mapping) headerRowIdx = mapping.firstRow;
 
   // Non-standard format detection
   if (headerRowIdx === -1) {
@@ -97,13 +157,15 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
     }
   }
 
-  const dataStartIdx = glRowIdx >= 0 ? glRowIdx + 1 : headerRowIdx + 2;
+  const dataStartIdx = mapping ? mapping.firstRow : glRowIdx >= 0 ? glRowIdx + 1 : headerRowIdx + 2;
+  const depthCol = mapping?.depthCol ?? 1, materialCol = mapping?.materialCol ?? 3;
+  const pipeCol = mapping ? mapping.pipeCol ?? -1 : 4, fromCol = mapping?.fromCol ?? -1;
 
   // 4. Extract metadata from rows above the header
   const metadata = extractMetadata(rows, headerRowIdx);
 
   // 5. Detect units from metadata text + interval sizes
-  const detectedUnit = detectUnit(rows, headerRowIdx, dataStartIdx, searchEnd, anomalies);
+  const detectedUnit = mapping?.unit ?? detectUnit(rows, headerRowIdx, dataStartIdx, searchEnd, anomalies);
   metadata.detectedUnit = detectedUnit;
   const conversionFactor = detectedUnit === 'm' ? METRES_TO_FEET : 1;
 
@@ -117,8 +179,8 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
   for (let i = dataStartIdx; i < dataEndIdx; i++) {
     const row = rows[i] || [];
 
-    // Col 1 = depth (end of interval)
-    const depthRaw = parseFloat(String(row[1] || ''));
+    // Depth column = the end of each interval (column 1 in the standard layout)
+    const depthRaw = num(row[depthCol]);
     if (isNaN(depthRaw) || depthRaw <= 0) continue;
 
     const depthFt = depthRaw * conversionFactor;
@@ -130,8 +192,7 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
       continue;
     }
 
-    // Col 3 = material
-    const materialRaw = String(row[3] || '').trim();
+    const materialRaw = String(row[materialCol] || '').trim();
     if (!materialRaw) continue;
 
     // Normalise material name
@@ -144,8 +205,12 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
     // No gap check here: each row gives a layer's bottom and the layer starts where the previous
     // one ended, so rows never leave a gap. A big step between rows is just a thick layer.
 
+    // A "From" column can leave a gap after the previous layer; it can never reach back into it.
+    const fromFt = num(row[fromCol]) * conversionFactor;
+    const startDepth = fromFt > prevEndDepth && fromFt < depthFt ? fromFt : prevEndDepth;
+
     strata.push({
-      startDepth: prevEndDepth,
+      startDepth,
       endDepth: depthFt,
       material: normalised,
       materialId,
@@ -153,13 +218,12 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
       pattern,
     });
 
-    // Col 4 = pipe type
-    const pipeRaw = String(row[4] || '').trim();
+    const pipeRaw = String(row[pipeCol] || '').trim();
     if (pipeRaw) {
       const pipeResult = parsePipeType(pipeRaw);
       if (pipeResult) {
         pipes.push({
-          startDepth: prevEndDepth,
+          startDepth,
           endDepth: depthFt,
           pipeType: pipeResult.pipeType,
           pipeSubtype: pipeResult.subtype,
@@ -169,7 +233,7 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer): ExcelParseR
         addAnomaly(anomalies, 'PIPE_TYPE_UNKNOWN', 'warning',
           `Row ${i + 1}: Pipe type "${pipeRaw}" not recognised. Defaulted to plain.`, i);
         pipes.push({
-          startDepth: prevEndDepth,
+          startDepth,
           endDepth: depthFt,
           pipeType: 'plain',
           pipeSubtype: 'PLAIN',
