@@ -1,21 +1,19 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { Borewell } from "@strata/core";
+import type { Borewell, BorewellListItem } from "@strata/core";
 import { waterColour, waterPoints } from "@strata/core";
 import { ChevronRight, FolderOpen, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BaseMap } from "@/components/map/BaseMap";
 import { BorewellPins, FitBorewells } from "@/components/map/BorewellPins";
 import { WaterLayer, WaterLegend } from "@/components/map/WaterLayer";
-import { StrataStrip } from "@/components/geology/patterns";
-import { useLayerPopup } from "@/components/geology/useLayerPopup";
+import { patternFill } from "@/components/geology/patterns";
 import { api, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, formatWhen } from "@/lib/format";
+import { formatWhen } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
 
@@ -33,7 +31,6 @@ const SECOND_COPY_OLD_DAYS = 14;
 export function Home() {
   const navigate = useNavigate();
   const { bump } = useDataVersion();
-  const { showLayer, popup } = useLayerPopup();
   const items = useLoad("home-borewells", () => api.borewells.search({}));
   const backups = useLoad("home-backups", () => api.backups.list());
   const unlinked = useLoad("home-unlinked", () => api.soilNames.unlinked());
@@ -45,7 +42,7 @@ export function Home() {
   const borewells = useMemo(() => all.map((i) => i.borewell), [all]);
   const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
   const points = useMemo(() => waterPoints(borewells), [borewells]);
-  const recent = useMemo(() => [...all].sort((a, b) => b.borewell.createdAt.localeCompare(a.borewell.createdAt)).slice(0, 5), [all]);
+  const recent = useMemo(() => [...all].sort((a, b) => b.borewell.createdAt.localeCompare(a.borewell.createdAt)).slice(0, 6), [all]);
   const byWater = useMemo(() => located.filter((b) => b.waterLevel != null).sort((a, b) => b.waterLevel! - a.waterLevel!), [located]);
   const depths = borewells.map((b) => b.totalDepth).filter((v): v is number => v != null);
   const waters = borewells.map((b) => b.waterLevel).filter((v): v is number => v != null);
@@ -71,17 +68,29 @@ export function Home() {
   const openFolder = () => api.backups.openFolder("backups").catch((e) => toast.error(String(e)));
 
   const newest = recent[0]?.borewell;
+  const actions = <>
+    <Button variant="outline" render={<Link to="/import" />}><Upload />{text.nav.import}</Button>
+    <Button render={<Link to="/new" />}><Plus />{text.nav.newBorewell}</Button>
+  </>;
 
   return (
     <Page>
-      <PageHeader
-        title={text.pages.home.title}
-        sub={newest ? `${text.app.city} · last borewell added ${formatWhen(newest.createdAt)}` : text.pages.home.sub(text.app.city)}
-        actions={<>
-          <Button variant="outline" render={<Link to="/import" />}><Upload />{text.nav.import}</Button>
-          <Button render={<Link to="/new" />}><Plus />{text.nav.newBorewell}</Button>
-        </>}
-      />
+      {all.length === 0 ? (
+        <PageHeader title={text.pages.home.title} sub={text.pages.home.sub(text.app.city)} actions={actions} />
+      ) : (
+        <header className="flex flex-wrap items-start gap-x-8 gap-y-4 pt-2">
+          <div className="min-w-0 flex-1 basis-[420px]">
+            <h1 className="text-[30px] leading-[1.15] font-semibold tracking-[-0.02em]">{plural(all.length, "borewell")} across {text.app.city}</h1>
+            <p className="mt-2.5 max-w-[62ch] text-base text-muted-foreground">
+              {waters.length > 0 && <>Water is typically <Num>{median(waters)} ft</Num> below ground{waters.length > 1 && ` (${Math.min(...waters)} to ${Math.max(...waters)} ft)`}. </>}
+              {depths.length > 0 && <>Borewells go about <Num>{median(depths)} ft</Num> deep. </>}
+              {located.length === all.length ? "All of them are on the map." : <><Num>{located.length}</Num> of {all.length} are on the map.</>}
+              {newest && ` Last added ${formatWhen(newest.createdAt)}.`}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">{actions}</div>
+        </header>
+      )}
 
       {loaded && all.length === 0 ? (
         <Panel>
@@ -92,19 +101,12 @@ export function Home() {
         </Panel>
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-5 border-y border-border py-4 lg:grid-cols-4">
-            <Stat label="Borewells" value={all.length} note={`${all.filter((i) => i.borewell.importMethod === "excel").length} from Excel · ${all.filter((i) => i.borewell.importMethod !== "excel").length} typed in or older app`} />
-            <Stat label="With a location" value={located.length} of={all.length} note={all.length ? `${Math.round((located.length / all.length) * 100)}% show on the map` : ""} />
-            <Stat label="Typical total depth" value={median(depths)} unit="ft" note={depths.length ? `from ${Math.min(...depths)} to ${Math.max(...depths)} ft` : "No depths entered yet"} />
-            <Stat label="Typical water level" value={median(waters)} unit="ft" note={waters.length ? `${Math.min(...waters)} to ${Math.max(...waters)} ft below ground` : "No water levels entered yet"} />
-          </dl>
-
           <Panel
             title={`How deep is the water across ${text.app.city}?`}
             actions={<Button variant="ghost" size="sm" render={<Link to="/map" />}>Open full map<ChevronRight /></Button>}
             bodyClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]"
           >
-            <div className="relative h-[380px] min-w-0 overflow-hidden rounded-md border border-border">
+            <div className="relative h-[460px] min-w-0 overflow-hidden rounded-md border border-border">
               <BaseMap>
                 <WaterLayer points={points} />
                 <BorewellPins borewells={borewells} onSelect={(b) => navigate(`/borewell/${b.id}`)} />
@@ -134,39 +136,10 @@ export function Home() {
 
           <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_340px]">
             <Panel
-              title="Recently added"
+              title="Newest borewells"
               actions={<Button variant="ghost" size="sm" render={<Link to="/borewells" />}>View all {all.length}<ChevronRight /></Button>}
-              framed bodyClassName="overflow-x-auto"
             >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Borewell ID</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Area</TableHead>
-                    <TableHead>Date drilled</TableHead>
-                    <TableHead className="text-right">Water (ft)</TableHead>
-                    <TableHead>Layers</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.map(({ borewell: b, strata }) => (
-                    <TableRow key={b.id} tabIndex={0} className="cursor-pointer" onClick={() => navigate(`/borewell/${b.id}`)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) navigate(`/borewell/${b.id}`); }}>
-                      <TableCell className="num font-medium text-primary">{b.borewellId}</TableCell>
-                      <TableCell>{b.ownerName || <span className="text-muted-foreground">Not entered</span>}</TableCell>
-                      <TableCell>{shortArea(b)}</TableCell>
-                      <TableCell className="num whitespace-nowrap">{b.date ? formatDate(b.date) : "—"}</TableCell>
-                      <TableCell className="num text-right">{b.waterLevel ?? "—"}</TableCell>
-                      <TableCell>
-                        {strata.length > 0
-                          ? <StrataStrip strata={strata} totalDepth={b.totalDepth} waterLevel={b.waterLevel} width={110} onLayerClick={(l) => showLayer(l)} />
-                          : <span className="text-xs text-muted-foreground">None yet</span>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <RecentColumns items={recent} />
             </Panel>
 
             <div className="grid gap-7">
@@ -221,22 +194,53 @@ export function Home() {
           </div>
         </>
       )}
-      {popup}
     </Page>
   );
 }
 
-function Stat({ label, value, unit, of, note }: { label: string; value: number | null; unit?: string; of?: number; note: string }) {
+const Num = ({ children }: { children: React.ReactNode }) => <span className="num font-semibold text-foreground">{children}</span>;
+
+/**
+ * The newest borewells drawn side by side from one ground line, all on the same depth scale, so a
+ * deep one looks deep and the water levels can be compared at a glance. One row: as many as fit.
+ */
+function RecentColumns({ items }: { items: BorewellListItem[] }) {
+  const depthOf = ({ borewell: b, strata }: BorewellListItem) => b.totalDepth ?? Math.max(0, ...strata.map((l) => l.endDepth));
+  const max = Math.max(1, ...items.map(depthOf));
+  const H = 200, W = 60, y = (ft: number) => (ft / max) * H;
   return (
-    <div className="grid content-start gap-0.5">
-      <dt className="text-[13px] text-muted-foreground">{label}</dt>
-      <dd className="num text-lg font-semibold">
-        {value ?? "—"}
-        {value != null && unit && <span className="ml-1 text-[13px] font-normal text-muted-foreground">{unit}</span>}
-        {of != null && <span className="ml-1.5 text-[13px] font-normal text-muted-foreground">of {of}</span>}
-      </dd>
-      <dd className="text-xs text-muted-foreground">{note}</dd>
-    </div>
+    <ol className="-mx-1 grid auto-rows-[0px] grid-cols-[repeat(auto-fill,minmax(118px,1fr))] grid-rows-[auto] gap-x-4 overflow-hidden border-t-2 border-foreground/80 px-1">
+      {items.map((item) => {
+        const { borewell: b, strata } = item, depth = depthOf(item);
+        return (
+          <li key={b.id}>
+            <Link to={`/borewell/${b.id}`} className="group grid gap-2 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+              <svg width={W + 46} height={H + 16} role="img" aria-label={`${strata.length} layers to ${depth} ft${b.waterLevel != null ? `, water at ${b.waterLevel} ft` : ""}`}>
+                <rect width={W} height={Math.max(y(depth), 2)} fill="var(--muted)" />
+                {strata.map((l) => (
+                  <g key={l.id}>
+                    <rect y={y(l.startDepth)} width={W} height={Math.max(0, y(l.endDepth) - y(l.startDepth))} fill={l.color} />
+                    <rect y={y(l.startDepth)} width={W} height={Math.max(0, y(l.endDepth) - y(l.startDepth))} fill={patternFill(l.pattern)} />
+                  </g>
+                ))}
+                {b.waterLevel != null && (
+                  <>
+                    <path d={`M0 ${y(b.waterLevel)}H${W + 6}`} stroke="var(--water)" strokeWidth="2" />
+                    <text x={W + 10} y={y(b.waterLevel) + 3.5} fontSize="10.5" fill="var(--water)" className="num">{b.waterLevel}</text>
+                  </>
+                )}
+                {depth > 0 && <text x="0" y={y(depth) + 13} fontSize="10.5" fill="var(--muted-foreground)" className="num">{depth} ft</text>}
+              </svg>
+              <span className="grid text-[13px] leading-snug">
+                <span className="font-medium text-primary group-hover:underline">{b.borewellId}</span>
+                <span className="truncate text-muted-foreground" title={b.area}>{shortArea(b)}</span>
+                {strata.length === 0 && <span className="text-xs text-warn">No layers yet</span>}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

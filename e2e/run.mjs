@@ -422,9 +422,9 @@ try {
 
   // ── Home ───────────────────────────────────────────────────────────────
   const home = await page(`
-    location.hash = '#/'; await __t.until(() => /Recently added/.test(__t.text()), 8000);
+    location.hash = '#/'; await __t.until(() => /Newest borewells/.test(__t.text()), 8000);
     return __t.text();`);
-  check("Home shows the numbers, recently added borewells and the backup panel", /Borewells\s*\n?\s*3\b/.test(home) && /Back up now/.test(home) && /Needs attention/.test(home),
+  check("Home shows the numbers, recently added borewells and the backup panel", /3 borewells across/.test(home) && /Back up now/.test(home) && /Needs attention/.test(home),
     home.split("\n").slice(0, 10).join(" | "));
 } catch (e) {
   check("Test run finished", false, String(e));

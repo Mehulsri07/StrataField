@@ -12,6 +12,11 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **Rename and merge zones.** **Settings & backup → Zones** lists your zones. Rename one to fix its
   spelling, or rename it to another zone's name to merge the two.
 
+### Changed
+- **Home says more at a glance.** The heading now tells you how many borewells you have and how deep
+  the water typically is. The map is taller, and the newest borewells are drawn side by side as
+  columns on one depth scale, with their water levels, instead of a table.
+
 ### Fixed
 - Import Excel: the borewell details are no longer squeezed on a laptop-sized window.
 

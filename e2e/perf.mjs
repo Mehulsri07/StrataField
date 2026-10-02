@@ -75,7 +75,7 @@ try {
     return 'detail with drawing';`);
   await timed("Home shows (numbers, water map, recent)", 6000, `
     location.hash = '#/';
-    await __t.until(() => /Recently added/.test(__t.text()) && document.querySelector('main .leaflet-image-layer'), 30000);
+    await __t.until(() => /Newest borewells/.test(__t.text()) && document.querySelector('main .leaflet-image-layer'), 30000);
     return 'ready';`);
   await timed("Map shows pins and water colours", 7000, `
     location.hash = '#/map';
