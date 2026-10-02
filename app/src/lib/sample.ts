@@ -92,7 +92,10 @@ export function samplePipes(item: BorewellListItem): PipeSegment[] {
   return out;
 }
 
-export const SAMPLE_BOREWELLS: BorewellListItem[] = RAW.map(([code, owner, area, zone, lat, lon, date, depth, water, source], i) => {
+export const SAMPLE_BOREWELLS: BorewellListItem[] = RAW.map(([code, owner, area, zone, lat, lon, drilled, depth, level, source], i) => {
+  // Spread over ten years, with the water a little shallower the further back, like real records.
+  const yearsAgo = (i * 7) % 10;
+  const date = `${2026 - yearsAgo}${drilled.slice(4)}`, water = Math.round(level - yearsAgo * 3.5);
   const id = `sample-${code}`;
   const borewell: Borewell = {
     id, projectId: zone, project: zone, borewellId: code, ownerName: owner, houseNo: "", area, city: "Lucknow", address: "",

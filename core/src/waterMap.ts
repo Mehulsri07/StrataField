@@ -4,6 +4,7 @@
  * Inverse-distance weighting: nearer borewells count more. The estimate fades out with distance
  * from the nearest borewell, so the map never shows a value where there is no data.
  */
+import { median } from './numbers';
 
 export interface WaterPoint {
   latitude: number;
@@ -129,6 +130,28 @@ export function recentCutoff(items: Measured[], years = RECENT_YEARS): string {
   if (!years) return '';
   const newest = items.reduce((m, b) => (b.waterLevel != null && b.waterLevelOn && b.waterLevelOn > m ? b.waterLevelOn : m), '');
   return newest && `${Number(newest.slice(0, 4)) - years}${newest.slice(4, 10)}`;
+}
+
+export interface YearWater {
+  year: number;
+  /** The typical (middle) water level among borewells measured that year, feet below ground. */
+  typical: number;
+  shallowest: number;
+  deepest: number;
+  count: number;
+}
+
+/** Water levels grouped by the year they were measured, oldest first. Years with none are left out. */
+export function waterByYear(items: Measured[]): YearWater[] {
+  const byYear = new Map<number, number[]>();
+  for (const b of items) {
+    if (b.waterLevel == null || !b.waterLevelOn) continue;
+    const year = Number(b.waterLevelOn.slice(0, 4));
+    if (Number.isFinite(year)) byYear.set(year, [...(byYear.get(year) ?? []), b.waterLevel]);
+  }
+  return [...byYear].sort(([a], [b]) => a - b).map(([year, levels]) => ({
+    year, typical: median(levels)!, shallowest: Math.min(...levels), deepest: Math.max(...levels), count: levels.length,
+  }));
 }
 
 /** True when this water level is recent enough to stand for today's (levels without a date count). */

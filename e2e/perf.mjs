@@ -73,11 +73,12 @@ try {
     document.querySelector('main tbody tr').click();
     await __t.until(() => /PERF-04321/.test(document.querySelector('main h1')?.innerText ?? '') && document.querySelector('svg [role="button"]'), 30000);
     return 'detail with drawing';`);
-  await timed("Home shows (numbers, water map, recent)", 6000, `
+  await timed("Home shows (numbers, water over the years, newest, zones)", 6000, `
     location.hash = '#/';
-    await __t.until(() => /Newest borewells/.test(__t.text()) && document.querySelector('main .leaflet-image-layer'), 30000);
+    await __t.until(() => /Newest borewells/.test(__t.text()) && /Water level over the years/.test(__t.text()), 30000);
     return 'ready';`);
-  await timed("Map shows pins and water colours", 7000, `
+  // The Map is now the first screen to load the map code and tiles (Home no longer has a map).
+  await timed("Map shows pins and water colours", 8500, `
     location.hash = '#/map';
     // Wait for the Map screen itself (not Home's map, which is still showing for a moment).
     await __t.until(() => /^Map/.test(document.querySelector('main h1')?.innerText ?? ''), 30000);

@@ -1,28 +1,22 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import type { Borewell, BorewellListItem } from "@strata/core";
-import { isRecentWater, recentCutoff, waterColour, waterPoints } from "@strata/core";
+import { Link } from "react-router-dom";
+import type { Borewell, BorewellListItem, YearWater } from "@strata/core";
+import { isRecentWater, median, recentCutoff, waterByYear } from "@strata/core";
 import { ChevronRight, FolderOpen, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
-import { BaseMap } from "@/components/map/BaseMap";
-import { BorewellPins, FitBorewells } from "@/components/map/BorewellPins";
-import { WaterLayer, WaterLegend, WaterPeriod } from "@/components/map/WaterLayer";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { WaterPeriod } from "@/components/map/WaterLayer";
 import { patternFill } from "@/components/geology/patterns";
 import { api, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { useWaterYears } from "@/lib/hooks";
-import { formatDate, formatWhen } from "@/lib/format";
+import { formatDate, formatWhen, zoneName } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
 
-const median = (values: number[]) => {
-  if (values.length === 0) return null;
-  const s = [...values].sort((a, b) => a - b), m = s.length >> 1;
-  return s.length % 2 ? s[m] : Math.round(((s[m - 1] + s[m]) / 2) * 10) / 10;
-};
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** The locality part of an address like "Aliganj, Lucknow" → "Aliganj". */
 const shortArea = (b: Borewell) => b.area.split(",")[0].trim() || b.borewellId;
@@ -30,7 +24,6 @@ const BACKUP_OLD_DAYS = 7;
 const SECOND_COPY_OLD_DAYS = 14;
 
 export function Home() {
-  const navigate = useNavigate();
   const { bump } = useDataVersion();
   const items = useLoad("home-borewells", () => api.borewells.search({}));
   const backups = useLoad("home-backups", () => api.backups.list());
@@ -43,14 +36,14 @@ export function Home() {
   const borewells = useMemo(() => all.map((i) => i.borewell), [all]);
   const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
   const [years] = useWaterYears();
-  const points = useMemo(() => waterPoints(borewells, years), [borewells, years]);
   // Newest by drilling date (then by when it was added), so importing old logs does not make them "new".
   const recent = useMemo(() => [...all].sort((a, b) => b.borewell.date.localeCompare(a.borewell.date) || b.borewell.createdAt.localeCompare(a.borewell.createdAt)).slice(0, 6), [all]);
   // Water levels measured years ago say little about the water now, so only recent ones are used.
   const cutoff = useMemo(() => recentCutoff(borewells, years), [borewells, years]);
   const current = borewells.filter((b) => isRecentWater(b, cutoff));
   const olderLeftOut = borewells.some((b) => b.waterLevel != null && !isRecentWater(b, cutoff));
-  const byWater = useMemo(() => located.filter((b) => isRecentWater(b, cutoff)).sort((a, b) => b.waterLevel! - a.waterLevel!), [located, cutoff]);
+  const byYear = useMemo(() => waterByYear(borewells), [borewells]);
+  const zones = useMemo(() => byZone(borewells, cutoff), [borewells, cutoff]);
   const depths = borewells.map((b) => b.totalDepth).filter((v): v is number => v != null);
   const waters = current.map((b) => b.waterLevel!);
   const noLayers = all.filter((i) => i.strata.length === 0).length;
@@ -103,51 +96,51 @@ export function Home() {
         <Panel>
           <div className="grid justify-items-center gap-3 py-16 text-center">
             <p className="font-medium">No borewells yet</p>
-            <p className="max-w-md text-sm text-muted-foreground">Add your first borewell, or bring in existing drilling logs from an Excel file. The map and numbers here fill in as you add borewells.</p>
+            <p className="max-w-md text-sm text-muted-foreground">Add your first borewell, or bring in existing drilling logs from an Excel file. The numbers and charts here fill in as you add borewells.</p>
           </div>
         </Panel>
       ) : (
         <>
-          <Panel
-            title={`How deep is the water across ${text.app.city}?`}
-            actions={<><WaterPeriod size="sm" /><Button variant="ghost" size="sm" render={<Link to="/map" />}>Open full map<ChevronRight /></Button></>}
-            bodyClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]"
-          >
-            <div className="relative h-[460px] min-w-0 overflow-hidden rounded-md border border-border">
-              <BaseMap>
-                <WaterLayer points={points} />
-                <BorewellPins borewells={borewells} onSelect={(b) => navigate(`/borewell/${b.id}`)} />
-                <FitBorewells borewells={borewells} trigger={0} />
-              </BaseMap>
-              <div className="pointer-events-none absolute bottom-3 left-3 z-[500] max-w-[230px]"><WaterLegend /></div>
-            </div>
-            <div className="grid content-start gap-5">
-              {byWater.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Add water levels to borewells that have a location to see where water is deep or shallow.</p>
-              ) : (
-                <>
-                  {byWater.length === 1 ? (
-                    <WaterBars title="Water level" list={byWater} max={byWater[0].waterLevel!} />
-                  ) : (
-                    <>
-                      {/* Split so a place never appears in both lists when there are only a few. */}
-                      <WaterBars title="Deepest water" list={byWater.slice(0, Math.min(5, Math.ceil(byWater.length / 2)))} max={byWater[0].waterLevel!} />
-                      <WaterBars title="Shallowest water" list={byWater.slice(Math.max(Math.ceil(byWater.length / 2), byWater.length - 5)).reverse()} max={byWater[0].waterLevel!} />
-                    </>
-                  )}
-                  <p className="text-xs text-muted-foreground">Feet below ground{olderLeftOut && `, from readings since ${cutoff.slice(0, 4)}`}. Colours between borewells are estimates, and they fade out far from any borewell.</p>
-                </>
+          <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid min-w-0 gap-7">
+              <Panel title="Water level over the years" actions={<WaterPeriod size="sm" />}>
+                <WaterOverYears years={byYear} since={cutoff ? Number(cutoff.slice(0, 4)) : null} />
+              </Panel>
+
+              <Panel
+                title="Newest borewells"
+                actions={<Button variant="ghost" size="sm" render={<Link to="/borewells" />}>View all {all.length}<ChevronRight /></Button>}
+              >
+                <RecentColumns items={recent} />
+              </Panel>
+
+              {zones.length > 1 && (
+                <Panel title="By zone" actions={<span className="text-xs text-muted-foreground">Typical values, in feet</span>} framed bodyClassName="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Zone</TableHead>
+                        <TableHead className="text-right">Borewells</TableHead>
+                        <TableHead className="text-right">Depth</TableHead>
+                        <TableHead className="text-right">Water level</TableHead>
+                        <TableHead className="text-right">Shallowest to deepest water</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {zones.map((z) => (
+                        <TableRow key={z.zone}>
+                          <TableCell><Link to={`/borewells?zone=${encodeURIComponent(z.zone)}`} className="font-medium text-primary hover:underline">{zoneName(z.zone)}</Link></TableCell>
+                          <TableCell className="text-right">{z.count}</TableCell>
+                          <TableCell className="text-right">{z.depth ?? "—"}</TableCell>
+                          <TableCell className="text-right font-medium">{z.water ?? "—"}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">{z.water == null || z.shallowest === z.deepest ? "—" : `${z.shallowest} to ${z.deepest}`}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Panel>
               )}
             </div>
-          </Panel>
-
-          <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <Panel
-              title="Newest borewells"
-              actions={<Button variant="ghost" size="sm" render={<Link to="/borewells" />}>View all {all.length}<ChevronRight /></Button>}
-            >
-              <RecentColumns items={recent} />
-            </Panel>
 
             <div className="grid gap-7">
               <Panel title="Needs attention" bodyClassName="grid pt-1">
@@ -251,20 +244,85 @@ function RecentColumns({ items }: { items: BorewellListItem[] }) {
   );
 }
 
-function WaterBars({ title, list, max }: { title: string; list: Borewell[]; max: number }) {
+/** Each zone's borewells in one row: how many, how deep they go, and the water level in the chosen period. */
+function byZone(borewells: Borewell[], cutoff: string) {
+  const zones = new Map<string, Borewell[]>();
+  for (const b of borewells) zones.set(b.project, [...(zones.get(b.project) ?? []), b]);
+  return [...zones].map(([zone, list]) => {
+    const waters = list.filter((b) => isRecentWater(b, cutoff)).map((b) => b.waterLevel!);
+    return {
+      zone, count: list.length,
+      depth: median(list.map((b) => b.totalDepth).filter((v): v is number => v != null)),
+      water: median(waters), shallowest: Math.min(...waters), deepest: Math.max(...waters),
+    };
+  }).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * The typical water level in each year, drawn downward from the ground like the borewell drawings:
+ * a line that falls means the water is getting deeper. The band is that year's shallowest to deepest.
+ * Years inside the chosen period (the ones the Map and the typical figures use) are shaded.
+ */
+function WaterOverYears({ years, since }: { years: YearWater[]; since: number | null }) {
+  if (years.length < 2) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {years.length === 1 ? `Every water level so far was measured in ${years[0].year}.` : "No water levels yet."} A line appears here once there are water levels from more than one year, so you can see whether the water is getting deeper.
+      </p>
+    );
+  }
+  const first = years[0], last = years[years.length - 1];
+  const W = 720, H = 250, L = 44, R = 60, T = 22, B = 30;
+  const top = Math.ceil(Math.max(...years.map((y) => y.deepest)) / 20) * 20;
+  const step = top > 160 ? 40 : 20;
+  const x = (year: number) => L + ((year - first.year) / (last.year - first.year)) * (W - L - R);
+  const y = (ft: number) => T + (ft / top) * (H - T - B);
+  const slot = (W - L - R) / (last.year - first.year);
+  const line = years.map((p, i) => `${i ? "L" : "M"}${x(p.year).toFixed(1)} ${y(p.typical).toFixed(1)}`).join("");
+  const band = years.map((p, i) => `${i ? "L" : "M"}${x(p.year).toFixed(1)} ${y(p.shallowest).toFixed(1)}`).join("") +
+    [...years].reverse().map((p) => `L${x(p.year).toFixed(1)} ${y(p.deepest).toFixed(1)}`).join("") + "Z";
+  const change = Math.round((last.typical - first.typical) * 10) / 10;
+  const describe = (p: YearWater) => `${p.year}: typically ${p.typical} ft (${p.shallowest} to ${p.deepest} ft), from ${plural(p.count, "borewell")}`;
+
   return (
-    <div className="grid gap-1.5">
-      <h3 className="text-[13px] font-medium text-muted-foreground">{title}</h3>
-      {list.map((b) => (
-        <Link key={b.id} to={`/borewell/${b.id}`} className="grid grid-cols-[96px_1fr_36px] items-center gap-2 rounded-sm text-[13px] outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
-          <span className="truncate" title={b.area}>{shortArea(b)}</span>
-          <span className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <span className="block h-full" style={{ width: `${(b.waterLevel! / max) * 100}%`, background: `rgb(${waterColour(b.waterLevel!).join(",")})` }} />
-          </span>
-          <span className="num text-right">{b.waterLevel}</span>
-        </Link>
-      ))}
-    </div>
+    <figure className="grid gap-3">
+      <figcaption className="text-sm">
+        The typical level went from <Num>{first.typical} ft</Num> in {first.year} to <Num>{last.typical} ft</Num> in {last.year}
+        {change === 0 ? ": no change." : <>: <Num>{Math.abs(change)} ft</Num> {change > 0 ? "deeper" : "shallower"}.</>}
+      </figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Typical water level by year, in feet below ground. ${years.map(describe).join(". ")}.`}>
+        {since != null && since <= last.year && (
+          <rect x={Math.max(L, x(Math.max(since, first.year)) - slot / 2)} y={T} width={W - R + slot / 2 - Math.max(L, x(Math.max(since, first.year)) - slot / 2)} height={H - T - B} fill="var(--muted)" />
+        )}
+        {Array.from({ length: top / step }, (_, i) => (i + 1) * step).map((ft) => (
+          <g key={ft}>
+            <path d={`M${L} ${y(ft)}H${W - R + slot / 2}`} stroke="var(--border)" />
+            <text x={L - 8} y={y(ft) + 3.5} textAnchor="end" fontSize="11" fill="var(--muted-foreground)" className="num">{ft}</text>
+          </g>
+        ))}
+        <path d={`M${L} ${T}H${W - R + slot / 2}`} stroke="var(--foreground)" strokeOpacity="0.8" strokeWidth="2" />
+        <text x={L - 8} y={T + 3.5} textAnchor="end" fontSize="11" fill="var(--muted-foreground)">ft</text>
+        <text x={L} y={T - 8} fontSize="11" fill="var(--muted-foreground)">Ground</text>
+        <path d={band} fill="var(--water)" fillOpacity="0.12" />
+        <path d={line} fill="none" stroke="var(--water)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {years.map((p) => (
+          <g key={p.year}>
+            <circle cx={x(p.year)} cy={y(p.typical)} r="4" fill="var(--water)" stroke="var(--background)" strokeWidth="2" />
+            <text x={x(p.year)} y={H - 10} textAnchor="middle" fontSize="11" fill="var(--muted-foreground)" className="num">{p.year}</text>
+            {/* A wide strip per year, so the details show wherever the pointer is in that year. */}
+            <rect x={x(p.year) - slot / 2} y={T} width={slot} height={H - T - B} fill="transparent"><title>{describe(p)}</title></rect>
+          </g>
+        ))}
+        {[first, last].map((p) => (
+          <text key={p.year} x={x(p.year) + 9} y={y(p.typical) + (p === last ? 4 : -9)} fontSize="12" fontWeight="600" fill="var(--foreground)" className="num">{p.typical} ft</text>
+        ))}
+      </svg>
+      <p className="text-xs text-muted-foreground">
+        Feet below ground; lower on the chart is deeper. The band runs from the shallowest to the deepest level that year.
+        {since != null && since > first.year && ` The shaded years, from ${since}, are the readings the Map and the figures above use.`}
+        {" "}Each year shows the borewells measured that year, so it is not the same places every time.
+      </p>
+    </figure>
   );
 }
 

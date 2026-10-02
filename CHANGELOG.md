@@ -3,6 +3,14 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Changed
+- **Home no longer repeats the Map.** In its place: **Water level over the years**, a chart of the
+  typical water level each year (a falling line means the water is getting deeper), with the years
+  your chosen period uses shaded; and **By zone**, a table of each zone's borewells, typical depth
+  and typical water level. Click a zone to see its borewells. The map is one click away in the sidebar.
+
 ## [1.0.4] - 2026-10-02
 
 ### New
