@@ -12,6 +12,13 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   Clay" into three layers; rows of the same soil that touch are joined. Pipes are joined the same way.
 - **Plain pipe is no longer missed.** Screens and plain pipe sit in neighbouring columns in the
   logs, and only the screens were being read.
+- **Logs drawn to scale are read.** Some logs write each soil once inside its layer, with the depth
+  where it ends beside it ("16 mt"), instead of a row every 10 ft. These used to fail; now they
+  import, pipes included.
+- **Logs in metres.** A unit written beside a depth ("16 mt", "370 ft") now decides feet or metres,
+  and the total depth and water level are converted to feet along with the layers.
+- **Site, address and city.** A site written over four lines (name, address, area, city) no longer
+  puts the area in City; the last line is the city and the lines between are the address.
 - An imported borewell's ID starts as the file's name; the site name goes into Owner.
 
 ## [1.0.5] - 2026-10-02

@@ -12,6 +12,10 @@
  *   Col 3: Material (clay/sand/etc.), repeated on every row of a thick layer
  *   Col 4 or 5: Pipe type (screens are written in col 4, plain pipe in col 5)
  *   Col 7: Assembly depth
+ *
+ * Some logs are drawn to scale instead: each soil name is written once inside its layer (col 2) and
+ * the depth where the layer ends is written at that point ("16 mt"), with the pipe drawn the same
+ * way against the assembly depths in col 7.
  */
 
 import * as xlsx from 'xlsx';
@@ -61,6 +65,7 @@ export function readSheetRows(data: Uint8Array | ArrayBuffer): any[][] {
 }
 
 const num = (cell: unknown) => parseFloat(String(cell ?? ''));
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
  * A first guess at where the layers are: from a heading row ("From", "To"/"Depth", "Soil type"...)
@@ -246,6 +251,50 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     prevEndDepth = depthFt;
   }
 
+  // 6b. A log drawn to scale: names and depth marks are on different rows. Each name takes the
+  //     next depth mark at or below it as the end of its layer (or pipe piece).
+  if (!mapping && strata.length === 0) {
+    const drawn = (nameCols: number[], markCol: number) => {
+      const names: { row: number; name: string }[] = [], marks: { row: number; depth: number }[] = [];
+      for (let i = dataStartIdx; i < dataEndIdx; i++) {
+        const row = rows[i] || [];
+        const depth = num(row[markCol]);
+        if (depth > 0) marks.push({ row: i, depth: round1(depth * conversionFactor) });
+        const name = nameCols.map(c => row[c]).find(c => typeof c === 'string' && c.trim() && isNaN(num(c)));
+        if (name) names.push({ row: i, name: name.trim() });
+      }
+      const pieces: { row: number; name: string; startDepth: number; endDepth: number }[] = [];
+      let from = 0, m = 0;
+      for (const n of names) {
+        while (m < marks.length && (marks[m].row < n.row || marks[m].depth <= from)) m++;
+        if (m === marks.length) break;
+        pieces.push({ ...n, startDepth: from, endDepth: marks[m].depth });
+        from = marks[m++].depth;
+      }
+      return pieces;
+    };
+    for (const piece of drawn([2, 3], 1)) {
+      const { normalised, materialId, color, pattern, unknown } = normaliseMaterial(piece.name);
+      if (unknown) {
+        addAnomaly(anomalies, 'MATERIAL_UNKNOWN', 'warning', `Row ${piece.row + 1}: Material "${piece.name}" not in dictionary. Kept as-is.`, piece.row);
+      }
+      strata.push({ startDepth: piece.startDepth, endDepth: piece.endDepth, material: normalised, materialId, color, pattern });
+    }
+    for (const piece of drawn([4, 5], 7)) {
+      const kind = parsePipeType(piece.name);
+      if (!kind) {
+        addAnomaly(anomalies, 'PIPE_TYPE_UNKNOWN', 'warning', `Row ${piece.row + 1}: Pipe type "${piece.name}" not recognised. Defaulted to plain.`, piece.row);
+      }
+      pipes.push({ startDepth: piece.startDepth, endDepth: piece.endDepth, pipeType: kind?.pipeType ?? 'plain', pipeSubtype: kind?.subtype ?? 'PLAIN', originalLabel: piece.name });
+    }
+  }
+
+  // The details are written in the log's own unit; the app keeps everything in feet.
+  if (detectedUnit === 'm') {
+    if (metadata.totalDepth !== null) metadata.totalDepth = round1(metadata.totalDepth * METRES_TO_FEET);
+    if (metadata.waterLevel !== null) metadata.waterLevel = round1(metadata.waterLevel * METRES_TO_FEET);
+  }
+
   // 7. Logs are written in fixed steps, so a thick layer repeats its soil on every row
   //    ("Clay, Clay, Clay"). Rows that touch and are the same become one layer or pipe piece.
   const layers = mergeRuns(strata, (a, b) => a.material === b.material && a.materialId === b.materialId);
@@ -316,23 +365,18 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
     const col0 = String(row[0] || '').trim();
     const col0Lower = col0.toLowerCase();
 
-    // Site name detection
+    // Site block: the name, then the address over one or more lines, then the city, ending at a
+    // blank cell or at the first detail line ("Water Level = ...").
     if (col0Lower === 'site:' || col0Lower === 'site') {
-      // Next rows typically contain: Site name, Address, City
-      const siteRow = rows[i + 1];
-      const addrRow = rows[i + 2];
-      const cityRow = rows[i + 3];
-
-      if (siteRow && String(siteRow[0] || '').trim()) {
-        meta.siteName = String(siteRow[0]).trim();
-        meta.ownerName = meta.siteName;
+      const lines: string[] = [];
+      for (let k = i + 1; k < endIdx && lines.length < 6; k++) {
+        const line = String((rows[k] || [])[0] || '').trim();
+        if (!line || /[=:]/.test(line)) break;
+        lines.push(line);
       }
-      if (addrRow && String(addrRow[0] || '').trim()) {
-        meta.address = String(addrRow[0]).trim();
-      }
-      if (cityRow && String(cityRow[0] || '').trim()) {
-        meta.city = String(cityRow[0]).trim().replace(/\.$/, '');
-      }
+      if (lines.length > 0) meta.siteName = meta.ownerName = lines[0];
+      if (lines.length > 2) meta.city = lines[lines.length - 1].replace(/\.$/, '');
+      if (lines.length > 1) meta.address = lines.slice(1, lines.length > 2 ? -1 : undefined).join(', ');
     }
 
     // Bore diameter + total depth (often on same line)
@@ -370,6 +414,11 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
 // ─── Unit Detection ─────────────────────────────────────────────────────────
 
 function detectUnit(rows: any[][], headerRowIdx: number, dataStartIdx: number, dataEndIdx: number, anomalies: ParseAnomaly[]): DepthUnit {
+  // 0. A unit written beside a depth ("16 mt", "Bore Dia = 12" / 370 ft") settles it.
+  const beside = rows.slice(0, dataEndIdx).flatMap(r => [0, 1, 7].map(c => String((r || [])[c] ?? ''))).join(' | ');
+  const metres = /\d\s*(?:m|mt|mtr|mtrs|met(?:er|re)s?)\b/i.test(beside), feet = /\d\s*(?:ft|feet|foot)\b/i.test(beside);
+  if (metres !== feet) return metres ? 'm' : 'ft';
+
   // 1. Check metadata text for unit keywords
   let metadataUnit: DepthUnit | null = null;
   for (let i = 0; i < Math.min(headerRowIdx, 15); i++) {

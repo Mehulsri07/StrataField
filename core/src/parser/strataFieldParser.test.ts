@@ -411,3 +411,63 @@ describe('a field log as it is really written', () => {
     expect(r.anomalies.map(a => a.code)).toEqual([]);
   });
 });
+
+describe('a field log drawn to scale, in metres', () => {
+  // Made-up values in the shape of a real log: each soil is written once inside its layer and the
+  // depth where it ends is written at that point, with the pipe drawn against its own depths.
+  const rows: (string | number | null)[][] = [
+    [null, null, null, null, 'Example Drilling Co, Lucknow'],
+    [],
+    [null, null, 'Streta Chart', null, null, 'Lowering Assambly'],
+    ['Site:', 'G. L. ', '15"', 'G. L.', null, 'A G L'],
+    ['Example Mall'],
+    ['Ring Road'],
+    ['Lucknow', null, 'Clay', null, null, 'Plain pipe'],
+    [null, '16 mt'],
+    [null, null, null, null, null, null, null, '18 mt'],
+    [null, null, 'Sand', 'Good', 'Ribbed Screen'],
+    [null, '26 mt', null, null, null, null, null, '24 mt'],
+    ['Pump Lowering = ', null, 'Clay'],
+    ['Pump =  ', '29 mt', null, null, null, 'Plain pipe'],
+    ['Water Level =  12 mt', null, 'Sand', 'Good', null, null, null, '30 mt'],
+    ['Bore Dia = 15" / 40 mt', '32 mt', null, null, 'Ribbed Screen', null, null, '33 mt'],
+    ['Tube Well =  8" / 36 mt', null, 'Clay', null, null, 'Plain pipe', null, '36 mt'],
+    [null, '40 mt'],
+    [], [],
+    ['Date : 16/9/2025', null, 'Client'],
+  ];
+  const r = parseStrataRows(rows);
+  const ft = (m: number) => Math.round(m * EXPECTED_METRES_TO_FEET * 10) / 10;
+
+  it('gives each soil the next depth mark below it, converted to feet', () => {
+    expect(r.success).toBe(true);
+    expect(r.metadata.detectedUnit).toBe('m');
+    expect(r.strata.map(l => [l.startDepth, l.endDepth, l.material])).toEqual([
+      [0, ft(16), 'Clay'], [ft(16), ft(26), 'Sand'], [ft(26), ft(29), 'Clay'], [ft(29), ft(32), 'Sand'], [ft(32), ft(40), 'Clay'],
+    ]);
+  });
+
+  it('reads the pipe the same way, against the assembly depths', () => {
+    expect(r.pipes.map(p => [p.pipeType, p.startDepth, p.endDepth])).toEqual([
+      ['plain', 0, ft(18)], ['slotted', ft(18), ft(24)], ['plain', ft(24), ft(30)], ['slotted', ft(30), ft(33)], ['plain', ft(33), ft(36)],
+    ]);
+  });
+
+  it('reads the details, in feet', () => {
+    expect(r.metadata).toMatchObject({ ownerName: 'Example Mall', address: 'Ring Road', city: 'Lucknow', boreDia: 15, pipeDia: 8, date: '2025-09-16', totalDepth: ft(40), waterLevel: ft(12) });
+    expect(r.anomalies.map(a => a.code)).toEqual([]);
+  });
+});
+
+describe('the site block', () => {
+  const log = (site: string[]) => parseStrataRows([
+    [null, null, 'Streta Chart'], ['Site:'],
+    ...[10, 20, 30, 40, 50, 60].map((depth, i) => [site[i] ?? (i === 5 ? 'Water Level = 60 ft' : null), depth, null, i % 2 ? 'Sand' : 'Clay']),
+  ]).metadata;
+
+  it('takes the last line as the city and everything between as the address', () => {
+    expect(log(['Example Hospital', 'Plot 12', 'Gomti Nagar', 'Lucknow'])).toMatchObject({ ownerName: 'Example Hospital', address: 'Plot 12, Gomti Nagar', city: 'Lucknow' });
+    expect(log(['Example Hospital', 'Gomti Nagar', 'Lucknow.'])).toMatchObject({ ownerName: 'Example Hospital', address: 'Gomti Nagar', city: 'Lucknow' });
+    expect(log(['Example Hospital', 'Gomti Nagar'])).toMatchObject({ ownerName: 'Example Hospital', address: 'Gomti Nagar', city: null });
+  });
+});
