@@ -149,14 +149,14 @@ export function EditLayers() {
         }
       />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[210px_minmax(0,1fr)_360px] lg:grid-cols-[190px_minmax(0,1fr)]">
-        <Panel title="Soil types" bodyClassName="grid gap-3 p-3">
+      <div className="grid items-start gap-x-7 gap-y-7 xl:grid-cols-[180px_minmax(0,1fr)_320px] lg:grid-cols-[180px_minmax(0,1fr)]">
+        <Panel title="Soil types" bodyClassName="grid gap-3">
           {FAMILIES.map((f) => {
             const list = materials.filter((m) => (m.lithologyFamily ?? "OTHER") === f);
             if (!list.length) return null;
             return (
               <div key={f} className="grid gap-0.5">
-                <div className="px-1.5 pb-1 text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">{text.geology.families[f]}</div>
+                <div className="px-1.5 pb-1 text-xs font-medium text-muted-foreground">{text.geology.families[f]}</div>
                 {list.map((m) => (
                   <button key={m.id} type="button" onClick={() => applySoil(m)}
                     className="flex items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-[13px] hover:border-border hover:bg-muted"

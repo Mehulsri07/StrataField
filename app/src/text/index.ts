@@ -12,12 +12,10 @@
 export const text = {
   app: {
     name: "StrataField",
-    tagline: "Borewell logging",
     city: "Lucknow",
   },
 
   nav: {
-    groups: { records: "Records", data: "Data", app: "App" },
     home: "Home",
     borewells: "Borewells",
     map: "Map",

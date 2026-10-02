@@ -3,6 +3,17 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Changed
+- **A calmer, simpler look.** One white working area with thin lines instead of grey with white boxes,
+  one typeface, and colour kept for what matters: soil layers, water, and the main button.
+- **Search moved to the sidebar.** "Find a borewell" (Ctrl+K) and the light/dark switch are now in the
+  sidebar, so the bar across the top is gone and every screen has more room.
+- **Home is shorter.** The four shortcut boxes are gone (the sidebar already has them); **New borewell**
+  and **Import Excel** are buttons at the top right, and the counts are one quiet row.
+- **The steps of New borewell** are plain numbered words with a line under the current one.
+
 ## [1.0.2] - 2026-09-30
 
 ### New

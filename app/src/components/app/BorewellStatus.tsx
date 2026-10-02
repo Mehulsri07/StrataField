@@ -6,7 +6,7 @@ export function BorewellStatus({ borewell: b, strata }: { borewell: Borewell; st
   if (b.latitude == null || b.longitude == null) return <Chip tone="warn">No location</Chip>;
   if (strata.length === 0) return <Chip tone="warn">No layers yet</Chip>;
   if (b.locationSource === "address") return <Chip>Approximate location</Chip>;
-  return <Chip tone="ok">Complete</Chip>;
+  return <Chip>Complete</Chip>;
 }
 
 /** Plain description of where a borewell's location came from. */

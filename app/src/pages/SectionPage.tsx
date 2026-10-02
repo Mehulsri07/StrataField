@@ -178,7 +178,7 @@ export function SectionPage() {
         actions={a && <Button variant="outline" onClick={clear}><Eraser />Draw a new line</Button>}
       />
 
-      <ol className="grid gap-3 rounded-md border border-border bg-card px-4 py-3.5 md:grid-cols-3" aria-label="Steps">
+      <ol className="grid gap-3 rounded-md border border-border px-4 py-3.5 md:grid-cols-3" aria-label="Steps">
         {[
           ["Tap where the line starts", step === 1 ? "Click anywhere on the map below" : "Point A is set"],
           ["Tap where the line ends", step <= 2 ? "Click a second point on the map" : "Drag A or A′ to move them, or drag a dot on the line to bend it"],
@@ -197,7 +197,7 @@ export function SectionPage() {
         })}
       </ol>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)]">
+      <div className="grid items-start gap-x-8 gap-y-7 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)]">
         <section className="relative h-[460px] overflow-hidden rounded-md border border-border">
           <BaseMap className={step < 3 ? "cursor-crosshair" : undefined}>
             <BorewellPins borewells={wells.map((w) => w.borewell)} faint />
@@ -228,13 +228,13 @@ export function SectionPage() {
             {b && <Marker position={b} icon={handleIcon("A′")} draggable eventHandlers={{ dragend: (e) => edit([...path.slice(0, -1), moved(e)]) }} />}
           </BaseMap>
           {step < 3 && (
-            <div className="pointer-events-none absolute top-3 left-1/2 z-[500] -translate-x-1/2 rounded-full bg-primary px-4 py-2 text-sm font-semibold whitespace-nowrap text-primary-foreground shadow-panel">
+            <div className="pointer-events-none absolute top-3 left-1/2 z-[500] -translate-x-1/2 rounded-md bg-foreground px-3 py-1.5 text-[13px] font-medium whitespace-nowrap text-background shadow-panel">
               {step === 1 ? "Tap where the line should start" : "Now tap where the line should end"}
             </div>
           )}
         </section>
 
-        <div className="grid min-w-0 gap-4">
+        <div className="grid min-w-0 gap-7">
           <Panel title="Borewells used" actions={<span className="text-xs text-muted-foreground">In order from A to A′</span>} bodyClassName="grid gap-3">
             <label className="grid gap-2 text-sm" htmlFor="s-half">
               <span>Include borewells within <b className="num">{half} km</b> of the line</span>
@@ -264,7 +264,7 @@ export function SectionPage() {
                 <Button variant="outline" onClick={() => setLine(examples.westEast)}>West to east</Button>
               </>
             ) : <p className="text-sm text-muted-foreground">Examples appear once two borewells have a location.</p>}
-            {(saved.data?.length ?? 0) > 0 && <span className="w-full pt-2 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">Saved cross-sections</span>}
+            {(saved.data?.length ?? 0) > 0 && <span className="w-full pt-2 text-xs font-medium text-muted-foreground">Saved cross-sections</span>}
             {saved.data?.map((s) => (
               <span key={s.id} className="inline-flex items-center gap-1">
                 <Button variant={s.id === openSectionId ? "secondary" : "outline"} onClick={() => openSaved(s)} title={`Saved ${formatWhen(s.updatedAt)}`}><FolderOpen />{s.name}</Button>
@@ -280,7 +280,7 @@ export function SectionPage() {
 
       <Panel
         title="Layers along the line"
-        bodyClassName="p-0"
+        framed
         actions={result && result.placed.length > 0 && (
           <>
             <Button variant="outline" disabled={isPreview} onClick={() => setNaming(saved.data?.find((s) => s.id === openSectionId)?.name ?? `A–A′ ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`)}><Save />Save</Button>

@@ -71,7 +71,7 @@ try {
     return document.querySelector('main tbody tr').innerText.split('\\t')[0];`);
   await timed("A borewell opens", 1500, `
     document.querySelector('main tbody tr').click();
-    await __t.until(() => /PERF-04321/.test(document.querySelector('main h2')?.innerText ?? '') && document.querySelector('svg [role="button"]'), 30000);
+    await __t.until(() => /PERF-04321/.test(document.querySelector('main h1')?.innerText ?? '') && document.querySelector('svg [role="button"]'), 30000);
     return 'detail with drawing';`);
   await timed("Home shows (numbers, water map, recent)", 6000, `
     location.hash = '#/';
@@ -80,7 +80,7 @@ try {
   await timed("Map shows pins and water colours", 7000, `
     location.hash = '#/map';
     // Wait for the Map screen itself (not Home's map, which is still showing for a moment).
-    await __t.until(() => /^Map/.test(document.querySelector('main h2')?.innerText ?? ''), 30000);
+    await __t.until(() => /^Map/.test(document.querySelector('main h1')?.innerText ?? ''), 30000);
     await __t.until(() => document.querySelectorAll('.strata-cluster, .leaflet-overlay-pane path.leaflet-interactive').length > 0 && document.querySelector('main .leaflet-image-layer'), 30000);
     return document.querySelectorAll('.strata-cluster').length + ' groups';`);
   await timed("Cross-section draws an example line", 4000, `

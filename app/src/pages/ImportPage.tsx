@@ -171,7 +171,7 @@ export function ImportPage() {
       )}
 
       {list.length === 0 ? (
-        <div className="grid justify-items-center gap-3 rounded-md border border-dashed border-input bg-card px-6 py-16 text-center">
+        <div className="grid justify-items-center gap-3 rounded-md border border-dashed border-input px-6 py-16 text-center">
           <FileSpreadsheet className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="font-medium">Choose one or more Excel drilling logs</p>
           <p className="max-w-lg text-sm text-muted-foreground">StrataField reads the layers, pipes, depths and water level from each file. Nothing is saved until you press Import.</p>
@@ -179,8 +179,8 @@ export function ImportPage() {
           {isPreview && <p className="text-xs text-muted-foreground">Choosing files works in the StrataField app, not in the browser preview.</p>}
         </div>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <Panel title={`Files (${list.length})`} bodyClassName="p-0">
+        <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <Panel title={`Files (${list.length})`} framed>
             <ul className="divide-y divide-border">
               {list.map((file, i) => {
                 const ok = readable(file);
@@ -254,8 +254,8 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
   } as Borewell;
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="grid min-w-0 gap-4">
+    <div className="grid items-start gap-x-10 gap-y-7 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-w-0 gap-x-10 gap-y-7">
         {(notes.length > 0 || f.result?.metadata.detectedUnit === "m") && (
           <Panel title="Notes from reading the file" bodyClassName="grid gap-1.5">
             {f.result?.metadata.detectedUnit === "m" && <Note>The depths in this file were in metres and have been converted to feet.</Note>}
