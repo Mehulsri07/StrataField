@@ -56,11 +56,17 @@ function legacyDatabase(file) {
   db.close();
 }
 
-/** An Excel drilling log in the standard field format, with only known soil names. */
+/**
+ * An Excel drilling log written the way the field logs are: details down the first column beside
+ * the layer rows, the soil repeated on every row of a thick layer, screens in one pipe column and
+ * plain pipe in the next. Only known soil names.
+ */
 function drillingLog(file) {
-  const rows = [["Site Info"], ["Streta Chart"], ["G.L."]];
+  const rows = [["Example Drilling Co"], [null, null, "Streta Chart", null, null, "Lowering Assambly"], ["Site:"]];
+  const side = ["Aliganj Test Site", "Sector H, Aliganj", "Lucknow.", null, "Water Level = 45 ft", 'Bore Dia = 10" / 200 ft', 'Tube Well = 6"/200 ft'];
   const soil = ["Clay", "Clay", "Kankar", "Fine Sand", "Fine Sand", "Coarse Sand", "Clay", "Gravel", "Coarse Sand", "Coarse Sand"];
-  soil.forEach((m, i) => rows.push([null, (i + 1) * 20, null, m, i < 5 ? "Plain" : "Slotted", null, null]));
+  soil.forEach((m, i) => rows.push([side[i] ?? null, (i + 1) * 20, null, m, i < 5 ? null : "Ribbed Screen", i < 5 ? "Plain pipe" : null, null, (i + 1) * 20]));
+  rows.push([], ["Date : 5/9/2026"]);
   const wb = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet(rows), "Sheet1");
   fs.writeFileSync(file, xlsx.write(wb, { type: "buffer", bookType: "xlsx" }));

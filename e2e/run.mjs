@@ -86,8 +86,11 @@ try {
     const all = await __t.invoke('borewells_search', { filters: {} });
     const ex = all.find(i => i.borewell.importMethod === 'excel');
     const r = await __t.invoke('borewell_get', { id: ex.borewell.id });
-    return { id: ex.borewell.id, code: ex.borewell.borewellId, layers: r.strata.length, pipes: r.pipes.length, files: r.files.map(x => x.kind + ':' + x.originalName) };`);
-  check("Excel import adds the borewell with its layers and pipes", imported.layers === 10 && imported.pipes >= 1, JSON.stringify(imported));
+    const b = r.borewell;
+    return { id: ex.borewell.id, code: b.borewellId, layers: r.strata.length, pipes: r.pipes.map(p => p.startDepth + '-' + p.endDepth + ' ' + p.pipeType).join(', '),
+      details: [b.ownerName, b.area, b.city, b.date, b.waterLevel, b.totalDepth, b.boreDia, b.pipeDia].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
+  check("Excel import joins repeated soil rows into layers and reads both pipe columns", imported.layers === 7 && imported.pipes === "0-100 plain, 100-200 slotted", JSON.stringify(imported));
+  check("…and fills in the details written beside the layers", imported.details === "Aliganj Test Site | Sector H, Aliganj | Lucknow | 2026-09-05 | 45 | 200 | 10 | 6" && imported.code === "Aliganj site log", imported.details + " / " + imported.code);
   check("The original Excel file is kept with the imported borewell", imported.files.includes("excel:Aliganj site log.xlsx"), imported.files.join(", "));
 
   // ── Excel import of a file laid out differently ────────────────────────

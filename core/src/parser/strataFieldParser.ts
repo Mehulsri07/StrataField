@@ -5,14 +5,13 @@
  * Handles: unit detection (ft/m), material normalisation, multi-borewell sheets,
  * pipe type detection, anomaly flagging.
  *
- * Standard format (5/6 field files):
- *   Col 0: Site info / metadata labels
- *   Col 1: Depth (end of each interval)
+ * Standard format (the field files):
+ *   Col 0: Site, address and details ("Water Level = 85 ft"...), written beside the layer rows
+ *   Col 1: Depth (end of each interval, in fixed steps)
  *   Col 2: Empty spacer
- *   Col 3: Material (clay/sand/etc.)
- *   Col 4: Pipe type (Plain pipe / Ribbed Screen)
- *   Col 5: Empty
- *   Col 6: Assembly depth
+ *   Col 3: Material (clay/sand/etc.), repeated on every row of a thick layer
+ *   Col 4 or 5: Pipe type (screens are written in col 4, plain pipe in col 5)
+ *   Col 7: Assembly depth
  */
 
 import * as xlsx from 'xlsx';
@@ -160,9 +159,11 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
   const dataStartIdx = mapping ? mapping.firstRow : glRowIdx >= 0 ? glRowIdx + 1 : headerRowIdx + 2;
   const depthCol = mapping?.depthCol ?? 1, materialCol = mapping?.materialCol ?? 3;
   const pipeCol = mapping ? mapping.pipeCol ?? -1 : 4, fromCol = mapping?.fromCol ?? -1;
+  // In the standard layout the pipe type sits in column 4 (screens) or 5 (plain pipe).
+  const pipeCell = (row: any[]) => String(row[pipeCol] || (mapping ? '' : row[5]) || '').trim();
 
-  // 4. Extract metadata from rows above the header
-  const metadata = extractMetadata(rows, headerRowIdx);
+  // 4. Extract metadata. The details are written in the first column, mostly beside the layer rows.
+  const metadata = extractMetadata(rows, searchEnd);
 
   // 5. Detect units from metadata text + interval sizes
   const detectedUnit = mapping?.unit ?? detectUnit(rows, headerRowIdx, dataStartIdx, searchEnd, anomalies);
@@ -218,7 +219,7 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
       pattern,
     });
 
-    const pipeRaw = String(row[pipeCol] || '').trim();
+    const pipeRaw = pipeCell(row);
     if (pipeRaw) {
       const pipeResult = parsePipeType(pipeRaw);
       if (pipeResult) {
@@ -245,7 +246,12 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     prevEndDepth = depthFt;
   }
 
-  // 7. Post-parse checks
+  // 7. Logs are written in fixed steps, so a thick layer repeats its soil on every row
+  //    ("Clay, Clay, Clay"). Rows that touch and are the same become one layer or pipe piece.
+  const layers = mergeRuns(strata, (a, b) => a.material === b.material && a.materialId === b.materialId);
+  const pipeRuns = mergeRuns(pipes, (a, b) => a.pipeType === b.pipeType && a.pipeSubtype === b.pipeSubtype);
+
+  // 8. Post-parse checks
   if (strata.length === 0) {
     addAnomaly(anomalies, 'NO_STRATA_FOUND', 'critical',
       'No strata layers could be parsed from the data rows.');
@@ -271,16 +277,26 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
   return {
     success: strata.length > 0,
     metadata,
-    strata,
-    pipes,
+    strata: layers,
+    pipes: pipeRuns,
     anomalies,
     requiresManualReview: hasCritical,
   };
 }
 
+function mergeRuns<T extends { startDepth: number; endDepth: number }>(items: T[], same: (a: T, b: T) => boolean): T[] {
+  const out: T[] = [];
+  for (const item of items) {
+    const last = out[out.length - 1];
+    if (last && last.endDepth === item.startDepth && same(last, item)) last.endDepth = item.endDepth;
+    else out.push({ ...item });
+  }
+  return out;
+}
+
 // ─── Metadata Extraction ────────────────────────────────────────────────────
 
-function extractMetadata(rows: any[][], headerRowIdx: number): ParsedBoreholeMetadata {
+function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata {
   const meta: ParsedBoreholeMetadata = {
     siteName: null,
     ownerName: null,
@@ -294,8 +310,8 @@ function extractMetadata(rows: any[][], headerRowIdx: number): ParsedBoreholeMet
     detectedUnit: 'ft',
   };
 
-  // Scan rows above the header for metadata
-  for (let i = 0; i < Math.min(headerRowIdx, 20); i++) {
+  // Scan the first column of the whole borewell: details sit above, beside and below the layers.
+  for (let i = 0; i < endIdx; i++) {
     const row = rows[i] || [];
     const col0 = String(row[0] || '').trim();
     const col0Lower = col0.toLowerCase();

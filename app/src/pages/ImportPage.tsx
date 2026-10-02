@@ -68,7 +68,8 @@ function describe(a: ParseAnomaly): string {
 function initialDetails(path: string, r: ExcelParseResult | null): Details {
   const m = r?.metadata;
   return {
-    borewellId: m?.siteName?.trim() || stem(path),
+    // The file's name, not the site's: the site name becomes the owner, and one owner can have several borewells.
+    borewellId: stem(path),
     ownerName: m?.ownerName ?? "",
     area: m?.address ?? "",
     city: m?.city ?? text.app.city,
