@@ -3,7 +3,7 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
-## [Unreleased]
+## [1.0.5] - 2026-10-02
 
 ### Changed
 - **Home no longer repeats the Map.** In its place: **Water level over the years**, a chart of the
