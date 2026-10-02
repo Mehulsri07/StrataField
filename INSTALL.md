@@ -1,6 +1,6 @@
 # Installing StrataField
 
-For people who will use StrataField on their computer. No technical knowledge needed.
+For people who will use StrataField on their computer.
 
 ## What you need
 
