@@ -157,6 +157,8 @@ export const api = {
 
   /** Opens the getting-started guide installed with the app, in the web browser. */
   openGuide: () => invoke<void>("open_guide"),
+  /** Opens the user manual (a PDF with pictures) installed with the app. */
+  openManual: () => invoke<void>("open_guide", { manual: true }),
 
   /** The Lucknow map file for use without internet (downloaded from Settings). */
   offlineMap: {

@@ -18,7 +18,8 @@ For people who will use StrataField on their computer.
 4. Follow the installer. It does not ask for an administrator password; StrataField is installed
    just for you.
 5. Open **StrataField** from the Start menu. **Getting started with StrataField**, a short guide
-   you can print, is in the Start menu too, and in the app under Settings & backup → About.
+   you can print, and the **StrataField User Manual**, a PDF with pictures of every screen, are in
+   the Start menu too, and in the app under Settings & backup → About.
 
 ## The first time it opens
 

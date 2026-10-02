@@ -2,12 +2,14 @@ import type { Borewell, StrataLayer } from "@strata/core";
 import { missingDetails } from "@strata/core";
 import { Chip } from "./Chip";
 
-/** The single most useful thing to know about a record, shown as one chip. */
+/** What a record still lacks ("No location, owner"), or that it is complete. */
 export function BorewellStatus({ borewell: b, strata }: { borewell: Borewell; strata: StrataLayer[] }) {
-  if (b.latitude == null || b.longitude == null) return <Chip tone="warn">No location</Chip>;
-  if (strata.length === 0) return <Chip tone="warn">No layers yet</Chip>;
-  const missing = missingDetails(b);
-  if (missing.length > 0) return <Chip tone="warn">No {missing.join(", ")}</Chip>;
+  const missing = [
+    ...(b.latitude == null || b.longitude == null ? ["location"] : []),
+    ...(strata.length === 0 ? ["layers"] : []),
+    ...missingDetails(b),
+  ];
+  if (missing.length > 0) return <Chip tone="warn" className="whitespace-normal">No {missing.join(", ")}</Chip>;
   if (b.locationSource === "address") return <Chip>Approximate location</Chip>;
   return <Chip>Complete</Chip>;
 }
