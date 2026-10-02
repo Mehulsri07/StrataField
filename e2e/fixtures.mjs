@@ -77,6 +77,11 @@ export function buildFixtures(work) {
   fs.mkdirSync(files, { recursive: true });
   const log = path.join(files, "Aliganj site log.xlsx");
   drillingLog(log);
+  // A log laid out differently (From / To / Soil columns), which needs its columns chosen.
+  const otherLog = path.join(files, "Chinhat other layout.xlsx");
+  const wb = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet([["Borewell at Chinhat"], ["From (ft)", "To (ft)", "Soil type"], [0, 30, "Clay"], [30, 90, "Fine Sand"], [90, 150, "Coarse Sand"]]), "Sheet1");
+  fs.writeFileSync(otherLog, xlsx.write(wb, { type: "buffer", bookType: "xlsx" }));
   // A photo taken at 26.8947 N, 80.9450 E (the GPS position is saved inside the picture).
   const photo = path.join(files, "site-photo.jpg");
   fs.copyFileSync(path.join(repo, "e2e", "fixtures", "site-photo.jpg"), photo);
@@ -87,6 +92,7 @@ export function buildFixtures(work) {
     dataDir: path.join(work, "Strata"),
     legacyRoot,
     log: fwd(log),
+    otherLog: fwd(otherLog),
     photo: fwd(photo),
     pdf: fwd(pdf),
     saved: path.join(work, "saved"),

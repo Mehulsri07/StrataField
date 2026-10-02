@@ -11,7 +11,7 @@ import * as xlsx from 'xlsx';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { parseStrataWorkbook } from './strataFieldParser';
+import { guessMapping, parseStrataRows, parseStrataWorkbook } from './strataFieldParser';
 
 const smartParseExcel = (filePath: string) => parseStrataWorkbook(fs.readFileSync(filePath));
 
@@ -333,5 +333,40 @@ describe('pipe type parsing', () => {
 
     expect(result.pipes[0].pipeType).toBe('plain');
     expect(result.pipes[0].pipeSubtype).toBe('PLAIN');
+  });
+});
+
+describe('sheets that are not in the standard layout', () => {
+  const headed = [
+    ['Borewell at Chinhat'],
+    ['From (ft)', 'To (ft)', 'Soil type', 'Pipe'],
+    [0, 30, 'Clay', 'Plain pipe'],
+    [40, 90, 'Fine Sand', 'Screen'],   // nothing logged from 30 to 40
+    [90, 150, 'Coarse Sand', 'Screen'],
+  ];
+
+  it('are not read without being told where the layers are', () => {
+    expect(parseStrataRows(headed).success).toBe(false);
+  });
+
+  it('guesses the columns from a heading row, and keeps a gap a From column leaves', () => {
+    const m = guessMapping(headed)!;
+    expect(m).toMatchObject({ fromCol: 0, depthCol: 1, materialCol: 2, pipeCol: 3, firstRow: 2, unit: 'ft' });
+    const r = parseStrataRows(headed, m);
+    expect(r.success).toBe(true);
+    expect(r.strata.map(l => [l.startDepth, l.endDepth, l.materialId])).toEqual([[0, 30, 'clay'], [40, 90, 'fine_sand'], [90, 150, 'coarse_sand']]);
+    expect(r.pipes.map(p => p.pipeType)).toEqual(['plain', 'slotted', 'slotted']);
+  });
+
+  it('guesses the columns without a heading row: rising numbers and the words beside them', () => {
+    const bare = [['Site A', null, null], [null, 'Clay', 20], [null, 'Sand', 55], [null, 'Gravel', 80]];
+    const m = guessMapping(bare)!;
+    expect(m).toMatchObject({ depthCol: 2, materialCol: 1, firstRow: 1 });
+    expect(parseStrataRows(bare, m).strata.map(l => l.endDepth)).toEqual([20, 55, 80]);
+  });
+
+  it('converts metres when the user says the depths are in metres', () => {
+    const r = parseStrataRows(headed, { ...guessMapping(headed)!, unit: 'm' });
+    expect(r.strata[0].endDepth).toBeCloseTo(30 * EXPECTED_METRES_TO_FEET, 3);
   });
 });

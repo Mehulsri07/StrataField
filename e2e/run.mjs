@@ -90,6 +90,28 @@ try {
   check("Excel import adds the borewell with its layers and pipes", imported.layers === 10 && imported.pipes >= 1, JSON.stringify(imported));
   check("The original Excel file is kept with the imported borewell", imported.files.includes("excel:Aliganj site log.xlsx"), imported.files.join(", "));
 
+  // ── Excel import of a file laid out differently ────────────────────────
+  const other = await page(`
+    window.__STRATA_TEST_CHOOSE__ = () => ['${f.otherLog}'];
+    location.hash = '#/'; await __t.wait(300); location.hash = '#/import'; await __t.wait(800);
+    __t.btn('Choose Excel files').click();
+    await __t.until(() => /Where the layers are in this file/.test(__t.text()), 15000);
+    const status = /Check the columns/.test(__t.text());
+    // Wrong column on purpose, then back: the layers disappear and come back.
+    await __t.choose(document.querySelector('#c-to'), 'Column C');
+    await __t.until(() => /No soil layers were found with these choices/.test(__t.text()), 5000);
+    await __t.choose(document.querySelector('#c-to'), 'Column B');
+    const go = await __t.until(() => [...document.querySelectorAll('main button')].find(b => /^Import 1 borewell/.test(b.innerText) && !b.disabled), 15000);
+    go.click();
+    await __t.until(() => /See all borewells/.test(__t.text()), 15000);
+    delete window.__STRATA_TEST_CHOOSE__;
+    const all = await __t.invoke('borewells_search', { filters: {} });
+    const ex = all.find(i => i.borewell.importSource === 'Chinhat other layout.xlsx');
+    // Removed again so the counts later in this run stay as they were.
+    if (ex) { await __t.invoke('borewell_delete', { id: ex.borewell.id }); await __t.invoke('borewell_delete_permanently', { id: ex.borewell.id }); }
+    return { status, layers: ex?.strata.map(l => l.startDepth + '-' + l.endDepth + ' ' + l.material).join(', ') };`);
+  check("An Excel file in another layout is imported after its columns are chosen", other.status && other.layers === "0-30 Clay, 30-90 Fine Sand, 90-150 Coarse Sand", JSON.stringify(other));
+
   // ── Correcting a location from a photo's GPS ───────────────────────────
   const fixed = await page(`
     window.__STRATA_TEST_CHOOSE__ = () => ['${f.photo}'];
