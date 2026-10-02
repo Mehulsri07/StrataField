@@ -8,7 +8,6 @@ mod support;
 
 use tauri::Manager;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -56,7 +55,6 @@ pub fn run() {
             commands::material_update,
             commands::material_delete,
             commands::projects_list,
-            commands::project_rename,
             commands::photo_add,
             commands::file_add,
             commands::attachment_remove,
@@ -132,13 +130,6 @@ fn open_main_window(app: &mut tauri::App) -> tauri::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn app_info_reports_package_version() {
-        let info = serde_json::to_value(commands::current_app_info()).unwrap();
-        assert_eq!(info["name"], "StrataField");
-        assert_eq!(info["version"], env!("CARGO_PKG_VERSION"));
-    }
 
     #[test]
     fn startup_creates_the_shared_database_and_brings_over_old_data_once() {

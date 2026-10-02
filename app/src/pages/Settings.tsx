@@ -20,7 +20,7 @@ import { formatWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { checkForUpdate, type AvailableUpdate } from "@/lib/updates";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 const FAMILY_ITEMS: { value: LithologyFamily; label: string }[] = [
   { value: "CLAY", label: "Clay (holds water back)" },

@@ -24,16 +24,6 @@ export interface Placed<T> {
 }
 
 /**
- * Borewells within `halfWidthKm` of the straight line a→b, ordered along it.
- * Items without a location are ignored.
- */
-export function placeAlongLine<T extends { latitude: number | null; longitude: number | null }>(
-  a: LatLon, b: LatLon, halfWidthKm: number, items: T[],
-): { lengthKm: number; placed: Placed<T>[] } {
-  return placeAlongPath([a, b], halfWidthKm, items);
-}
-
-/**
  * Borewells within `halfWidthKm` of a line with bends (`path`, at least two points), ordered by how
  * far along the line they are. Each borewell belongs to the nearest part of the line.
  */

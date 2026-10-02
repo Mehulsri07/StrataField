@@ -109,3 +109,7 @@ private-fixtures/
 /target/
 app/src-tauri/target/
 app/src-tauri/gen/schemas
+
+# AI tool skills installed locally
+.agents/
+skills-lock.json

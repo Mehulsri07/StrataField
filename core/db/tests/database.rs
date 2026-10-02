@@ -221,7 +221,6 @@ fn search_filters_combine() {
     assert_eq!(
         find(SearchFilters {
             query: "BW-B".into(),
-            field: "borewellId".into(),
             ..Default::default()
         }),
         ["BW-B"]

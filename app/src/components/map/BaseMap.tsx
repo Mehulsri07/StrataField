@@ -4,7 +4,7 @@ import { MapContainer, TileLayer } from "react-leaflet";
 import type { LatLngBoundsExpression, LatLngExpression, Map as LeafletMap } from "leaflet";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/data";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import { OfflineMapLayer } from "./OfflineMapLayer";
 
 /** Centre of Lucknow, the pilot city. */

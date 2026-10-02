@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "@/lib/theme";
-import { BookOpen, CircleAlert, Moon, Palette, Search, Sun } from "lucide-react";
+import { BookOpen, CircleAlert, Moon, Search, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -14,7 +14,7 @@ import { useStartup, useSummary, type Summary } from "@/lib/hooks";
 import { api, isPreview } from "@/lib/api";
 import { formatWhen } from "@/lib/format";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 /**
  * The frame every screen sits in: sidebar, top bar, scrolling workspace and status bar.
@@ -106,11 +106,6 @@ function Sidebar({ summary }: { summary: Summary | null }) {
           <button type="button" onClick={() => api.openGuide().catch((e) => toast.error(String(e)))} className="inline-flex items-center gap-1.5 text-left hover:text-foreground">
             <BookOpen className="size-3.5" aria-hidden="true" /> {text.guide.short}
           </button>
-        )}
-        {(isPreview || import.meta.env.DEV) && (
-          <NavLink to="/design" className="inline-flex items-center gap-1.5 hover:text-foreground">
-            <Palette className="size-3.5" aria-hidden="true" /> Design system
-          </NavLink>
         )}
       </div>
     </aside>

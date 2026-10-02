@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { corridorPolygon, corridorPolygons, coverageFor, exampleLines, familyRuns, matchRuns, midpoints, placeAlongLine, placeAlongPath, thinAlongLine } from './section';
+import { corridorPolygon, corridorPolygons, coverageFor, exampleLines, familyRuns, matchRuns, midpoints, placeAlongPath, thinAlongLine } from './section';
 import type { StrataLayer } from './types';
 
 const L = (start: number, end: number, materialId: string): StrataLayer => ({
   id: `${start}`, borewellId: 'b', startDepth: start, endDepth: end, material: materialId, materialId, color: '', pattern: '', remarks: '', waterBearing: false,
 });
 
-describe('placeAlongLine', () => {
+describe('placeAlongPath, straight line', () => {
   // A west-to-east line through Lucknow, about 20 km long.
   const a: [number, number] = [26.87, 80.85], b: [number, number] = [26.87, 81.05];
   const wells = [
@@ -18,14 +18,14 @@ describe('placeAlongLine', () => {
   ];
 
   it('orders borewells by position along the line, not by the order given', () => {
-    const { lengthKm, placed } = placeAlongLine(a, b, 2, wells);
+    const { lengthKm, placed } = placeAlongPath([a, b], 2, wells);
     expect(lengthKm).toBeGreaterThan(19.5);
     expect(lengthKm).toBeLessThan(20.5);
     expect(placed.map(p => p.item.id)).toEqual(['west', 'east']);
   });
 
   it('keeps each borewell\'s distance from the line, with a side', () => {
-    const { placed } = placeAlongLine(a, b, 2, wells);
+    const { placed } = placeAlongPath([a, b], 2, wells);
     const west = placed[0], east = placed[1];
     expect(Math.abs(west.offsetKm)).toBeCloseTo(0.22, 1);
     expect(Math.sign(west.offsetKm)).toBe(-Math.sign(east.offsetKm)); // one north, one south of the line
@@ -33,7 +33,7 @@ describe('placeAlongLine', () => {
   });
 
   it('widening the corridor brings in farther borewells', () => {
-    expect(placeAlongLine(a, b, 10, wells).placed.map(p => p.item.id)).toContain('far-off');
+    expect(placeAlongPath([a, b], 10, wells).placed.map(p => p.item.id)).toContain('far-off');
   });
 
   it('draws a corridor as four corners either side of the line', () => {
@@ -66,13 +66,6 @@ describe('placeAlongPath (a line with bends)', () => {
     const second = placed.find(p => p.item.id === 'on-second-leg')!;
     expect(second.alongKm).toBeCloseTo(15, 0);          // 10 km of the first part + 5 km up the second
     expect(Math.abs(second.offsetKm)).toBeLessThan(0.4);
-  });
-
-  it('gives the same answer as a straight line when there is no bend', () => {
-    const straight = placeAlongLine(a, end, 3, wells);
-    const path = placeAlongPath([a, end], 3, wells);
-    expect(path.placed.map(p => p.item.id)).toEqual(straight.placed.map(p => p.item.id));
-    expect(path.lengthKm).toBeCloseTo(straight.lengthKm, 6);
   });
 
   it('draws one corridor band per part and offers the middle of each part for a new bend', () => {

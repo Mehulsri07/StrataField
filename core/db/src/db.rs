@@ -89,10 +89,6 @@ impl Database {
         backups_dir(&self.data_dir)
     }
 
-    pub fn attachments_dir(&self) -> PathBuf {
-        self.data_dir.join("attachments")
-    }
-
     /// Runs `f` with the connection. Use for reads and single statements.
     pub fn with<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
         f(&self.lock())

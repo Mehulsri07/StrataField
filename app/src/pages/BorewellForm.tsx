@@ -20,7 +20,7 @@ import { useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, zoneName } from "@/lib/format";
 import { numberText, parseCoordinatePair, parseNumber } from "@strata/core";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 // ── Form state ───────────────────────────────────────────────────────────
 // Numbers are kept as the text the user typed, so half-typed values ("12.") are not lost.

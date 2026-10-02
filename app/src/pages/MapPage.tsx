@@ -14,7 +14,7 @@ import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/data";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 export function MapPage() {
   const navigate = useNavigate();

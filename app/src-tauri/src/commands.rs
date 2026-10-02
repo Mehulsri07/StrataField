@@ -39,20 +39,13 @@ pub struct AppInfo {
     version: String,
 }
 
-pub fn current_app_info() -> AppInfo {
-    AppInfo {
-        name: "StrataField".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-    }
-}
-
 /// Lets the screen confirm the backend is reachable and show the running version.
 #[tauri::command]
 pub fn app_info(app: AppHandle) -> AppInfo {
     // The app's own version (tauri.conf.json), which the installer and updates use.
     AppInfo {
+        name: "StrataField".into(),
         version: app.package_info().version.to_string(),
-        ..current_app_info()
     }
 }
 
@@ -180,11 +173,6 @@ pub fn material_delete(state: State<AppState>, id: String) -> Res<()> {
 #[tauri::command]
 pub fn projects_list(state: State<AppState>) -> Res<Vec<Project>> {
     read(&state, |_, c| projects::list(c))
-}
-
-#[tauri::command]
-pub fn project_rename(state: State<AppState>, id: String, name: String) -> Res<()> {
-    write(&state, |_, tx| projects::rename(tx, &id, &name))
 }
 
 // ── Photos and files ────────────────────────────────────────────────────

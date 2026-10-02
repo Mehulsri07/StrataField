@@ -80,40 +80,17 @@ pub fn search(conn: &Connection, f: &SearchFilters) -> Result<Vec<BorewellListIt
                 .replace('%', "\\%")
                 .replace('_', "\\_")
         ));
-        let column = match f.field.as_str() {
-            "borewellId" => Some("b.borewell_id"),
-            "ownerName" => Some("b.owner_name"),
-            "area" => Some("b.area"),
-            "city" => Some("b.city"),
-            "project" => Some("p.name"),
-            _ => None,
-        };
-        match (f.field.as_str(), column) {
-            (_, Some(col)) => push(&format!("{col} LIKE ? ESCAPE '\\'"), like, &mut clauses),
-            ("material", None) => push(
-                "EXISTS (SELECT 1 FROM strata_layers s WHERE s.borewell_id = b.id AND s.material LIKE ? ESCAPE '\\')",
-                like,
-                &mut clauses,
-            ),
-            _ => push(
-                "(b.borewell_id || ' ' || b.owner_name || ' ' || b.area || ' ' || b.city || ' ' || b.address || ' ' || COALESCE(p.name, '')) LIKE ? ESCAPE '\\'",
-                like,
-                &mut clauses,
-            ),
-        }
+        push(
+            "(b.borewell_id || ' ' || b.owner_name || ' ' || b.area || ' ' || b.city || ' ' || b.address || ' ' || COALESCE(p.name, '')) LIKE ? ESCAPE '\\'",
+            like,
+            &mut clauses,
+        );
     }
     if let Some(v) = &f.date_from {
         push("b.date >= ?", Value::Text(v.clone()), &mut clauses);
     }
     if let Some(v) = &f.date_to {
         push("b.date <= ?", Value::Text(v.clone()), &mut clauses);
-    }
-    if let Some(v) = &f.city {
-        push(
-            "b.city = ? COLLATE NOCASE",
-            Value::Text(v.clone()),
-            &mut clauses,
-        );
     }
     if let Some(v) = &f.project {
         push(

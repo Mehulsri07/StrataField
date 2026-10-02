@@ -16,7 +16,7 @@ import { useLoad } from "@/lib/data";
 import { formatDate, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 type SortKey = "borewellId" | "date" | "totalDepth" | "waterLevel";
 const ALL = "all";

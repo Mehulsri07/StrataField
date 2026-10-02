@@ -12,7 +12,7 @@ import { useLoad } from "@/lib/data";
 import { buildReport, fileName, saveFile } from "@/lib/exporting";
 import { zoneName } from "@/lib/format";
 import { text } from "@/text";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 type Which = "all" | "zone" | "pick";
 type Format = "pdf" | "excel";
