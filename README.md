@@ -13,7 +13,6 @@
   <a href="https://github.com/Mehulsri07/StrataField/releases/latest"><img src="https://img.shields.io/github/v/release/Mehulsri07/StrataField?label=release" alt="Latest release"></a>
   <a href="https://github.com/Mehulsri07/StrataField/actions/workflows/ci.yml"><img src="https://github.com/Mehulsri07/StrataField/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0d6883" alt="Windows 10 and 11">
-  <img src="https://img.shields.io/badge/license-MIT-0d6883" alt="MIT licence">
 </p>
 
 <p align="center">
@@ -91,7 +90,6 @@ and **User manual** at the bottom of the app's menu). It can also be read
 - [Project history](#project-history)
 - [Roadmap](#roadmap)
 - [Data sources](#data-sources)
-- [Licence](#licence)
 
 ---
 
@@ -375,7 +373,3 @@ only Electron-related code left in `main` is the one-time import of the old app'
 - **Ground heights** (`app/src/assets/lucknow-elevation.bin`, built by `scripts/build-elevation.mjs`):
   [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/), which around Lucknow come
   from SRTM (NASA). Approximate to a few metres, and partly including buildings in built-up areas.
-
-## Licence
-
-MIT
