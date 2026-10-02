@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import type { BackupInfo, LegacyImportReport, LithologyFamily, Material } from "@strata/core";
+import type { BackupInfo, LegacyImportReport, LithologyFamily, Material, Project } from "@strata/core";
+import { DEFAULT_PROJECT } from "@strata/core";
 import { BookOpen, FolderOpen, LifeBuoy, Monitor, Moon, Pencil, Plus, Sun, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export function Settings() {
       <OfflineMap />
       <OlderApp />
       <UnlinkedNames />
+      <Zones />
       <SoilTypes />
       <Appearance />
       <About />
@@ -332,6 +334,69 @@ function UnlinkedNames() {
           </div>
         ))}
       </div>
+    </Panel>
+  );
+}
+
+// ── Zones ───────────────────────────────────────────────────────────────
+
+function Zones() {
+  const { bump } = useDataVersion();
+  const { ask, dialog } = useConfirm();
+  const zones = useLoad("settings-zones", () => api.projects.list());
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+
+  // Borewells without a zone are kept under a built-in one, which is not a zone to rename.
+  const list = (zones.data ?? []).filter((z) => z.name !== DEFAULT_PROJECT);
+  if (list.length === 0) return null;
+  const count = (z: Project) => `${z.borewellCount} borewell${z.borewellCount === 1 ? "" : "s"}`;
+
+  const save = async (zone: Project) => {
+    const name = editing?.name.trim() ?? "";
+    if (!name || name === zone.name) return setEditing(null);
+    const other = list.find((z) => z.id !== zone.id && z.name.toLowerCase() === name.toLowerCase());
+    if (other && !(await ask({
+      title: `Merge “${zone.name}” into “${other.name}”?`,
+      body: `The ${count(zone)} in “${zone.name}” will move to “${other.name}”, and “${zone.name}” will be removed from the list. This cannot be undone here, but a backup from before can be restored.`,
+      confirmLabel: "Merge zones",
+    }))) return;
+    try {
+      await api.projects.rename(zone.id, name);
+      toast.success(other ? `“${zone.name}” merged into “${other.name}”.` : `Zone renamed to “${name}”.`);
+      setEditing(null);
+      bump();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  return (
+    <Panel title={<span id="zones" className="scroll-mt-20">Zones</span>} framed>
+      <p className="px-4 pt-3 pb-2 text-[13px] text-muted-foreground">
+        Rename a zone to fix its spelling. To merge two zones that are the same place, rename one to the other&apos;s name.
+      </p>
+      <ul className="divide-y divide-border border-t border-border">
+        {list.map((z) => (
+          <li key={z.id} className="flex min-h-12 items-center gap-3 px-4 py-2">
+            {editing?.id === z.id ? (
+              <form className="flex flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); save(z); }}>
+                <Input autoFocus className="max-w-sm" value={editing.name} aria-label={`New name for ${z.name}`}
+                  onChange={(e) => setEditing({ id: z.id, name: e.target.value })}
+                  onKeyDown={(e) => e.key === "Escape" && setEditing(null)} />
+                <Button type="submit" size="sm">{text.actions.save}</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)}>{text.actions.cancel}</Button>
+              </form>
+            ) : (
+              <>
+                <span className="font-medium">{z.name}</span>
+                <span className="text-xs text-muted-foreground">{count(z)}</span>
+                <Button className="ml-auto" size="sm" variant="ghost" disabled={isPreview} onClick={() => setEditing({ id: z.id, name: z.name })}><Pencil />Rename</Button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {dialog}
     </Panel>
   );
 }

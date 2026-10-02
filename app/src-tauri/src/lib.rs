@@ -55,6 +55,7 @@ pub fn run() {
             commands::material_update,
             commands::material_delete,
             commands::projects_list,
+            commands::project_rename,
             commands::photo_add,
             commands::file_add,
             commands::attachment_remove,

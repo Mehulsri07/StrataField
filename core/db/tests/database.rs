@@ -839,3 +839,37 @@ fn paths_from_damaged_or_tampered_data_never_reach_outside_the_attachments_folde
     assert!(outside.is_file());
     std::fs::remove_file(outside).unwrap();
 }
+
+#[test]
+fn zones_can_be_renamed_and_merged() {
+    let (_dir, db) = open_temp();
+    let mut a = input("BW-A");
+    a.project = "Zone 1".into();
+    let mut b = input("BW-B");
+    b.project = "Zone one".into(); // the same place, typed differently
+    let a = db.with_tx(|tx| borewells::create(tx, &a)).unwrap();
+    let b = db.with_tx(|tx| borewells::create(tx, &b)).unwrap();
+    let zone = |id: &str| db.with(|c| borewells::get(c, id)).unwrap().project;
+
+    // A new name: only the name changes.
+    db.with_tx(|tx| projects::rename(tx, b.project_id.as_deref().unwrap(), "Zone 1 (old)"))
+        .unwrap();
+    assert_eq!(zone(&b.id), "Zone 1 (old)");
+    assert_eq!(db.with(projects::list).unwrap().len(), 2);
+
+    // A name another zone has (in any case): the borewells move there and this zone goes.
+    db.with_tx(|tx| projects::rename(tx, b.project_id.as_deref().unwrap(), "zone 1"))
+        .unwrap();
+    assert_eq!(zone(&b.id), "Zone 1");
+    let zones = db.with(projects::list).unwrap();
+    assert_eq!(zones.len(), 1);
+    assert_eq!(zones[0].borewell_count, 2);
+    assert_eq!(zones[0].id, a.project_id.unwrap());
+
+    assert!(db
+        .with_tx(|tx| projects::rename(tx, &zones[0].id, "  "))
+        .is_err());
+    assert!(db
+        .with_tx(|tx| projects::rename(tx, "no-such-zone", "Zone 9"))
+        .is_err());
+}

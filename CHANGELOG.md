@@ -9,6 +9,8 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **Import Excel files in other layouts.** When a file is not laid out like the usual drilling log,
   StrataField guesses which columns hold the depths and soil names, shows the start of the file,
   and lets you correct the choice (including a "from" depth, pipe type, and feet or metres).
+- **Rename and merge zones.** **Settings & backup → Zones** lists your zones. Rename one to fix its
+  spelling, or rename it to another zone's name to merge the two.
 
 ### Fixed
 - Import Excel: the borewell details are no longer squeezed on a laptop-sized window.

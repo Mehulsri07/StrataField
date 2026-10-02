@@ -175,6 +175,11 @@ pub fn projects_list(state: State<AppState>) -> Res<Vec<Project>> {
     read(&state, |_, c| projects::list(c))
 }
 
+#[tauri::command]
+pub fn project_rename(state: State<AppState>, id: String, name: String) -> Res<()> {
+    write(&state, |_, tx| projects::rename(tx, &id, &name))
+}
+
 // ── Photos and files ────────────────────────────────────────────────────
 
 #[tauri::command]

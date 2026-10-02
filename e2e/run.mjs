@@ -112,6 +112,31 @@ try {
     return { status, layers: ex?.strata.map(l => l.startDepth + '-' + l.endDepth + ' ' + l.material).join(', ') };`);
   check("An Excel file in another layout is imported after its columns are chosen", other.status && other.layers === "0-30 Clay, 30-90 Fine Sand, 90-150 Coarse Sand", JSON.stringify(other));
 
+  // ── Zones: rename, then merge ──────────────────────────────────────────
+  const zones = await page(`
+    const mk = (code, project) => __t.invoke('borewell_create', { input: { borewellId: code, ownerName: 'Zone test', project, city: 'Lucknow', date: '2026-09-01' } });
+    const a = await mk('ZONE-A', 'Zone Nine'), b = await mk('ZONE-B', 'Zone 9 typo');
+    location.hash = '#/'; await __t.wait(300); location.hash = '#/settings';
+    const row = (name) => [...document.querySelectorAll('main li')].find(li => li.innerText.startsWith(name));
+    const rename = async (from, to) => {
+      (await __t.until(() => row(from))).querySelector('button').click();
+      const box = await __t.until(() => document.querySelector('input[aria-label="New name for ' + from + '"]'));
+      __t.type(box, to); await __t.wait(150); __t.btn('Save', box.closest('form')).click();
+    };
+    await rename('Zone 9 typo', 'Zone 9');
+    await __t.until(() => row('Zone 9') && !row('Zone 9 typo'), 8000);
+    const renamed = (await __t.invoke('borewell_get', { id: b.id })).borewell.project;
+    await rename('Zone 9', 'zone nine');
+    const dialog = await __t.until(() => document.querySelector('[role="dialog"]'));
+    const asked = dialog.innerText.split('\\n')[0];
+    __t.btn('Merge zones', dialog).click();
+    await __t.until(() => /2 borewells/.test(row('Zone Nine')?.innerText ?? ''), 8000);
+    const merged = (await __t.invoke('borewell_get', { id: b.id })).borewell.project;
+    for (const x of [a, b]) { await __t.invoke('borewell_delete', { id: x.id }); await __t.invoke('borewell_delete_permanently', { id: x.id }); }
+    return { renamed, asked, merged, left: (await __t.invoke('projects_list')).map(z => z.name).filter(n => /^Zone (9|Nine)/.test(n)) };`);
+  check("Settings: a zone can be renamed", zones.renamed === "Zone 9", zones.renamed);
+  check("…and renaming it to another zone's name merges the two, after asking", /Merge/.test(zones.asked) && zones.merged === "Zone Nine" && zones.left.join() === "Zone Nine", JSON.stringify(zones));
+
   // ── Correcting a location from a photo's GPS ───────────────────────────
   const fixed = await page(`
     window.__STRATA_TEST_CHOOSE__ = () => ['${f.photo}'];
