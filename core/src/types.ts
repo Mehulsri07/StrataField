@@ -281,12 +281,15 @@ export interface SearchFilters {
   showDeleted?: boolean;     // list the Recycle bin instead
 }
 
-// ─── Geocoding ───────────────────────────────────────────────────────────────
+// ─── Place search ────────────────────────────────────────────────────────────
 
-export interface GeocodeResult {
+/** A place found by name. Approximate: the middle of a colony or road, not a plot. */
+export interface Place {
   latitude: number;
   longitude: number;
-  displayName: string;
+  name: string;
+  /** Where it is, e.g. "Gomti Nagar, Lucknow, Uttar Pradesh". */
+  detail: string;
 }
 
 // ─── Backups, start-up and import ────────────────────────────────────────────

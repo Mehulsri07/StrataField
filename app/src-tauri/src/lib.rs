@@ -82,7 +82,7 @@ pub fn run() {
             offline_map::offline_map_read,
             commands::setting_get,
             commands::setting_set,
-            commands::geocode_address,
+            commands::place_search,
             commands::photo_metadata,
             commands::read_spreadsheet,
             commands::soil_names_unlinked,

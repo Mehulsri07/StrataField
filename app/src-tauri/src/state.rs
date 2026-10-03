@@ -16,7 +16,6 @@ const AUTO_BACKUP_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 pub struct AppState {
     pub db: Option<Database>,
     pub startup: StartupStatus,
-    pub geocode_gate: tokio::sync::Mutex<Option<std::time::Instant>>,
 }
 
 /// What happened at start-up, shown by the screens (for example a one-time
@@ -102,7 +101,6 @@ pub fn start(locations: &Locations) -> AppState {
     AppState {
         db,
         startup: status,
-        geocode_gate: tokio::sync::Mutex::new(None),
     }
 }
 

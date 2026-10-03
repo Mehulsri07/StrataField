@@ -554,7 +554,7 @@ fn an_excel_import_is_saved_as_one_batch_or_not_at_all() {
 }
 
 #[test]
-fn sections_and_geocode_cache_round_trip() {
+fn sections_round_trip() {
     let (_dir, db) = open_temp();
     let s = db
         .with(|c| {
@@ -583,19 +583,6 @@ fn sections_and_geocode_cache_round_trip() {
             }
         ))
         .is_err());
-
-    let hit = misc::GeocodeHit {
-        latitude: 26.85,
-        longitude: 80.94,
-        display_name: "Hazratganj, Lucknow".into(),
-    };
-    db.with(|c| misc::cache_geocode(c, "  Hazratganj   LUCKNOW ", &hit))
-        .unwrap();
-    assert_eq!(
-        db.with(|c| misc::cached_geocode(c, "hazratganj lucknow"))
-            .unwrap(),
-        Some(hit)
-    );
 }
 
 #[test]

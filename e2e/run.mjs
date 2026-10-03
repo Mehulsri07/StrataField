@@ -185,6 +185,20 @@ try {
     __t.type(document.querySelector('#f-zone'), 'Zone E2E');
     __t.btn('Next: Location').click(); await __t.wait(300);
     __t.type(document.querySelector('#f-area'), 'Vipul Khand');
+    // Place search: the map opens with the address searched. The search needs internet, so being
+    // told it could not be reached also counts; a wrong or missing answer does not.
+    __t.btn('Search for the address').click();
+    const box = await __t.until(() => document.querySelector('[role="combobox"][aria-label="Search for a place"]'));
+    const searched = box.value;
+    await __t.until(() => document.querySelector('#place-matches [role="option"]') || document.querySelector('[role="dialog"] [role="status"]:not(:empty)')?.textContent !== 'Searching…' && document.querySelector('[role="dialog"] [role="status"]'), 15000);
+    const first = document.querySelector('#place-matches [role="option"]');
+    let place = 'offline: ' + (document.querySelector('[role="dialog"] [role="status"]')?.textContent ?? '');
+    if (first) {
+      const name = first.textContent; first.click(); await __t.wait(300);
+      __t.btn('Use this location').click(); await __t.wait(300);
+      const r = (await __t.invoke('place_search', { query: searched }))[0];
+      place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
+    } else { __t.btn('Cancel').click(); await __t.wait(300); }
     __t.type(document.querySelector('#f-paste'), '26.8930, 80.9420'); await __t.wait(200);
     __t.btn('Next: Drilling').click(); await __t.wait(300);
     __t.type(document.querySelector('#f-depth'), '100'); __t.type(document.querySelector('#f-water'), '45');
@@ -208,12 +222,14 @@ try {
     await __t.until(() => /#\\/borewell\\/[^/]+$/.test(location.hash), 10000); await __t.wait(800);
     const bwid = location.hash.split('/').pop();
     const r = await __t.invoke('borewell_get', { id: bwid });
-    return { id, bwid, gapText, ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
+    return { id, bwid, gapText, searched, place, ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
       meta: [r.borewell.ownerName, r.borewell.project, r.borewell.area, r.borewell.totalDepth, r.borewell.waterLevel, r.borewell.drillingMethod].join(' | '),
       strata: r.strata.map(l => (l.materialId ?? l.material) + ' ' + l.startDepth + '-' + l.endDepth).join('; '), pipes: r.pipes.map(p => p.pipeType + ' ' + p.startDepth + '-' + p.endDepth).join(', ') };`);
   check("The check step says the new borewell is ready to save", /Ready to save/.test(manual.ready), manual.ready);
   check("A new borewell is saved with all its details", /^E2E Owner \| Zone E2E \| Vipul Khand.* \| 100 \| 45 \| ROTARY$/.test(manual.meta) && manual.pipes === "plain 0-60", `${manual.meta} · ${manual.pipes}`);
   check("A gap in layers is marked “Not recorded” and saved as such", manual.strata === "clay 0-40; not_recorded 40-50; coarse_sand 50-100", `${manual.gapText} → ${manual.strata}`);
+  check("Searching for the address opens the map with the address searched", manual.searched === "Vipul Khand, Lucknow", manual.searched);
+  check("Choosing a found place near Lucknow fills in its coordinates", /^offline: .*(internet|did not answer)/.test(manual.place) || / \| true \| true$/.test(manual.place), manual.place);
   check("The location source is recorded for a new borewell", manual.source === "typed", manual.source);
   check("The unfinished-borewell draft is cleared after saving", manual.draftCleared);
 
