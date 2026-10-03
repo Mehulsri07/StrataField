@@ -427,11 +427,8 @@ pub fn setting_set(state: State<AppState>, key: String, value: serde_json::Value
 }
 
 #[tauri::command]
-pub async fn geocode_address(
-    state: State<'_, AppState>,
-    query: String,
-) -> Res<Option<misc::GeocodeHit>> {
-    geocode::lookup(&state, &query).await
+pub async fn place_search(query: String) -> Res<Vec<geocode::Place>> {
+    geocode::search(&query).await
 }
 
 /// Date and GPS position saved inside a photo the user chose.

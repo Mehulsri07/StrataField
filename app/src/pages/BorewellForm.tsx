@@ -374,9 +374,10 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
   addsPhoto: boolean;
 }) {
   const [paste, setPaste] = useState("");
-  const [busy, setBusy] = useState<"photo" | "address" | null>(null);
+  const [busy, setBusy] = useState<"photo" | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);
+  /** The map picker is open when this is a string: what to search for straight away ("" for nothing). */
+  const [picking, setPicking] = useState<string | null>(null);
   const hasLocation = parseNumber(f.latitude) != null && parseNumber(f.longitude) != null;
 
   const fromPhoto = async () => {
@@ -391,21 +392,6 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
       }
       onPhotoUsed({ path, captureDate: m.captureDate, latitude: m.latitude, longitude: m.longitude });
       setNote(addsPhoto ? "Location taken from the photo. The photo will also be saved with the borewell." : "Location taken from the photo.");
-    } catch (e) {
-      setNote(String(e));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const lookUp = async () => {
-    const query = [f.houseNo, f.address, f.area, f.city].filter(Boolean).join(", ");
-    setBusy("address"); setNote(null);
-    try {
-      const hit = await api.geocode(query);
-      if (!hit) { setNote("No place was found for that address. Check the spelling, or type the coordinates."); return; }
-      set({ latitude: hit.latitude.toFixed(6), longitude: hit.longitude.toFixed(6), locationSource: "address" });
-      setNote(`Found: ${hit.displayName}. This is approximate, so a photo's GPS or typed coordinates are better when you have them.`);
     } catch (e) {
       setNote(String(e));
     } finally {
@@ -436,8 +422,8 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
           <div className="grid gap-3 md:grid-cols-4">
             <WayButton icon={<ImagePlus />} title="Use a photo's GPS" body="Most accurate" onClick={fromPhoto} busy={busy === "photo"} disabled={isPreview} />
             <WayButton icon={<Crosshair />} title="Type coordinates" body="From a phone or GPS unit" onClick={() => document.getElementById("f-paste")?.focus()} />
-            <WayButton icon={<Search />} title="Look up the address" body="Approximate · needs internet" onClick={lookUp} busy={busy === "address"} disabled={isPreview || !(f.area || f.address)} />
-            <WayButton icon={<MapPin />} title="Pick on the map" body="Click where the borewell is" onClick={() => setPicking(true)} />
+            <WayButton icon={<Search />} title="Search for the address" body="Approximate · needs internet" onClick={() => setPicking([f.address, f.area, f.city].filter(Boolean).join(", "))} disabled={!(f.area || f.address)} />
+            <WayButton icon={<MapPin />} title="Pick on the map" body="Search for a place, then click the spot" onClick={() => setPicking("")} />
           </div>
           {note && <p className="rounded-md bg-muted px-3 py-2 text-sm">{note}</p>}
           <div className="grid gap-4 sm:grid-cols-3">
@@ -458,15 +444,16 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
         </div>
       </Panel>
       <MapPicker
-        key={picking ? "open" : "closed"}
-        open={picking}
+        key={picking ?? "closed"}
+        open={picking != null}
+        search={picking ?? ""}
         initial={hasLocation ? { latitude: parseNumber(f.latitude)!, longitude: parseNumber(f.longitude)! } : null}
         others={others}
-        onClose={() => setPicking(false)}
+        onClose={() => setPicking(null)}
         onPick={(p) => {
-          set({ latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6), locationSource: "map" });
-          setNote("Location picked on the map.");
-          setPicking(false);
+          set({ latitude: p.latitude.toFixed(6), longitude: p.longitude.toFixed(6), locationSource: p.found ? "address" : "map" });
+          setNote(p.found ? `Found: ${p.found}. This is approximate, so a photo's GPS or typed coordinates are better when you have them.` : "Location picked on the map.");
+          setPicking(null);
         }}
       />
     </div>

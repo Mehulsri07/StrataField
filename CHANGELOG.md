@@ -3,6 +3,19 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Search for a place when picking a location.** The map you pick a borewell's position on now has
+  a search box, like the one in Google Maps: type a place, colony or road, choose from the matches
+  as they appear, and the map goes there. Then click the exact spot. Places in and around Lucknow
+  are listed first. Needs internet.
+
+### Changed
+- **"Look up the address" is now "Search for the address".** It opens the same map with the address
+  from the form already searched, so you can see the matches and where they are before using one,
+  instead of taking the first match unseen.
+
 ## [1.0.7] - 2026-10-03
 
 ### New

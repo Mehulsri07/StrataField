@@ -18,7 +18,7 @@ The app connects only to these, and only for the purpose given:
 | Where | Why | Sent |
 |---|---|---|
 | `tile.openstreetmap.org` | Online map pictures (when the Lucknow map has not been downloaded) | Which part of the map is shown |
-| `nominatim.openstreetmap.org` | "Find from address" | The address typed, at most one lookup a second, cached |
+| `photon.komoot.io` | Searching for a place on the map picker | What is typed in the search box, as it is typed |
 | `github.com` (this repository's releases) | Downloading the Lucknow map; checking for and downloading updates | Nothing about the user or their data |
 
 Everything else works offline. The screens themselves cannot contact other sites. The content

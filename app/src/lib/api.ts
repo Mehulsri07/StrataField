@@ -7,7 +7,7 @@ import { convertFileSrc, invoke as tauriInvoke, isTauri } from "@tauri-apps/api/
 import type {
   Attachment, BackupInfo, Borewell, BorewellInput, BorewellListItem, BorewellRecord, ImportRequest,
   ImportResult, LegacyImportReport, Material, Photo, PipeSegment, Project, SearchFilters, Section,
-  StartupStatus, StrataLayer, WaterReading, GeocodeResult, HistoryEntry,
+  StartupStatus, StrataLayer, WaterReading, Place, HistoryEntry,
 } from "@strata/core";
 
 export interface SecondCopy {
@@ -142,8 +142,8 @@ export const api = {
     set: (key: string, value: unknown) => invoke<void>("setting_set", { key, value }),
   },
 
-  /** Approximate location for an address. Needs internet; resolves null when nothing is found. */
-  geocode: (query: string) => invoke<GeocodeResult | null>("geocode_address", { query }),
+  /** Places matching what was typed, nearest Lucknow first. Needs internet; empty when nothing is found. */
+  searchPlaces: (query: string) => invoke<Place[]>("place_search", { query }),
 
   /** The bytes of an Excel or CSV file the user chose. */
   readSpreadsheet: (path: string) => invoke<ArrayBuffer>("read_spreadsheet", { path }),
