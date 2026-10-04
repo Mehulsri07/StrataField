@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { Borewell, BorewellInput, ExcelParseResult, Material, ParseAnomaly, StrataLayer } from "@strata/core";
-import { parseNumber } from "@strata/core";
+import type { Borewell, BorewellInput, ExcelParseResult, LocationSource, Material, ParseAnomaly, StrataLayer } from "@strata/core";
+import { parseCoordinatePair, parseNumber } from "@strata/core";
 import type { ColumnMapping } from "@strata/core/parser";
 import { toast } from "sonner";
-import { CircleCheck, FileSpreadsheet, TriangleAlert, Upload, X, XCircle } from "lucide-react";
+import { CircleCheck, FileSpreadsheet, MapPin, TriangleAlert, Upload, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,12 +13,15 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Field } from "@/components/app/Field";
 import { Chip } from "@/components/app/Chip";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
+import { MapPicker } from "@/components/map/MapPicker";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
 import { cn } from "cn";
 
-interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string }
+interface Details { borewellId: string; ownerName: string; zone: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string; pumpModel: string; pumpHp: string; pumpLowering: string;
+  /** Coordinates as typed or picked, "26.8930, 80.9420"; empty when the location is added later. */
+  location: string; locationSource: LocationSource }
 
 /** The Excel reader, loaded when the first file is chosen (it is large, and only this screen uses it). */
 let parser: typeof import("@strata/core/parser") | null = null;
@@ -71,6 +74,7 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
     // The file's name, not the site's: the site name becomes the owner, and one owner can have several borewells.
     borewellId: stem(path),
     ownerName: m?.ownerName ?? "",
+    zone: "",
     area: m?.address ?? "",
     city: m?.city ?? text.app.city,
     date: m?.date ?? "",
@@ -78,6 +82,10 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
     waterLevel: n(m?.waterLevel),
     boreDia: n(m?.boreDia),
     pipeDia: n(m?.pipeDia),
+    pumpModel: m?.pumpModel ?? "",
+    pumpHp: n(m?.pumpHp),
+    pumpLowering: n(m?.pumpLowering),
+    location: "", locationSource: "typed",
   };
 }
 
@@ -103,10 +111,11 @@ export function ImportPage() {
   const { bump } = useDataVersion();
   const materials = useLoad("materials", () => api.materials.list());
   const existing = useLoad("all-borewells", () => api.borewells.search({}));
+  const zones = useLoad("projects", () => api.projects.list());
   const [list, setList] = useState<ImportFile[]>([]);
   const [current, setCurrent] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ name: string; id: string; code: string }[] | null>(null);
+  const [done, setDone] = useState<{ name: string; id: string; code: string; located: boolean }[] | null>(null);
   const mats = useMemo(() => materials.data ?? [], [materials.data]);
 
   const choose = async () => {
@@ -121,7 +130,7 @@ export function ImportPage() {
           let result = parseStrataRows(rows), mapping: ColumnMapping | null = null;
           // A sheet laid out differently: start from a guess at the columns, which the user then checks.
           if (!result.success && (mapping = guessMapping(rows))) result = parseStrataRows(rows, mapping);
-          return { path, name: baseName(path), rows, mapping, result, readError: null, include: result.success && result.strata.length > 0, details: initialDetails(path, result), resolutions: {} };
+          return { path, name: baseName(path), rows, mapping, result, readError: null, include: result.success && result.strata.length > 0 && !mapping, details: initialDetails(path, result), resolutions: {} };
         } catch (e) {
           return { path, name: baseName(path), rows: [], mapping: null, result: null, readError: String(e), include: false, details: initialDetails(path, null), resolutions: {} };
         }
@@ -141,15 +150,17 @@ export function ImportPage() {
 
   const runImport = async () => {
     setBusy(true);
-    const created: { name: string; id: string; code: string }[] = [];
+    const created: NonNullable<typeof done> = [];
     try {
       for (const f of included) {
         const d = f.details;
         const num = (s: string) => parseNumber(s) ?? null;
+        const at = parseCoordinatePair(d.location);
         const borewell: BorewellInput = {
-          borewellId: d.borewellId.trim(), ownerName: d.ownerName.trim(), area: d.area, city: d.city, date: d.date,
+          borewellId: d.borewellId.trim(), ownerName: d.ownerName.trim(), project: d.zone.trim(), area: d.area, city: d.city, date: d.date,
           totalDepth: num(d.totalDepth), waterLevel: num(d.waterLevel), boreDia: num(d.boreDia), pipeDia: num(d.pipeDia),
-          locationSource: "unknown", importSource: f.name,
+          pumpModel: d.pumpModel.trim(), pumpHp: num(d.pumpHp), pumpLowering: num(d.pumpLowering),
+          latitude: at?.latitude ?? null, longitude: at?.longitude ?? null, locationSource: at ? d.locationSource : "unknown", importSource: f.name,
         };
         const strata = (f.result?.strata ?? []).map((l) => resolveLayer(l, f.resolutions, mats));
         const pipes = (f.result?.pipes ?? []).map((p) => ({ startDepth: p.startDepth, endDepth: p.endDepth, pipeType: p.pipeType, pipeSubtype: p.pipeSubtype }));
@@ -159,7 +170,7 @@ export function ImportPage() {
           resolutions: Object.fromEntries(names.map((nm) => [nm, f.resolutions[nm] && f.resolutions[nm] !== KEEP ? f.resolutions[nm] : ""])),
           borewells: [{ borewell, strata, pipes, notes: fileNotes(f) }],
         });
-        created.push({ name: f.name, id: res.borewellIds[0], code: borewell.borewellId! });
+        created.push({ name: f.name, id: res.borewellIds[0], code: borewell.borewellId!, located: !!at });
       }
       bump();
       setDone(created);
@@ -188,7 +199,10 @@ export function ImportPage() {
           <CircleCheck className="size-4 text-ok" />
           <span>Imported:</span>
           {done.map((d) => <Button key={d.id} variant="outline" size="sm" onClick={() => navigate(`/borewell/${d.id}`)}>{d.code}</Button>)}
-          <Button variant="ghost" size="sm" className="ml-auto" render={<Link to="/borewells" />}>See all borewells</Button>
+          <span className="ml-auto flex gap-1">
+            {done.some((d) => !d.located) && <Button variant="ghost" size="sm" render={<Link to="/borewells?noLocation=1" />}>Add their locations</Button>}
+            <Button variant="ghost" size="sm" render={<Link to="/borewells" />}>See all borewells</Button>
+          </span>
         </div>
       )}
 
@@ -214,7 +228,7 @@ export function ImportPage() {
                       <span className="block truncate text-[13px] font-medium">{file.name}</span>
                       <span className="block text-xs">
                         {!ok ? <span className="text-destructive">{file.rows.length ? "Choose the columns" : "Cannot be read"}</span>
-                          : file.mapping ? <span className="text-warn">Check the columns</span>
+                          : file.mapping ? (file.include ? <span className="text-ok">Columns checked</span> : <span className="text-warn">Check the columns</span>)
                           : notes > 0 || unknownNames(file.result).length ? <span className="text-warn">Needs a look</span>
                           : <span className="text-ok">Ready</span>}
                       </span>
@@ -225,14 +239,16 @@ export function ImportPage() {
               })}
             </ul>
             <div className="grid gap-2 border-t border-border p-3">
-              <Button disabled={busy || included.length === 0} onClick={runImport}>
-                {busy ? "Importing…" : included.length === 1 ? "Import 1 borewell" : `Import ${included.length} borewells`}
-              </Button>
-              <p className="text-xs text-muted-foreground">Each file is imported as one borewell. Untick a file to leave it out.</p>
+              {list.some(readable) ? (<>
+                <Button disabled={busy || included.length === 0} onClick={runImport}>
+                  {busy ? "Importing…" : included.length === 1 ? "Import 1 borewell" : `Import ${included.length} borewells`}
+                </Button>
+                <p className="text-xs text-muted-foreground">Each file is imported as one borewell. Only ticked files are imported.</p>
+              </>) : <p className="text-xs text-muted-foreground">None of these files can be imported. Remove them with ✕, or add them by hand with New borewell.</p>}
             </div>
           </Panel>
 
-          {f && <FileReview key={f.path} file={f} materials={mats} takenIds={takenIds} onChange={(patch) => update(current, patch)} />}
+          {f && <FileReview key={f.path} file={f} materials={mats} takenIds={takenIds} zones={(zones.data ?? []).map((z) => z.name)} others={(existing.data ?? []).map((i) => i.borewell)} onChange={(patch) => update(current, patch)} />}
         </div>
       )}
     </Page>
@@ -246,9 +262,10 @@ function resolveLayer(l: ExcelParseResult["strata"][number], resolutions: Record
     : { startDepth: l.startDepth, endDepth: l.endDepth, material: l.material, materialId: l.materialId, color: l.color, pattern: l.pattern };
 }
 
-function FileReview({ file: f, materials, takenIds, onChange }: {
-  file: ImportFile; materials: Material[]; takenIds: Set<string>; onChange: (patch: Partial<ImportFile>) => void;
+function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
+  file: ImportFile; materials: Material[]; takenIds: Set<string>; zones: string[]; others: Borewell[]; onChange: (patch: Partial<ImportFile>) => void;
 }) {
+  const [picking, setPicking] = useState(false);
   // Shown whenever the sheet is not in the standard layout, so the columns can always be changed.
   const picker = (f.mapping || (!readable(f) && f.rows.length > 0)) && <ColumnPicker file={f} onChange={onChange} />;
   if (!readable(f) && picker) {
@@ -279,6 +296,7 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
   const soilItems = [{ value: KEEP, label: "Keep the name, choose later" }, ...materials.filter((m) => m.lithologyFamily !== "NONE").map((m) => ({ value: m.id, label: m.name }))];
   const notes = (f.result?.anomalies ?? []).filter((a) => a.code !== "MATERIAL_UNKNOWN");
   const idTaken = takenIds.has(d.borewellId.trim().toLowerCase());
+  const at = parseCoordinatePair(d.location);
   const strata: StrataLayer[] = (f.result?.strata ?? []).map((l, i) => ({ id: `${i}`, borewellId: "import", remarks: "", waterBearing: false, ...resolveLayer(l, f.resolutions, materials) }));
   const pipes = (f.result?.pipes ?? []).map((p, i) => ({ id: `p${i}`, borewellId: "import", startDepth: p.startDepth, endDepth: p.endDepth, pipeType: p.pipeType, pipeSubtype: p.pipeSubtype, diameter: null }));
   const preview = {
@@ -319,7 +337,11 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
             </Field>
             <Field id="i-owner" label="Owner's name"><Input id="i-owner" value={d.ownerName} onChange={(e) => set({ ownerName: e.target.value })} /></Field>
             <Field id="i-date" label="Date drilled"><Input id="i-date" type="date" value={d.date} onChange={(e) => set({ date: e.target.value })} /></Field>
-            <Field id="i-area" label="Area or address" className="sm:col-span-2"><Input id="i-area" value={d.area} onChange={(e) => set({ area: e.target.value })} /></Field>
+            <Field id="i-zone" label="Zone" hint="Pick one you used before, or type a new one.">
+              <Input id="i-zone" list="i-zone-list" value={d.zone} onChange={(e) => set({ zone: e.target.value })} />
+              <datalist id="i-zone-list">{zones.map((z) => <option key={z} value={z} />)}</datalist>
+            </Field>
+            <Field id="i-area" label="Area or address"><Input id="i-area" value={d.area} onChange={(e) => set({ area: e.target.value })} /></Field>
             <Field id="i-city" label="City"><Input id="i-city" value={d.city} onChange={(e) => set({ city: e.target.value })} /></Field>
             <Field id="i-depth" label="Total depth (ft)"><Input id="i-depth" className="num" inputMode="decimal" value={d.totalDepth} onChange={(e) => set({ totalDepth: e.target.value })} /></Field>
             <Field id="i-water" label="Water level (ft)"><Input id="i-water" className="num" inputMode="decimal" value={d.waterLevel} onChange={(e) => set({ waterLevel: e.target.value })} /></Field>
@@ -329,10 +351,29 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
                 <Input className="num" inputMode="decimal" value={d.pipeDia} onChange={(e) => set({ pipeDia: e.target.value })} aria-label="Pipe size (inch)" />
               </div>
             </Field>
+            <Field id="i-pump" label="Pump model"><Input id="i-pump" value={d.pumpModel} onChange={(e) => set({ pumpModel: e.target.value })} /></Field>
+            <Field id="i-pump-hp" label="Pump power (HP)"><Input id="i-pump-hp" className="num" inputMode="decimal" value={d.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} /></Field>
+            <Field id="i-pump-lowering" label="Pump lowered to (ft)"><Input id="i-pump-lowering" className="num" inputMode="decimal" value={d.pumpLowering} onChange={(e) => set({ pumpLowering: e.target.value })} /></Field>
+            <Field id="i-location" label="Location" className="sm:col-span-3" hint='Optional. Paste coordinates, for example "26.8930, 80.9420", or pick the spot on the map.'
+              warning={d.location.trim() && !at ? "These are not coordinates StrataField can read, so the borewell would be imported without a location." : undefined}>
+              <div className="flex gap-2">
+                <Input id="i-location" className="num" value={d.location} onChange={(e) => set({ location: e.target.value, locationSource: "typed" })} />
+                <Button variant="outline" onClick={() => setPicking(true)}><MapPin />Pick on the map</Button>
+              </div>
+            </Field>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Found {strata.length} soil layer{strata.length === 1 ? "" : "s"} and {pipes.length} pipe piece{pipes.length === 1 ? "" : "s"}. You can add a location after importing.
+            Found {strata.length} soil layer{strata.length === 1 ? "" : "s"} and {pipes.length} pipe piece{pipes.length === 1 ? "" : "s"}.{at ? "" : " You can also add the location after importing."}
           </p>
+          <MapPicker
+            key={picking ? "open" : "closed"}
+            open={picking}
+            initial={at}
+            search={at ? "" : [d.area, d.city].filter(Boolean).join(", ")}
+            others={others}
+            onClose={() => setPicking(false)}
+            onPick={(p) => { set({ location: `${p.latitude.toFixed(6)}, ${p.longitude.toFixed(6)}`, locationSource: p.found ? "address" : "map" }); setPicking(false); }}
+          />
         </Panel>
       </div>
 
@@ -349,7 +390,9 @@ function ColumnPicker({ file: f, onChange }: { file: ImportFile; onChange: (patc
   const shown = f.rows.slice(0, 40);
   const width = Math.max(2, ...shown.map((r) => r?.length ?? 0));
   const letter = (c: number) => (c < 26 ? String.fromCharCode(65 + c) : String(c + 1));
-  const columns = Array.from({ length: width }, (_, c) => ({ value: String(c), label: `Column ${letter(c)}` }));
+  // "Column B · To (ft)": the heading written above the first layer, when there is one.
+  const heading = (c: number) => { const h = String(f.rows[m.firstRow - 1]?.[c] ?? "").trim(); return h && !Number.isFinite(Number(h)) ? ` · ${h.slice(0, 24)}` : ""; };
+  const columns = Array.from({ length: width }, (_, c) => ({ value: String(c), label: `Column ${letter(c)}${heading(c)}` }));
   const optional = [{ value: NONE, label: "Not in this file" }, ...columns];
   const rowItems = shown.map((_, i) => ({ value: String(i), label: `Row ${i + 1}` }));
   const col = (v: string | null) => (v == null || v === NONE ? null : Number(v));
@@ -358,19 +401,22 @@ function ColumnPicker({ file: f, onChange }: { file: ImportFile; onChange: (patc
   const set = (patch: Partial<ColumnMapping>) => {
     const mapping = { ...m, ...patch };
     const result = parser!.parseStrataRows(f.rows, mapping);
-    onChange({ mapping, result, include: result.success, details: initialDetails(f.path, result), resolutions: {} });
+    // What was typed on this screen is kept; what was read from the file is read again.
+    const { borewellId, zone, location, locationSource } = f.details;
+    onChange({ mapping, result, include: false, details: { ...initialDetails(f.path, result), borewellId, zone, location, locationSource }, resolutions: {} });
   };
 
   return (
     <Panel title="Where the layers are in this file" bodyClassName="grid gap-4">
       <p className="text-sm text-muted-foreground">
         This file is not laid out like the drilling logs StrataField knows, so it made a guess. Check each choice against the start of the file, shown below.
+        The columns in use are shaded.
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Pick id="c-to" label="Layer ends at" value={String(m.depthCol)} items={columns} onPick={(v) => set({ depthCol: Number(v) })} />
+        <Pick id="c-to" label="Depth where each layer ends" value={String(m.depthCol)} items={columns} onPick={(v) => set({ depthCol: Number(v) })} />
         <Pick id="c-soil" label="Soil name" value={String(m.materialCol)} items={columns} onPick={(v) => set({ materialCol: Number(v) })} />
-        <Pick id="c-row" label="First layer row" value={String(m.firstRow)} items={rowItems} onPick={(v) => set({ firstRow: Number(v) })} />
-        <Pick id="c-from" label="Layer starts at" value={m.fromCol == null ? NONE : String(m.fromCol)} items={optional} onPick={(v) => set({ fromCol: col(v) })} />
+        <Pick id="c-row" label="Row of the first layer" value={String(m.firstRow)} items={rowItems} onPick={(v) => set({ firstRow: Number(v) })} />
+        <Pick id="c-from" label="Depth where each layer starts" value={m.fromCol == null ? NONE : String(m.fromCol)} items={optional} onPick={(v) => set({ fromCol: col(v) })} />
         <Pick id="c-pipe" label="Pipe type" value={m.pipeCol == null ? NONE : String(m.pipeCol)} items={optional} onPick={(v) => set({ pipeCol: col(v) })} />
         <Pick id="c-unit" label="Depths are in" value={m.unit} items={[{ value: "ft", label: "Feet" }, { value: "m", label: "Metres" }]} onPick={(v) => set({ unit: v === "m" ? "m" : "ft" })} />
       </div>
@@ -392,6 +438,9 @@ function ColumnPicker({ file: f, onChange }: { file: ImportFile; onChange: (patc
           </tbody>
         </table>
       </div>
+    {readable(f) && (f.include
+        ? <p className="text-sm text-ok">This file will be imported with these columns.</p>
+        : <div><Button variant="outline" onClick={() => onChange({ include: true })}><CircleCheck />These columns are right, import this file</Button></div>)}
     </Panel>
   );
 }

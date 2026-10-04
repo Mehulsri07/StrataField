@@ -44,7 +44,7 @@ export function AppShell() {
     <div className="grid h-full grid-cols-[224px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto]">
       <PatternDefs />
       <Sidebar summary={summary} />
-      <main className="min-h-0 min-w-0 overflow-auto">
+      <main className="min-h-0 min-w-0 overflow-auto [scrollbar-gutter:stable]">
         {startup?.error ? (
           <CannotOpen message={startup.error} folder={startup.dataFolder} />
         ) : (

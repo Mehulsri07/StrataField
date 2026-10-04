@@ -6,8 +6,8 @@ import { WaterIndex, waterColour, WATER_RAMP } from "@strata/core";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWaterYears } from "@/lib/hooks";
 
-const MARGIN_DEG = 0.035; // about 3.5 km around the borewells
-const CELLS = 180; // grid resolution across the longer side
+const MARGIN_DEG = 0.006; // about 600 m around the borewells, just past where the colours end
+const CELLS = 420; // grid resolution across the longer side: about 70 m a cell across Lucknow
 
 /**
  * Water-depth colours drawn as one image over the area around the borewells. Colours fade where
@@ -90,7 +90,7 @@ export function WaterLegend({ title = "How deep is the water? (feet)" }: { title
       <div className="num flex w-44 justify-between text-[10px] text-muted-foreground">
         {[40, 60, 80, 100, 120].map((v) => <span key={v}>{v}</span>)}
       </div>
-      <span className="text-[11px] text-muted-foreground">Darker means deeper. Colours are estimates between borewells.</span>
+      <span className="text-[11px] text-muted-foreground">Darker means deeper. Colours are estimates within 500 m of a borewell.</span>
     </div>
   );
 }

@@ -18,7 +18,7 @@ import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, formatWhen, zoneName } from "@/lib/format";
+import { formatDate, formatWhen, pumpText, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
 
@@ -126,6 +126,9 @@ export function BorewellDetail() {
                   <Fact label="Hole size" value={b.boreDia} unit="inch" />
                   <Fact label="Pipe size" value={b.pipeDia} unit="inch" />
                   <FactText label="Drilling method">{b.drillingMethod ? METHOD[b.drillingMethod] : "—"}</FactText>
+                  {pumpText({ ...b, pumpType: "" }) && <FactText label="Pump">{pumpText({ ...b, pumpType: "" })}</FactText>}
+                  {b.pumpType && <FactText label="Pump type">{b.pumpType}</FactText>}
+                  {b.pumpLowering != null && <Fact label="Pump lowered to" value={b.pumpLowering} unit="ft" />}
                   <FactText label="Date drilled">{b.date ? formatDate(b.date) : "—"}</FactText>
                   <FactText label="Zone">{zoneName(b.project)}</FactText>
                   <FactText label="Added by">{b.importMethod === "excel" ? `Excel file${b.importSource ? ` (${b.importSource})` : ""}` : b.importMethod === "legacy" ? "The older StrataField" : "Typed in"}</FactText>
@@ -406,7 +409,7 @@ function FilesTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
 
 function Fact({ label, value, unit }: { label: string; value: number | null; unit: string }) {
   return (
-    <div className="grid gap-0.5">
+    <div className="grid content-start gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="num text-[15px] font-medium">{value ?? "—"}{value != null && <small className="ml-1 text-xs font-normal text-muted-foreground">{unit}</small>}</dd>
     </div>
@@ -415,7 +418,7 @@ function Fact({ label, value, unit }: { label: string; value: number | null; uni
 
 function FactText({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-0.5">
+    <div className="grid content-start gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="text-[15px] font-medium">{children}</dd>
     </div>

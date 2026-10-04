@@ -3,6 +3,44 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Pump details.** A borewell now records its pump: the type, the make and model, the power in HP
+  and how deep it was lowered. Fill them in on the **Drilling & water** step; the fields suggest the
+  usual types, makes and powers, and models you have typed before. They show on the borewell's page
+  and in its PDF report and Excel export. A pump lowered above the water level, or deeper than the
+  borewell, is pointed out.
+- **Import reads the pump.** The "Pump Lowering = 250 ft" and "Pump = KSB 12C/17 , 5 HP" lines on a
+  drilling log are read into the lowering, the power and the model, shown for checking before you
+  import.
+
+- **Add the location while importing.** The Import screen has a **Location** box for each file:
+  paste the coordinates or use **Pick on the map**, which opens with the file's address searched.
+  It is optional; a borewell imported without one can still be given a location later.
+
+- **Zone while importing.** The Import screen also has a **Zone** box for each file.
+
+### Changed
+- **Import waits for you to check guessed columns.** A file laid out differently is no longer
+  imported until you have looked at the columns StrataField guessed and clicked **These columns
+  are right, import this file**. The column choices now show each column's heading and say what
+  they mean in plainer words.
+- **After importing**, a link leads straight to the borewells that still need a location, and the
+  Import button is gone when no file on the list can be imported.
+- **New borewell is easier to get right.** Every step can be opened at any time. Each problem on
+  the Check step says which box it is about ("Hole size: type a number here.") and takes you there
+  when clicked. Notes such as "The owner's name is empty" no longer appear before you have typed
+  anything. The Zone box explains what a zone is and says when it was carried over from the last
+  borewell. The Location step has three ways to choose from instead of four.
+- **Tidier screens.** Section headings and the lines under them now sit level across a screen,
+  every screen starts at the same left edge and no longer shifts when a scrollbar appears, the
+  Borewells list keeps each row to one height, and the borewell card on the Map no longer covers the
+  map's buttons.
+- **Water colours stay within 500 m of a borewell.** The Map used to colour up to about 3 km around
+  each borewell. An estimate that far away says little, so colours now reach 500 m and are drawn
+  finer. Zoom in to see them.
+
 ## [1.0.8] - 2026-10-03
 
 ### New

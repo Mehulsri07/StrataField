@@ -30,7 +30,7 @@ export function UpdateNotice() {
   };
 
   return (
-    <div role="status" className="mx-6 mt-5 flex flex-wrap items-center gap-3 rounded-md border border-primary/30 bg-accent p-4 text-sm text-accent-foreground">
+    <div role="status" className="mx-8 mt-5 flex max-w-[1256px] flex-wrap items-center gap-3 rounded-md border border-primary/30 bg-accent p-4 text-sm text-accent-foreground">
       <Download className="size-5 shrink-0" aria-hidden="true" />
       <div className="grid min-w-0 flex-1 gap-0.5">
         <b>{text.updates.available(update.version)}</b>

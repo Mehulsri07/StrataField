@@ -63,7 +63,7 @@ function legacyDatabase(file) {
  */
 function drillingLog(file) {
   const rows = [["Example Drilling Co"], [null, null, "Streta Chart", null, null, "Lowering Assambly"], ["Site:"]];
-  const side = ["Aliganj Test Site", "Sector H, Aliganj", "Lucknow.", null, "Water Level = 45 ft", 'Bore Dia = 10" / 200 ft', 'Tube Well = 6"/200 ft'];
+  const side = ["Aliganj Test Site", "Sector H, Aliganj", "Lucknow.", null, "Water Level = 45 ft", 'Bore Dia = 10" / 200 ft', 'Tube Well = 6"/200 ft', "Pump Lowering = 120 ft", "Pump =  KSB 3C/20 , 2 HP"];
   const soil = ["Clay", "Clay", "Kankar", "Fine Sand", "Fine Sand", "Coarse Sand", "Clay", "Gravel", "Coarse Sand", "Coarse Sand"];
   soil.forEach((m, i) => rows.push([side[i] ?? null, (i + 1) * 20, null, m, i < 5 ? null : "Ribbed Screen", i < 5 ? "Plain pipe" : null, null, (i + 1) * 20]));
   rows.push([], ["Date : 5/9/2026"]);

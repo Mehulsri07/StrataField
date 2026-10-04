@@ -77,6 +77,10 @@ export interface Borewell {
   importMethod: 'excel' | 'manual' | 'legacy';
   deletedAt: string | null;  // ISO datetime if in the Recycle bin, else null
   waterLevelOn: string | null; // date the water level was measured (newest reading, else the drilling date)
+  pumpType: string;          // e.g. "Borewell submersible, 4 inch (100 mm)"; '' when not recorded
+  pumpModel: string;         // make and model, e.g. "KSB 12C/17"
+  pumpHp: number | null;
+  pumpLowering: number | null; // how deep the pump hangs, feet below ground
 }
 
 /** What screens send to create or update a borewell. A new project name creates the project. */
@@ -235,6 +239,9 @@ export interface ParsedBoreholeMetadata {
   pipeDia: number | null;
   totalDepth: number | null;  // always in feet
   waterLevel: number | null;  // always in feet
+  pumpLowering: number | null; // always in feet
+  pumpHp: number | null;
+  pumpModel: string | null;
   detectedUnit: DepthUnit;
 }
 

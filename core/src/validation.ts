@@ -38,7 +38,7 @@ export function checkBorewell(b: BorewellInput): Issue[] {
 
   const nonNegative: [keyof BorewellInput, string][] = [
     ['totalDepth', 'Total depth'], ['waterLevel', 'Water level'], ['dynamicWaterLevel', 'Pumping water level'],
-    ['boreDia', 'Hole size'], ['pipeDia', 'Pipe size'],
+    ['boreDia', 'Hole size'], ['pipeDia', 'Pipe size'], ['pumpHp', 'Pump power'], ['pumpLowering', 'Pump lowering'],
   ];
   for (const [field, label] of nonNegative) {
     const v = b[field];
@@ -46,6 +46,11 @@ export function checkBorewell(b: BorewellInput): Issue[] {
   }
   if (isNum(b.totalDepth) && isNum(b.waterLevel) && b.waterLevel > b.totalDepth) {
     problem('waterLevel', `The water level (${b.waterLevel} ft) is deeper than the borewell (${b.totalDepth} ft).`);
+  }
+  if (isNum(b.pumpLowering) && isNum(b.totalDepth) && b.pumpLowering > b.totalDepth) {
+    problem('pumpLowering', `The pump (${b.pumpLowering} ft) is lowered deeper than the borewell (${b.totalDepth} ft).`);
+  } else if (isNum(b.pumpLowering) && b.pumpLowering > 0 && isNum(b.waterLevel) && b.pumpLowering <= b.waterLevel) {
+    warning('pumpLowering', `The pump (${b.pumpLowering} ft) is above the water level (${b.waterLevel} ft), so it would run dry. Check both.`);
   }
   if (isNum(b.boreDia) && isNum(b.pipeDia) && b.pipeDia > b.boreDia) {
     warning('pipeDia', `The pipe (${b.pipeDia}") is wider than the hole (${b.boreDia}"). Check both sizes.`);

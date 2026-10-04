@@ -458,7 +458,7 @@ function SoilTypes() {
           <TableBody>
             {(materials.data ?? []).map((m) => (
               <TableRow key={m.id}>
-                <TableCell className="pl-4"><span className="inline-flex items-center gap-2.5"><MaterialSwatch color={m.color} pattern={m.pattern} size={18} />{m.name}</span></TableCell>
+                <TableCell className="pl-4"><span className="inline-flex items-center gap-2.5 align-middle"><MaterialSwatch color={m.color} pattern={m.pattern} size={18} />{m.name}</span></TableCell>
                 <TableCell>{m.lithologyFamily ? FAMILY_NAME[m.lithologyFamily] : "—"}</TableCell>
                 <TableCell>{PATTERN_NAME[m.pattern as keyof typeof PATTERN_NAME] ?? m.pattern}</TableCell>
                 <TableCell>{m.isCustom ? <Chip tone="accent">Added by you</Chip> : <Chip>Built-in</Chip>}</TableCell>

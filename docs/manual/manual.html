@@ -100,7 +100,7 @@
 <p class="lead">Choose <b class="ui">New borewell</b>. There are six short steps; only the ID is required.</p>
 <figure><img src="shots/new-1-basics.jpg" alt="New borewell, step 1"><figcaption>Step 1, Basics. The ID is suggested for you; change it if you use your own numbering.</figcaption></figure>
 <ol>
-  <li><b>Basics.</b> The borewell's ID, the owner's name, the zone and the date it was drilled. For the zone, pick one you have used before or type a new name.</li>
+  <li><b>Basics.</b> The borewell's ID, the owner's name, the zone and the date it was drilled. A <b>zone</b> is your own name for a group of borewells, such as a part of the city; it is what the Home screen's "By zone" table and the zone filter use. Pick one you have used before or type a new name. The address, on the next step, only describes this one borewell.</li>
   <li><b>Location.</b> Type the area, then give the position in whichever way is easiest:
     <ul>
       <li>paste or type coordinates copied from a phone or Google Maps, for example <kbd>26.8742, 80.9480</kbd>;</li>
@@ -109,12 +109,13 @@
       <li>click <b class="ui">Search for the address</b> to open the map with the typed address already searched. A found place is approximate, so click the exact spot if you can see it.</li>
     </ul>
   </li>
-  <li><b>Drilling &amp; water.</b> Total depth, water level, hole size and pipe size.</li>
+  <li><b>Drilling &amp; water.</b> Total depth, water level, hole size and pipe size. Under <b>Pump</b>, the pump's type, its make and model, its power in HP and how deep it was lowered. Leave the pump empty if none was fitted.</li>
   <li><b>Layers &amp; pipes.</b> Click <b class="ui">Add layer</b> for each soil layer and type where it starts and ends. The drawing on the right fills in as you go.</li>
   <li><b>Photos &amp; files.</b> Optional. Site photos, the drilling log, permits.</li>
   <li><b>Check &amp; save.</b> Read it through, then click <b class="ui">Save borewell</b>.</li>
 </ol>
-<figure><img src="shots/new-2-location.jpg" alt="New borewell, step 2"><figcaption>Step 2, Location. Pasted coordinates are filled in and shown on the small map.</figcaption></figure>
+<figure><img src="shots/new-2-location.jpg" alt="New borewell, step 2"><figcaption>Step 2, Location. Pasted coordinates fill in the latitude and longitude.</figcaption></figure>
+<figure><img src="shots/new-3-drilling.jpg" alt="New borewell, drilling and pump step"><figcaption>Step 3. The pump fields suggest the usual types, makes and powers as you type; you can also type your own.</figcaption></figure>
 <figure><img src="shots/new-4-layers.jpg" alt="New borewell, layers step with a gap"><figcaption>Step 4. Here nothing was typed for 40 to 50 ft, so StrataField points it out.</figcaption></figure>
 <div class="tip"><p><b>Gaps between layers.</b> If a depth was not logged, do not guess. Click <b class="ui">Mark 40–50 ft as not recorded</b>. It is drawn as "Not recorded" and is never filled in by estimates.</p></div>
 <p>You can stop part-way. If you close StrataField before saving, the next time you open <b>New borewell</b> it picks up where you left off.</p>
@@ -128,7 +129,7 @@
   <tr><th style="width:38mm">It says</th><th>What it means</th></tr>
   <tr><td><b>Ready</b></td><td>Everything was found. Have a quick look and import.</td></tr>
   <tr><td><b>Needs a look</b></td><td>It can be imported, but something is noted: no water level in the file, depths converted from metres, a second log on the same sheet. Read the notes; type in anything missing if you know it.</td></tr>
-  <tr><td><b>Check the columns</b></td><td>The file is laid out differently, so StrataField guessed where things are. See below.</td></tr>
+  <tr><td><b>Check the columns</b></td><td>The file is laid out differently, so StrataField guessed where things are. It is left out until you have checked the guess and clicked <b class="ui">These columns are right, import this file</b>. See below.</td></tr>
   <tr><td><b>Cannot be read</b></td><td>The file could not be opened. Add the borewell by hand and attach the file to it.</td></tr>
 </table>
 <p>Untick a file to leave it out. Then click <b class="ui">Import … borewells</b>. The original Excel file is kept with each borewell, under its <b>Files</b> tab.</p>
@@ -136,7 +137,7 @@
 <figure><img src="shots/import-columns.jpg" alt="Choosing the columns"><figcaption>The start of the file is shown, with the columns in use shaded. Change a choice and the drawing updates.</figcaption></figure>
 <p>Under <b>Where the layers are in this file</b>, check that each box points at the right column: where a layer ends, the soil name, the first row with a layer, and, if the file has them, where a layer starts and the pipe type. Say whether the depths are in feet or metres.</p>
 <h2>After importing</h2>
-<p>An imported borewell has no position on the map, and may have no owner, water level or date if the file did not say. To find them, open <b>Borewells</b> and click <b class="ui">No location</b> or <b class="ui">Missing details</b>. The notes from the Import screen are kept in each borewell's <b>History</b> tab.</p>
+<p>Give each file its <b>Zone</b> on the Import screen, the same way as for a new borewell. The file does not say where the borewell is. Under <b>Location</b> on the Import screen you can paste its coordinates or click <b class="ui">Pick on the map</b> before importing; left empty, the borewell has no position on the map until you add one. It may also have no owner, water level or date if the file did not say. To find them, open <b>Borewells</b> and click <b class="ui">No location</b> or <b class="ui">Missing details</b>. The notes from the Import screen are kept in each borewell's <b>History</b> tab.</p>
 
 <h1>4. Find a borewell</h1>
 <p class="lead">Open <b class="ui">Borewells</b>, or press <kbd>Ctrl</kbd> + <kbd>K</kbd> from anywhere and start typing.</p>
@@ -180,7 +181,7 @@
 <ul>
   <li>Click a dot to see that borewell; click its name in the list on the right to find it on the map.</li>
   <li>A circle with a number is several borewells close together. Click it to zoom in.</li>
-  <li>The colours between borewells are estimates, and fade out far from any borewell.</li>
+  <li>The colours are estimates and are only drawn within 500 m of a borewell, so zoom in to see them. Further away nothing is coloured.</li>
   <li><b class="ui">Water depth colours</b> turns the colours off and on. <b class="ui">Show all</b> zooms back out to every borewell.</li>
 </ul>
 <h2>Which water readings count</h2>
