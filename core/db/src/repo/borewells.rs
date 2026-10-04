@@ -11,7 +11,8 @@ const COLUMNS: &str = "b.id, b.project_id, COALESCE(p.name, ''), b.borewell_id, 
     b.import_batch_id, b.import_source, b.import_method, b.deleted_at,
     CASE WHEN b.water_level IS NULL THEN NULL ELSE COALESCE(
         (SELECT MAX(w.measured_on) FROM water_readings w WHERE w.borewell_id = b.id AND w.static_level IS NOT NULL),
-        NULLIF(b.date, '')) END";
+        NULLIF(b.date, '')) END,
+    b.pump_type, b.pump_model, b.pump_hp, b.pump_lowering";
 
 const FROM: &str = "FROM borewells b LEFT JOIN projects p ON p.id = b.project_id";
 
@@ -49,6 +50,10 @@ fn map_row(r: &Row) -> rusqlite::Result<Borewell> {
         import_method: r.get(29)?,
         deleted_at: r.get(30)?,
         water_level_on: r.get(31)?,
+        pump_type: r.get(32)?,
+        pump_model: r.get(33)?,
+        pump_hp: r.get(34)?,
+        pump_lowering: r.get(35)?,
     })
 }
 
@@ -150,8 +155,8 @@ pub fn create(conn: &Connection, input: &BorewellInput) -> Result<Borewell> {
         "INSERT INTO borewells (id, project_id, borewell_id, owner_name, house_no, area, city, address, latitude, longitude,
             location_source, location_accuracy_m, ground_elevation_m, elevation_source, bore_dia, pipe_dia, total_depth,
             water_level, dynamic_water_level, depth_unit, drilling_method, record_quality, remarks, date, created_at,
-            updated_at, import_batch_id, import_source, import_method)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?25, ?26, ?27, ?28)",
+            updated_at, import_batch_id, import_source, import_method, pump_type, pump_model, pump_hp, pump_lowering)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)",
         params![
             id, project_id, input.borewell_id.trim(), input.owner_name.trim(), input.house_no, input.area, input.city,
             input.address, input.latitude, input.longitude, location_source(input), input.location_accuracy_m,
@@ -159,6 +164,7 @@ pub fn create(conn: &Connection, input: &BorewellInput) -> Result<Borewell> {
             input.water_level, input.dynamic_water_level, input.depth_unit.as_deref().unwrap_or("ft"),
             input.drilling_method, input.record_quality.as_deref().unwrap_or("unknown"), input.remarks, input.date, ts,
             input.import_batch_id, input.import_source, input.import_method.as_deref().unwrap_or("manual"),
+            input.pump_type.trim(), input.pump_model.trim(), input.pump_hp, input.pump_lowering,
         ],
     )?;
     let created = get(conn, &id)?;
@@ -188,7 +194,8 @@ pub fn update(conn: &Connection, id: &str, input: &BorewellInput) -> Result<Bore
             address = ?8, latitude = ?9, longitude = ?10, location_source = ?11, location_accuracy_m = ?12,
             ground_elevation_m = ?13, elevation_source = ?14, bore_dia = ?15, pipe_dia = ?16, total_depth = ?17,
             water_level = ?18, dynamic_water_level = ?19, depth_unit = ?20, drilling_method = ?21, record_quality = ?22,
-            remarks = ?23, date = ?24, updated_at = ?25
+            remarks = ?23, date = ?24, updated_at = ?25, pump_type = ?26, pump_model = ?27, pump_hp = ?28,
+            pump_lowering = ?29
          WHERE id = ?1",
         params![
             id, project_id, input.borewell_id.trim(), input.owner_name.trim(), input.house_no, input.area, input.city,
@@ -196,7 +203,7 @@ pub fn update(conn: &Connection, id: &str, input: &BorewellInput) -> Result<Bore
             input.ground_elevation_m, input.elevation_source, input.bore_dia, input.pipe_dia, input.total_depth,
             input.water_level, input.dynamic_water_level, input.depth_unit.as_deref().unwrap_or(&before.depth_unit),
             input.drilling_method, input.record_quality.as_deref().unwrap_or(&before.record_quality), input.remarks,
-            input.date, now(),
+            input.date, now(), input.pump_type.trim(), input.pump_model.trim(), input.pump_hp, input.pump_lowering,
         ],
     )?;
     let after = get(conn, id)?;
@@ -331,6 +338,8 @@ fn validate(input: &BorewellInput) -> Result<()> {
         ("Water level", input.water_level),
         ("Hole size", input.bore_dia),
         ("Pipe size", input.pipe_dia),
+        ("Pump power", input.pump_hp),
+        ("Pump lowering", input.pump_lowering),
     ] {
         if matches!(v, Some(x) if x < 0.0 || !x.is_finite()) {
             return Err(DbError::Invalid(format!("{name} cannot be negative.")));

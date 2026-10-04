@@ -182,6 +182,13 @@ pub const MIGRATIONS: &[&str] = &[
     CREATE INDEX idx_files_borewell      ON files(borewell_id);
     CREATE INDEX idx_history_entity      ON record_history(entity, entity_id);
     "#,
+    // 2: the pump fitted in a borewell.
+    r#"
+    ALTER TABLE borewells ADD COLUMN pump_type     TEXT NOT NULL DEFAULT '';
+    ALTER TABLE borewells ADD COLUMN pump_model    TEXT NOT NULL DEFAULT '';
+    ALTER TABLE borewells ADD COLUMN pump_hp       REAL;
+    ALTER TABLE borewells ADD COLUMN pump_lowering REAL;
+    "#,
 ];
 
 /// The schema version this build understands.

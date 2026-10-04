@@ -3,6 +3,23 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Pump details.** A borewell now records its pump: the type, the make and model, the power in HP
+  and how deep it was lowered. Fill them in on the **Drilling & water** step; the fields suggest the
+  usual types, makes and powers, and models you have typed before. They show on the borewell's page
+  and in its PDF report and Excel export. A pump lowered above the water level, or deeper than the
+  borewell, is pointed out.
+- **Import reads the pump.** The "Pump Lowering = 250 ft" and "Pump = KSB 12C/17 , 5 HP" lines on a
+  drilling log are read into the lowering, the power and the model, shown for checking before you
+  import.
+
+### Changed
+- **Water colours stay within 500 m of a borewell.** The Map used to colour up to about 3 km around
+  each borewell. An estimate that far away says little, so colours now reach 500 m and are drawn
+  finer. Zoom in to see them.
+
 ## [1.0.8] - 2026-10-03
 
 ### New

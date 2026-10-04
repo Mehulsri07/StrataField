@@ -18,7 +18,7 @@ import { useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
 import { cn } from "cn";
 
-interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string }
+interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string; pumpModel: string; pumpHp: string; pumpLowering: string }
 
 /** The Excel reader, loaded when the first file is chosen (it is large, and only this screen uses it). */
 let parser: typeof import("@strata/core/parser") | null = null;
@@ -78,6 +78,9 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
     waterLevel: n(m?.waterLevel),
     boreDia: n(m?.boreDia),
     pipeDia: n(m?.pipeDia),
+    pumpModel: m?.pumpModel ?? "",
+    pumpHp: n(m?.pumpHp),
+    pumpLowering: n(m?.pumpLowering),
   };
 }
 
@@ -149,6 +152,7 @@ export function ImportPage() {
         const borewell: BorewellInput = {
           borewellId: d.borewellId.trim(), ownerName: d.ownerName.trim(), area: d.area, city: d.city, date: d.date,
           totalDepth: num(d.totalDepth), waterLevel: num(d.waterLevel), boreDia: num(d.boreDia), pipeDia: num(d.pipeDia),
+          pumpModel: d.pumpModel.trim(), pumpHp: num(d.pumpHp), pumpLowering: num(d.pumpLowering),
           locationSource: "unknown", importSource: f.name,
         };
         const strata = (f.result?.strata ?? []).map((l) => resolveLayer(l, f.resolutions, mats));
@@ -329,6 +333,9 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
                 <Input className="num" inputMode="decimal" value={d.pipeDia} onChange={(e) => set({ pipeDia: e.target.value })} aria-label="Pipe size (inch)" />
               </div>
             </Field>
+            <Field id="i-pump" label="Pump model"><Input id="i-pump" value={d.pumpModel} onChange={(e) => set({ pumpModel: e.target.value })} /></Field>
+            <Field id="i-pump-hp" label="Pump power (HP)"><Input id="i-pump-hp" className="num" inputMode="decimal" value={d.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} /></Field>
+            <Field id="i-pump-lowering" label="Pump lowered to (ft)"><Input id="i-pump-lowering" className="num" inputMode="decimal" value={d.pumpLowering} onChange={(e) => set({ pumpLowering: e.target.value })} /></Field>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
             Found {strata.length} soil layer{strata.length === 1 ? "" : "s"} and {pipes.length} pipe piece{pipes.length === 1 ? "" : "s"}. You can add a location after importing.

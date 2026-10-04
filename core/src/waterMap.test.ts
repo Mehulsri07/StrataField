@@ -23,7 +23,13 @@ describe('estimateWater', () => {
     expect(e.value).toBeGreaterThan(112);
     expect(e.value).toBeLessThan(124);
     expect(e.value).toBeGreaterThan(118); // closer to Aminabad
-    expect(e.strength).toBe(1);
+  });
+
+  it('is at full strength within 300 m of a borewell and gone by 500 m', () => {
+    const north = (km: number) => estimateWater(aminabad.latitude + km / 110.57, aminabad.longitude, [aminabad])!.strength;
+    expect(north(0.25)).toBe(1);
+    expect(north(0.4)).toBeCloseTo(0.5, 5);
+    expect(north(0.51)).toBe(0);
   });
 
   it('fades out far from any borewell', () => {
@@ -71,7 +77,7 @@ describe('WaterIndex (many borewells)', () => {
 
   it('matches looking at every borewell when all are close together', () => {
     const few = [aminabad, hazratganj, { latitude: 26.86, longitude: 80.94, waterLevel: 90 }];
-    const small = new WaterIndex(few);
+    const small = new WaterIndex(few, 5);
     expect(small.estimate(26.85, 80.935)).toEqual(estimateWater(26.85, 80.935, few));
   });
 

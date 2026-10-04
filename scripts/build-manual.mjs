@@ -144,7 +144,11 @@ async function takeShots() {
     await shot("new-1-basics");
     await page(`__t.btn('Next: Location').click(); await __t.wait(400); __t.type(document.querySelector('#f-area'), 'Kapoorthala, Aliganj'); __t.type(document.querySelector('#f-paste'), '26.8742, 80.9480'); await __t.wait(1500); return true;`);
     await shot("new-2-location", 1500);
-    await page(`__t.btn('Next: Drilling').click(); await __t.wait(400); __t.type(document.querySelector('#f-depth'), '120'); __t.type(document.querySelector('#f-water'), '45'); __t.btn('Next: Layers').click(); await __t.wait(400);
+    await page(`__t.btn('Next: Drilling').click(); await __t.wait(400); __t.type(document.querySelector('#f-depth'), '120'); __t.type(document.querySelector('#f-water'), '45');
+      __t.type(document.querySelector('#f-pump-type'), 'Borewell submersible, 4 inch (100 mm)'); __t.type(document.querySelector('#f-pump-model'), 'KSB 3C/20');
+      __t.type(document.querySelector('#f-pump-hp'), '2'); __t.type(document.querySelector('#f-pump-lowering'), '100'); return true;`);
+    await shot("new-3-drilling");
+    await page(`__t.btn('Next: Layers').click(); await __t.wait(400);
       __t.btn('Add layer').click(); await __t.wait(150); __t.type(document.querySelector('input[aria-label="Layer 1 to"]'), '40'); await __t.choose(document.querySelector('[aria-label="Layer 1 soil type"]'), 'Clay');
       __t.btn('Add layer').click(); await __t.wait(150); __t.type(document.querySelector('input[aria-label="Layer 2 from"]'), '50'); __t.type(document.querySelector('input[aria-label="Layer 2 to"]'), '120'); await __t.choose(document.querySelector('[aria-label="Layer 2 soil type"]'), 'Coarse Sand'); await __t.wait(300); return true;`);
     await shot("new-4-layers");

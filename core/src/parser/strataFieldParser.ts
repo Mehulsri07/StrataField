@@ -354,6 +354,14 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
   };
 }
 
+/** Splits what a log says about the pump, "KSB 12C/17 , 5 HP", into its power (5) and the rest ("KSB 12C/17"). */
+export function parsePump(text: string): { hp: number | null; model: string } {
+  const hp = /([0-9]+(?:\.[0-9]+)?)\s*hp\b/i.exec(text);
+  const model = text.replace(/[0-9.]+\s*hp\b/i, ' ').replace(/,/g, ' ').replace(/\/\s+/g, '/')
+    .replace(/(^|\s)\/+/g, ' ').replace(/\/+(\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+  return { hp: hp ? parseFloat(hp[1]) : null, model };
+}
+
 function mergeRuns<T extends { startDepth: number; endDepth: number }>(items: T[], same: (a: T, b: T) => boolean): T[] {
   const out: T[] = [];
   for (const item of items) {
@@ -377,6 +385,9 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
     pipeDia: null,
     totalDepth: null,
     waterLevel: null,
+    pumpLowering: null,
+    pumpHp: null,
+    pumpModel: null,
     detectedUnit: 'ft',
   };
 
@@ -421,6 +432,22 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
     const wlMatch = col0.match(/(?:water\s*level|swl)\s*(?:depth)?\s*[:=]\s*([0-9.]+)/i);
     if (wlMatch) {
       meta.waterLevel = parseFloat(wlMatch[1]);
+    }
+
+    // Pump: "Pump Lowering = 250 ft" and "Pump = KSB 12C/17 , 5 HP". A label without "=" has its
+    // value in the next filled cell ("Pump model | 12C/17 KSB").
+    const pump = /^pump\s*(lower\w*|model)?(?:\s+at)?\s*(=?)\s*(.*)$/i.exec(col0);
+    if (pump && (pump[1] || pump[2])) {
+      const value = (pump[3] || (pump[2] ? '' : String(row.slice(1).find(c => String(c ?? '').trim()) ?? ''))).trim();
+      if (/^lower/i.test(pump[1] ?? '')) {
+        // The unit is written with the number; a bare number is feet, as on almost every log.
+        const depth = /([0-9.]+)\s*(m|mt|mtr|met\w*)?\b/i.exec(value);
+        if (depth && meta.pumpLowering === null) meta.pumpLowering = round1(parseFloat(depth[1]) * (depth[2] ? METRES_TO_FEET : 1));
+      } else if (value && meta.pumpModel === null) {
+        const { hp, model } = parsePump(value);
+        meta.pumpHp = hp;
+        meta.pumpModel = model || null;
+      }
     }
 
     // Date
@@ -597,6 +624,7 @@ function makeFailResult(message: string, anomalies: ParseAnomaly[]): ExcelParseR
     metadata: {
       siteName: null, ownerName: null, address: null, city: null, date: null,
       boreDia: null, pipeDia: null, totalDepth: null, waterLevel: null,
+      pumpLowering: null, pumpHp: null, pumpModel: null,
       detectedUnit: 'ft',
     },
     strata: [],

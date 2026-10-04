@@ -11,7 +11,7 @@ import * as xlsx from 'xlsx';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { guessMapping, parseStrataRows, parseStrataWorkbook } from './strataFieldParser';
+import { guessMapping, parsePump, parseStrataRows, parseStrataWorkbook } from './strataFieldParser';
 
 const smartParseExcel = (filePath: string) => parseStrataWorkbook(fs.readFileSync(filePath));
 
@@ -409,6 +409,39 @@ describe('a field log as it is really written', () => {
       waterLevel: 85, boreDia: 12, totalDepth: 140, pipeDia: 8, date: '2019-03-14', detectedUnit: 'ft',
     });
     expect(r.anomalies.map(a => a.code)).toEqual([]);
+  });
+});
+
+describe('the pump written on a log', () => {
+  it('splits the power from the make and model, however they are ordered', () => {
+    expect(parsePump('KSB , 12C/17 5 HP')).toEqual({ hp: 5, model: 'KSB 12C/17' });
+    expect(parsePump('3AH/12 , 1.5 HP')).toEqual({ hp: 1.5, model: '3AH/12' });
+    expect(parsePump('CRI 1.5HP/15 stage')).toEqual({ hp: 1.5, model: 'CRI 15 stage' });
+    expect(parsePump('KSB 7C/ 22')).toEqual({ hp: null, model: 'KSB 7C/22' });
+    expect(parsePump('3 HP / 15 Stage')).toEqual({ hp: 3, model: '15 Stage' });
+  });
+
+  const log = (pumpRows: (string | number | null)[][]) => parseStrataRows([
+    [null, null, 'Streta Chart', null, null, 'Lowering Assambly'],
+    ['Site: Example House', 'G. L.', '10"', 'G. L.', null, '6"'],
+    ['Lucknow', 50, 'Clay', null, null, 'Plain pipe', null, 50],
+    ...pumpRows,
+    ['Water Level = 60 ft', 200, 'Sand', null, null, 'Slotted pipe', null, 200],
+  ]).metadata;
+
+  it('reads the lowering and the pump from their usual lines, beside the layer rows', () => {
+    expect(log([['Pump Lowering = 220 Ft', 100, 'Clay', null, null, 'Plain pipe', null, 100], ['Pump =  KSB 12C/17 , 5 HP', 150, 'Clay', null, null, 'Plain pipe', null, 150]]))
+      .toMatchObject({ pumpLowering: 220, pumpHp: 5, pumpModel: 'KSB 12C/17', waterLevel: 60 });
+  });
+
+  it('leaves the pump empty when the lines are blank, and never takes the depth beside them', () => {
+    expect(log([['Pump Lowering = ', 100, 'Clay'], ['Pump = ', 150, 'Clay']]))
+      .toMatchObject({ pumpLowering: null, pumpHp: null, pumpModel: null });
+  });
+
+  it('reads a value written in the next cell when the label has no "="', () => {
+    expect(log([['Pump lowered at', '36 mt (50 mm)', 'Clay'], ['Pump model', '12C/17 KSB'], ['Praposed Pump House', 150, 'Clay']]))
+      .toMatchObject({ pumpLowering: 118.1, pumpHp: null, pumpModel: '12C/17 KSB' });
   });
 });
 

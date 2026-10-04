@@ -17,7 +17,7 @@ import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, zoneName } from "@/lib/format";
+import { formatDate, pumpText, zoneName } from "@/lib/format";
 import { numberText, parseCoordinatePair, parseNumber } from "@strata/core";
 import { text } from "@/text";
 import { cn } from "cn";
@@ -44,7 +44,19 @@ interface FormState {
   pipeDia: string;
   drillingMethod: DrillingMethod | "";
   remarks: string;
+  pumpType: string;
+  pumpModel: string;
+  pumpHp: string;
+  pumpLowering: string;
 }
+
+// Kinds, makes and motor ratings as the makers' selection charts list them.
+const PUMP_TYPES = [
+  "Borewell submersible, 3 inch (80 mm)", "Borewell submersible, 4 inch (100 mm)", "Borewell submersible, 6 inch (150 mm)",
+  "Openwell submersible", "Monobloc", "Self-priming monobloc", "Jet pump", "Hand pump",
+];
+const PUMP_MAKES = ["KSB", "CRI", "Kirloskar", "Bahubali", "Pluga", "Varuna", "Lubi", "Crompton", "CG"];
+const PUMP_HP = ["0.5", "0.75", "1", "1.5", "2", "3", "4", "5", "6", "7.5", "10", "12.5", "15", "17.5", "20", "25"];
 
 interface StagedPhoto { path: string; captureDate: string | null; latitude: number | null; longitude: number | null }
 
@@ -59,6 +71,7 @@ const emptyForm = (): FormState => ({
   houseNo: "", address: "", area: "", city: text.app.city,
   latitude: "", longitude: "", locationSource: "unknown",
   totalDepth: "", waterLevel: "", dynamicWaterLevel: "", boreDia: "", pipeDia: "", drillingMethod: "", remarks: "",
+  pumpType: "", pumpModel: "", pumpHp: "", pumpLowering: "",
 });
 
 function readDraft(): { draft: Draft; restored: boolean } {
@@ -105,6 +118,7 @@ function toInput(f: FormState): BorewellInput {
     locationSource: lat != null && lon != null ? (f.locationSource === "unknown" ? "typed" : f.locationSource) : "unknown",
     totalDepth: n(f.totalDepth), waterLevel: n(f.waterLevel), dynamicWaterLevel: n(f.dynamicWaterLevel),
     boreDia: n(f.boreDia), pipeDia: n(f.pipeDia), drillingMethod: f.drillingMethod || null, remarks: f.remarks,
+    pumpType: f.pumpType.trim(), pumpModel: f.pumpModel.trim(), pumpHp: n(f.pumpHp), pumpLowering: n(f.pumpLowering),
   };
 }
 
@@ -115,6 +129,7 @@ function fromBorewell(b: Borewell): FormState {
     latitude: numberText(b.latitude), longitude: numberText(b.longitude), locationSource: b.locationSource,
     totalDepth: numberText(b.totalDepth), waterLevel: numberText(b.waterLevel), dynamicWaterLevel: numberText(b.dynamicWaterLevel),
     boreDia: numberText(b.boreDia), pipeDia: numberText(b.pipeDia), drillingMethod: b.drillingMethod ?? "", remarks: b.remarks,
+    pumpType: b.pumpType, pumpModel: b.pumpModel, pumpHp: numberText(b.pumpHp), pumpLowering: numberText(b.pumpLowering),
   };
 }
 
@@ -175,7 +190,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   const pipes = toPipes(draft.pipes);
 
   const duplicate = (all.data ?? []).some((i) => i.borewell.borewellId.toLowerCase() === f.borewellId.trim().toLowerCase() && i.borewell.id !== id);
-  const numberIssues: Issue[] = (["totalDepth", "waterLevel", "dynamicWaterLevel", "boreDia", "pipeDia", "latitude", "longitude"] as const)
+  const numberIssues: Issue[] = (["totalDepth", "waterLevel", "dynamicWaterLevel", "boreDia", "pipeDia", "latitude", "longitude", "pumpHp", "pumpLowering"] as const)
     .filter((k) => parseNumber(f[k]) === undefined)
     .map((k) => ({ severity: "problem", field: k, message: "Type a number here." }));
   const borewellIssues: Issue[] = [
@@ -299,7 +314,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
         />
       )}
 
-      {step === "drilling" && (
+      {step === "drilling" && (<div className="grid gap-7">
         <Panel title="Drilling & water">
           <div className="grid gap-4 sm:grid-cols-3">
             <NumberField id="f-depth" label="Total depth (ft)" value={f.totalDepth} onChange={(v) => set({ totalDepth: v })} error={err("totalDepth")} />
@@ -318,6 +333,26 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
             </Field>
           </div>
         </Panel>
+        <Panel title="Pump">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field id="f-pump-type" label="Pump type" hint="Pick one, or type your own.">
+              <Input id="f-pump-type" list="f-pump-types" value={f.pumpType} onChange={(e) => set({ pumpType: e.target.value })} />
+              <datalist id="f-pump-types">{PUMP_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+            </Field>
+            <Field id="f-pump-model" label="Pump model" hint="Make and model, e.g. KSB 12C/17.">
+              <Input id="f-pump-model" list="f-pump-models" value={f.pumpModel} onChange={(e) => set({ pumpModel: e.target.value })} />
+              <datalist id="f-pump-models">
+                {[...new Set([...(all.data ?? []).map((i) => i.borewell.pumpModel).filter(Boolean), ...PUMP_MAKES])].map((m) => <option key={m} value={m} />)}
+              </datalist>
+            </Field>
+            <Field id="f-pump-hp" label="Power (HP)" error={err("pumpHp")}>
+              <Input id="f-pump-hp" className="num" inputMode="decimal" list="f-pump-hps" value={f.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} aria-invalid={!!err("pumpHp") || undefined} />
+              <datalist id="f-pump-hps">{PUMP_HP.map((h) => <option key={h} value={h} />)}</datalist>
+            </Field>
+            <NumberField id="f-pump-lowering" label="Pump lowered to (ft)" hint="How deep the pump hangs, from the ground." value={f.pumpLowering} onChange={(v) => set({ pumpLowering: v })} error={err("pumpLowering")} warning={warn("pumpLowering")} />
+          </div>
+        </Panel>
+      </div>
       )}
 
       {step === "layers" && !editing && (
@@ -590,6 +625,8 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
           {row("Water level", ft(input.waterLevel))}
           {row("Hole / pipe size", (input.boreDia != null || input.pipeDia != null) && <span className="num">{input.boreDia ?? "—"}" / {input.pipeDia ?? "—"}"</span>)}
           {row("Drilling method", METHODS.find((m) => m.value === f.drillingMethod)?.label)}
+          {row("Pump", pumpText(input))}
+          {row("Pump lowered to", ft(input.pumpLowering))}
           {row("Notes", f.remarks)}
         </>)}
         {!editing && section("Layers, pipes, photos & files", "layers", <>

@@ -34,6 +34,55 @@ fn new_database_is_created_at_the_latest_schema_with_default_materials() {
 }
 
 #[test]
+fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
+    let dir = tempfile::tempdir().unwrap();
+    {
+        let (db, _) = Database::open(dir.path()).unwrap();
+        db.with_tx(|tx| borewells::create(tx, &input("BW-OLD")))
+            .unwrap();
+        // Put the file back to how version 1 left it.
+        db.with(|c| {
+            for col in ["pump_type", "pump_model", "pump_hp", "pump_lowering"] {
+                c.execute_batch(&format!("ALTER TABLE borewells DROP COLUMN {col}"))?;
+            }
+            Ok(c.execute_batch("PRAGMA user_version = 1")?)
+        })
+        .unwrap();
+    }
+    let (db, report) = Database::open(dir.path()).unwrap();
+    assert_eq!(report.previous_version, 1);
+    assert_eq!(report.schema_version, schema::LATEST_VERSION);
+    assert!(
+        report.upgrade_backup.is_some(),
+        "a backup is made before upgrading"
+    );
+    let old = db
+        .with(|c| borewells::search(c, &SearchFilters::default()))
+        .unwrap();
+    assert_eq!(old[0].borewell.borewell_id, "BW-OLD");
+    assert_eq!(
+        (old[0].borewell.pump_model.as_str(), old[0].borewell.pump_hp),
+        ("", None)
+    );
+
+    let mut with_pump = input("BW-NEW");
+    with_pump.pump_type = "Borewell submersible".into();
+    with_pump.pump_model = " KSB 12C/17 ".into();
+    with_pump.pump_hp = Some(5.0);
+    with_pump.pump_lowering = Some(220.0);
+    let saved = db.with_tx(|tx| borewells::create(tx, &with_pump)).unwrap();
+    assert_eq!(saved.pump_model, "KSB 12C/17");
+    assert_eq!(
+        (saved.pump_hp, saved.pump_lowering),
+        (Some(5.0), Some(220.0))
+    );
+    with_pump.pump_hp = Some(-1.0);
+    assert!(db
+        .with_tx(|tx| borewells::update(tx, &saved.id, &with_pump))
+        .is_err());
+}
+
+#[test]
 fn reopening_is_idempotent_and_keeps_data() {
     let dir = tempfile::tempdir().unwrap();
     {

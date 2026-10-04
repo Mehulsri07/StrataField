@@ -8,7 +8,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { PatternDefs } from "@/components/geology/patterns";
 import { isPreview } from "./api";
-import { formatDate, zoneName } from "./format";
+import { formatDate, pumpText, zoneName } from "./format";
 
 // Light-theme colours for anything printed or saved: files are read outside the app's theme.
 const PRINT_COLOURS: Record<string, string> = {
@@ -164,6 +164,8 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
       ...(b.dynamicWaterLevel != null ? [["Water level while pumping", ft(b.dynamicWaterLevel)] as [string, string]] : []),
       ["Hole size / pipe size", `${inch(b.boreDia)} / ${inch(b.pipeDia)}`],
       ["Drilling method", b.drillingMethod ? METHOD[b.drillingMethod] : "—"],
+      ...(pumpText(b) ? [["Pump", pumpText(b)] as [string, string]] : []),
+      ...(b.pumpLowering != null ? [["Pump lowered to", ft(b.pumpLowering)] as [string, string]] : []),
       ["Date drilled", b.date ? formatDate(b.date) : "—"],
       ["Owner", b.ownerName || "—"],
       ["Address", [b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ") || "—"],

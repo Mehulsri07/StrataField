@@ -23,7 +23,7 @@ export interface WaterEstimate {
 }
 
 /** Full strength within `fullKm` of a borewell, nothing beyond `goneKm`. */
-export const FADE = { fullKm: 1.6, goneKm: 3.4 };
+export const FADE = { fullKm: 0.3, goneKm: 0.5 };
 
 /** Distance in km (flat-earth approximation, accurate to well under 1% across a city). */
 export function kmBetween(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -50,7 +50,7 @@ export function estimateWater(latitude: number, longitude: number, points: Water
  * Only borewells within this distance count towards an estimate. Nearby borewells say most about the
  * water at a place, and colours are only shown within `FADE.goneKm` of a borewell anyway.
  */
-export const NEIGHBOURHOOD_KM = 5;
+export const NEIGHBOURHOOD_KM = 1;
 
 /**
  * Water points grouped by area, so the whole map can be estimated quickly even with thousands of

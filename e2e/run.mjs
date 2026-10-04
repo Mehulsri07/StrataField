@@ -88,9 +88,11 @@ try {
     const r = await __t.invoke('borewell_get', { id: ex.borewell.id });
     const b = r.borewell;
     return { id: ex.borewell.id, code: b.borewellId, layers: r.strata.length, pipes: r.pipes.map(p => p.startDepth + '-' + p.endDepth + ' ' + p.pipeType).join(', '),
-      details: [b.ownerName, b.area, b.city, b.date, b.waterLevel, b.totalDepth, b.boreDia, b.pipeDia].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
+      details: [b.ownerName, b.area, b.city, b.date, b.waterLevel, b.totalDepth, b.boreDia, b.pipeDia].join(' | '),
+      pump: [b.pumpModel, b.pumpHp, b.pumpLowering].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
   check("Excel import joins repeated soil rows into layers and reads both pipe columns", imported.layers === 7 && imported.pipes === "0-100 plain, 100-200 slotted", JSON.stringify(imported));
   check("…and fills in the details written beside the layers", imported.details === "Aliganj Test Site | Sector H, Aliganj | Lucknow | 2026-09-05 | 45 | 200 | 10 | 6" && imported.code === "Aliganj site log", imported.details + " / " + imported.code);
+  check("…and the pump written on the log: model, power and lowering", imported.pump === "KSB 3C/20 | 2 | 120", imported.pump);
   check("The original Excel file is kept with the imported borewell", imported.files.includes("excel:Aliganj site log.xlsx"), imported.files.join(", "));
 
   // ── Excel import of a file laid out differently ────────────────────────
@@ -203,6 +205,12 @@ try {
     __t.btn('Next: Drilling').click(); await __t.wait(300);
     __t.type(document.querySelector('#f-depth'), '100'); __t.type(document.querySelector('#f-water'), '45');
     await __t.choose(document.querySelector('#f-method'), 'Rotary');
+    __t.type(document.querySelector('#f-pump-type'), 'Borewell submersible, 4 inch (100 mm)');
+    __t.type(document.querySelector('#f-pump-model'), 'KSB 3C/20'); __t.type(document.querySelector('#f-pump-hp'), '2');
+    // A pump above the water would run dry: the form says so, and lets it be corrected.
+    __t.type(document.querySelector('#f-pump-lowering'), '30'); await __t.wait(200);
+    const dryWarning = document.querySelector('#f-pump-lowering-msg')?.textContent ?? '';
+    __t.type(document.querySelector('#f-pump-lowering'), '80'); await __t.wait(200);
     __t.btn('Next: Layers').click(); await __t.wait(300);
     __t.btn('Add layer').click(); await __t.wait(150);
     __t.type(document.querySelector('input[aria-label="Layer 1 to"]'), '40');
@@ -222,7 +230,9 @@ try {
     await __t.until(() => /#\\/borewell\\/[^/]+$/.test(location.hash), 10000); await __t.wait(800);
     const bwid = location.hash.split('/').pop();
     const r = await __t.invoke('borewell_get', { id: bwid });
-    return { id, bwid, gapText, searched, place, ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
+    await __t.until(() => /Pump lowered to/.test(__t.text()));
+    const shown = [...document.querySelectorAll('main dl > div')].filter(d => /^Pump/.test(d.textContent)).map(d => d.textContent).join(' ; ');
+    return { id, bwid, gapText, searched, place, dryWarning, shown, pump: [r.borewell.pumpType, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
       meta: [r.borewell.ownerName, r.borewell.project, r.borewell.area, r.borewell.totalDepth, r.borewell.waterLevel, r.borewell.drillingMethod].join(' | '),
       strata: r.strata.map(l => (l.materialId ?? l.material) + ' ' + l.startDepth + '-' + l.endDepth).join('; '), pipes: r.pipes.map(p => p.pipeType + ' ' + p.startDepth + '-' + p.endDepth).join(', ') };`);
   check("The check step says the new borewell is ready to save", /Ready to save/.test(manual.ready), manual.ready);
@@ -230,6 +240,8 @@ try {
   check("A gap in layers is marked “Not recorded” and saved as such", manual.strata === "clay 0-40; not_recorded 40-50; coarse_sand 50-100", `${manual.gapText} → ${manual.strata}`);
   check("Searching for the address opens the map with the address searched", manual.searched === "Vipul Khand, Lucknow", manual.searched);
   check("Choosing a found place near Lucknow fills in its coordinates", /^offline: .*(internet|did not answer)/.test(manual.place) || / \| true \| true$/.test(manual.place), manual.place);
+  check("The pump is saved with a new borewell and shown on its page", manual.pump === "Borewell submersible, 4 inch (100 mm) | KSB 3C/20 | 2 | 80" && /KSB 3C.20 · 2 HP/.test(manual.shown) && /80/.test(manual.shown), manual.pump + " / " + manual.shown);
+  check("A pump lowered above the water level gets a warning", /run dry/.test(manual.dryWarning), manual.dryWarning);
   check("The location source is recorded for a new borewell", manual.source === "typed", manual.source);
   check("The unfinished-borewell draft is cleared after saving", manual.draftCleared);
 
