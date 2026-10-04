@@ -15,6 +15,10 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   drilling log are read into the lowering, the power and the model, shown for checking before you
   import.
 
+- **Add the location while importing.** The Import screen has a **Location** box for each file:
+  paste the coordinates or use **Pick on the map**, which opens with the file's address searched.
+  It is optional; a borewell imported without one can still be given a location later.
+
 ### Changed
 - **Water colours stay within 500 m of a borewell.** The Map used to colour up to about 3 km around
   each borewell. An estimate that far away says little, so colours now reach 500 m and are drawn

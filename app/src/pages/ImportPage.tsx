@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import type { Borewell, BorewellInput, ExcelParseResult, Material, ParseAnomaly, StrataLayer } from "@strata/core";
-import { parseNumber } from "@strata/core";
+import type { Borewell, BorewellInput, ExcelParseResult, LocationSource, Material, ParseAnomaly, StrataLayer } from "@strata/core";
+import { parseCoordinatePair, parseNumber } from "@strata/core";
 import type { ColumnMapping } from "@strata/core/parser";
 import { toast } from "sonner";
-import { CircleCheck, FileSpreadsheet, TriangleAlert, Upload, X, XCircle } from "lucide-react";
+import { CircleCheck, FileSpreadsheet, MapPin, TriangleAlert, Upload, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,12 +13,15 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Field } from "@/components/app/Field";
 import { Chip } from "@/components/app/Chip";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
+import { MapPicker } from "@/components/map/MapPicker";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
 import { cn } from "cn";
 
-interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string; pumpModel: string; pumpHp: string; pumpLowering: string }
+interface Details { borewellId: string; ownerName: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string; pumpModel: string; pumpHp: string; pumpLowering: string;
+  /** Coordinates as typed or picked, "26.8930, 80.9420"; empty when the location is added later. */
+  location: string; locationSource: LocationSource }
 
 /** The Excel reader, loaded when the first file is chosen (it is large, and only this screen uses it). */
 let parser: typeof import("@strata/core/parser") | null = null;
@@ -81,6 +84,7 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
     pumpModel: m?.pumpModel ?? "",
     pumpHp: n(m?.pumpHp),
     pumpLowering: n(m?.pumpLowering),
+    location: "", locationSource: "typed",
   };
 }
 
@@ -149,11 +153,12 @@ export function ImportPage() {
       for (const f of included) {
         const d = f.details;
         const num = (s: string) => parseNumber(s) ?? null;
+        const at = parseCoordinatePair(d.location);
         const borewell: BorewellInput = {
           borewellId: d.borewellId.trim(), ownerName: d.ownerName.trim(), area: d.area, city: d.city, date: d.date,
           totalDepth: num(d.totalDepth), waterLevel: num(d.waterLevel), boreDia: num(d.boreDia), pipeDia: num(d.pipeDia),
           pumpModel: d.pumpModel.trim(), pumpHp: num(d.pumpHp), pumpLowering: num(d.pumpLowering),
-          locationSource: "unknown", importSource: f.name,
+          latitude: at?.latitude ?? null, longitude: at?.longitude ?? null, locationSource: at ? d.locationSource : "unknown", importSource: f.name,
         };
         const strata = (f.result?.strata ?? []).map((l) => resolveLayer(l, f.resolutions, mats));
         const pipes = (f.result?.pipes ?? []).map((p) => ({ startDepth: p.startDepth, endDepth: p.endDepth, pipeType: p.pipeType, pipeSubtype: p.pipeSubtype }));
@@ -236,7 +241,7 @@ export function ImportPage() {
             </div>
           </Panel>
 
-          {f && <FileReview key={f.path} file={f} materials={mats} takenIds={takenIds} onChange={(patch) => update(current, patch)} />}
+          {f && <FileReview key={f.path} file={f} materials={mats} takenIds={takenIds} others={(existing.data ?? []).map((i) => i.borewell)} onChange={(patch) => update(current, patch)} />}
         </div>
       )}
     </Page>
@@ -250,9 +255,10 @@ function resolveLayer(l: ExcelParseResult["strata"][number], resolutions: Record
     : { startDepth: l.startDepth, endDepth: l.endDepth, material: l.material, materialId: l.materialId, color: l.color, pattern: l.pattern };
 }
 
-function FileReview({ file: f, materials, takenIds, onChange }: {
-  file: ImportFile; materials: Material[]; takenIds: Set<string>; onChange: (patch: Partial<ImportFile>) => void;
+function FileReview({ file: f, materials, takenIds, others, onChange }: {
+  file: ImportFile; materials: Material[]; takenIds: Set<string>; others: Borewell[]; onChange: (patch: Partial<ImportFile>) => void;
 }) {
+  const [picking, setPicking] = useState(false);
   // Shown whenever the sheet is not in the standard layout, so the columns can always be changed.
   const picker = (f.mapping || (!readable(f) && f.rows.length > 0)) && <ColumnPicker file={f} onChange={onChange} />;
   if (!readable(f) && picker) {
@@ -283,6 +289,7 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
   const soilItems = [{ value: KEEP, label: "Keep the name, choose later" }, ...materials.filter((m) => m.lithologyFamily !== "NONE").map((m) => ({ value: m.id, label: m.name }))];
   const notes = (f.result?.anomalies ?? []).filter((a) => a.code !== "MATERIAL_UNKNOWN");
   const idTaken = takenIds.has(d.borewellId.trim().toLowerCase());
+  const at = parseCoordinatePair(d.location);
   const strata: StrataLayer[] = (f.result?.strata ?? []).map((l, i) => ({ id: `${i}`, borewellId: "import", remarks: "", waterBearing: false, ...resolveLayer(l, f.resolutions, materials) }));
   const pipes = (f.result?.pipes ?? []).map((p, i) => ({ id: `p${i}`, borewellId: "import", startDepth: p.startDepth, endDepth: p.endDepth, pipeType: p.pipeType, pipeSubtype: p.pipeSubtype, diameter: null }));
   const preview = {
@@ -336,10 +343,26 @@ function FileReview({ file: f, materials, takenIds, onChange }: {
             <Field id="i-pump" label="Pump model"><Input id="i-pump" value={d.pumpModel} onChange={(e) => set({ pumpModel: e.target.value })} /></Field>
             <Field id="i-pump-hp" label="Pump power (HP)"><Input id="i-pump-hp" className="num" inputMode="decimal" value={d.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} /></Field>
             <Field id="i-pump-lowering" label="Pump lowered to (ft)"><Input id="i-pump-lowering" className="num" inputMode="decimal" value={d.pumpLowering} onChange={(e) => set({ pumpLowering: e.target.value })} /></Field>
+            <Field id="i-location" label="Location" className="sm:col-span-3" hint='Optional. Paste coordinates, for example "26.8930, 80.9420", or pick the spot on the map.'
+              warning={d.location.trim() && !at ? "These are not coordinates StrataField can read, so the borewell would be imported without a location." : undefined}>
+              <div className="flex gap-2">
+                <Input id="i-location" className="num" value={d.location} onChange={(e) => set({ location: e.target.value, locationSource: "typed" })} />
+                <Button variant="outline" onClick={() => setPicking(true)}><MapPin />Pick on the map</Button>
+              </div>
+            </Field>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Found {strata.length} soil layer{strata.length === 1 ? "" : "s"} and {pipes.length} pipe piece{pipes.length === 1 ? "" : "s"}. You can add a location after importing.
+            Found {strata.length} soil layer{strata.length === 1 ? "" : "s"} and {pipes.length} pipe piece{pipes.length === 1 ? "" : "s"}.{at ? "" : " You can also add the location after importing."}
           </p>
+          <MapPicker
+            key={picking ? "open" : "closed"}
+            open={picking}
+            initial={at}
+            search={at ? "" : [d.area, d.city].filter(Boolean).join(", ")}
+            others={others}
+            onClose={() => setPicking(false)}
+            onPick={(p) => { set({ location: `${p.latitude.toFixed(6)}, ${p.longitude.toFixed(6)}`, locationSource: p.found ? "address" : "map" }); setPicking(false); }}
+          />
         </Panel>
       </div>
 

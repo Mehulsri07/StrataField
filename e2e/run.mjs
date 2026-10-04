@@ -80,6 +80,11 @@ try {
     location.hash = '#/import'; await __t.wait(800);
     __t.btn('Choose Excel files').click();
     const go = await __t.until(() => [...document.querySelectorAll('main button')].find(b => /^Import 1 borewell/.test(b.innerText) && !b.disabled), 15000);
+    // The location can be given while importing: the map opens, and pasted coordinates are saved.
+    __t.btn('Pick on the map').click();
+    await __t.until(() => document.querySelector('[role="dialog"] .leaflet-container'));
+    const mapOpened = true; __t.btn('Cancel').click(); await __t.wait(300);
+    __t.type(document.querySelector('#i-location'), '26.8712, 80.9455'); await __t.wait(200);
     go.click();
     await __t.until(() => /See all borewells/.test(__t.text()), 15000);
     delete window.__STRATA_TEST_CHOOSE__;
@@ -89,10 +94,11 @@ try {
     const b = r.borewell;
     return { id: ex.borewell.id, code: b.borewellId, layers: r.strata.length, pipes: r.pipes.map(p => p.startDepth + '-' + p.endDepth + ' ' + p.pipeType).join(', '),
       details: [b.ownerName, b.area, b.city, b.date, b.waterLevel, b.totalDepth, b.boreDia, b.pipeDia].join(' | '),
-      pump: [b.pumpModel, b.pumpHp, b.pumpLowering].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
+      pump: [b.pumpModel, b.pumpHp, b.pumpLowering].join(' | '), at: [mapOpened, b.latitude, b.longitude, b.locationSource].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
   check("Excel import joins repeated soil rows into layers and reads both pipe columns", imported.layers === 7 && imported.pipes === "0-100 plain, 100-200 slotted", JSON.stringify(imported));
   check("…and fills in the details written beside the layers", imported.details === "Aliganj Test Site | Sector H, Aliganj | Lucknow | 2026-09-05 | 45 | 200 | 10 | 6" && imported.code === "Aliganj site log", imported.details + " / " + imported.code);
   check("…and the pump written on the log: model, power and lowering", imported.pump === "KSB 3C/20 | 2 | 120", imported.pump);
+  check("A location given while importing is saved with the borewell", imported.at === "true | 26.8712 | 80.9455 | typed", imported.at);
   check("The original Excel file is kept with the imported borewell", imported.files.includes("excel:Aliganj site log.xlsx"), imported.files.join(", "));
 
   // ── Excel import of a file laid out differently ────────────────────────
