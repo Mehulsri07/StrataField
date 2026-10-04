@@ -164,7 +164,7 @@ async function takeShots() {
       await __t.until(() => document.querySelectorAll('main li').length === 2, 15000);
       document.querySelectorAll('main li')[1].querySelector('button.min-w-0').click(); await __t.until(() => /Where the layers are in this file/.test(__t.text()), 8000); return true;`);
     await shot("import-columns");
-    await page(`[...document.querySelectorAll('main button')].find(b => /^Import 2 borewells/.test(b.innerText)).click(); await __t.until(() => /See all borewells/.test(__t.text()), 20000).catch(() => { throw new Error('Import did not finish: ' + [...document.querySelectorAll('[data-sonner-toast]')].map(t => t.innerText).join(' | ') + ' || ' + __t.text().slice(0, 400)); }); delete window.__STRATA_TEST_CHOOSE__; return true;`);
+    await page(`__t.btn('These columns are right').click(); await __t.wait(300); [...document.querySelectorAll('main button')].find(b => /^Import 2 borewells/.test(b.innerText)).click(); await __t.until(() => /See all borewells/.test(__t.text()), 20000).catch(() => { throw new Error('Import did not finish: ' + [...document.querySelectorAll('[data-sonner-toast]')].map(t => t.innerText).join(' | ') + ' || ' + __t.text().slice(0, 400)); }); delete window.__STRATA_TEST_CHOOSE__; return true;`);
 
     await go("#/", 1800);
     await shot("home");

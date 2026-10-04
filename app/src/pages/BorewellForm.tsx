@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import type { Borewell, BorewellInput, DrillingMethod, LocationSource, Material, PipeSegment, StrataLayer } from "@strata/core";
 import { checkBorewell, hasProblems, type Issue } from "@strata/core";
 import { toast } from "sonner";
-import { Check, Crosshair, ImagePlus, MapPin, Paperclip, Search, TriangleAlert, X } from "lucide-react";
+import { Check, ImagePlus, MapPin, Paperclip, Search, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -133,6 +133,15 @@ function fromBorewell(b: Borewell): FormState {
   };
 }
 
+const NUMBER_FIELDS = {
+  totalDepth: "Total depth", waterLevel: "Water level", dynamicWaterLevel: "Water level while pumping", boreDia: "Hole size", pipeDia: "Pipe size",
+  latitude: "Latitude", longitude: "Longitude", pumpHp: "Pump power", pumpLowering: "Pump lowering",
+};
+
+/** The step where an issue is put right: details by their field, layers and pipes otherwise. */
+const stepOf = (i: Issue): StepId =>
+  !i.field ? "layers" : ["borewellId", "ownerName"].includes(i.field) ? "basics" : ["latitude", "longitude"].includes(i.field) ? "location" : "drilling";
+
 /** Next free ID in the BW-<year>-NNN pattern. */
 function suggestId(existing: string[]): string {
   const year = new Date().getFullYear();
@@ -161,7 +170,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   const [draft, setDraft] = useState<Draft | null>(initial?.draft ?? null);
   const [restored, setRestored] = useState(initial?.restored ?? false);
   const [step, setStep] = useState<StepId>((params.get("step") as StepId) || "basics");
-  const [visited, setVisited] = useState<Set<StepId>>(new Set(editing ? steps.map((s) => s.id) : ["basics"]));
+  const [visited, setVisited] = useState<Set<StepId>>(new Set(editing ? steps.map((s) => s.id) : []));
   const [saving, setSaving] = useState(false);
   const [original, setOriginal] = useState<Borewell | null>(null);
 
@@ -192,7 +201,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   const duplicate = (all.data ?? []).some((i) => i.borewell.borewellId.toLowerCase() === f.borewellId.trim().toLowerCase() && i.borewell.id !== id);
   const numberIssues: Issue[] = (["totalDepth", "waterLevel", "dynamicWaterLevel", "boreDia", "pipeDia", "latitude", "longitude", "pumpHp", "pumpLowering"] as const)
     .filter((k) => parseNumber(f[k]) === undefined)
-    .map((k) => ({ severity: "problem", field: k, message: "Type a number here." }));
+    .map((k) => ({ severity: "problem", field: k, message: `${NUMBER_FIELDS[k]}: type a number here.` }));
   const borewellIssues: Issue[] = [
     ...numberIssues,
     ...checkBorewell(input).filter((i) => !numberIssues.some((n) => n.field === i.field)),
@@ -264,19 +273,16 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
       <ol className="flex flex-wrap gap-x-6 border-b border-border" aria-label="Steps">
         {steps.map((s, i) => {
           const current = s.id === step;
-          const reachable = visited.has(s.id) || i <= index;
           return (
             <li key={s.id}>
               <button
                 type="button"
-                disabled={!reachable}
                 aria-current={current ? "step" : undefined}
                 onClick={() => go(s.id)}
                 className={cn(
                   "-mb-px flex items-center gap-1.5 border-b-2 pt-1 pb-2.5 text-[13px]",
                   current ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground",
-                  reachable && !current && "hover:text-foreground",
-                  !reachable && "opacity-60",
+                  !current && "hover:text-foreground",
                 )}
               >
                 <span className="num">{i + 1}.</span>{s.label}
@@ -295,7 +301,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
             <Field id="f-owner" label="Owner's name" warning={warn("ownerName")}>
               <Input id="f-owner" value={f.ownerName} onChange={(e) => set({ ownerName: e.target.value })} />
             </Field>
-            <Field id="f-zone" label="Zone" hint="Pick one you used before, or type a new one.">
+            <Field id="f-zone" label="Zone" hint={!editing && f.project && f.project === safeGet(LAST_ZONE_KEY) ? "Same as the last borewell you added. Change it if this one is elsewhere." : "A name for a group of borewells, such as a part of the city. Pick one you used before, or type a new one."}>
               <Input id="f-zone" list="f-zone-list" value={f.project} onChange={(e) => set({ project: e.target.value })} placeholder="e.g. Zone 3 · Trans-Gomti" />
               <datalist id="f-zone-list">{(zones.data ?? []).map((z) => <option key={z.id} value={z.name} />)}</datalist>
             </Field>
@@ -454,15 +460,14 @@ function LocationStep({ form: f, set, err, onPhotoUsed, addsPhoto, others }: {
       <Panel title="Where is the borewell?" actions={hasLocation && <Chip tone="ok"><MapPin className="size-3" />{locationSourceText(f.locationSource === "unknown" ? "typed" : f.locationSource)}</Chip>}>
         <div className="grid gap-4">
           <p className="text-sm text-muted-foreground">Choose the most accurate way you have. A photo taken at the borewell with GPS on is best.</p>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-3">
             <WayButton icon={<ImagePlus />} title="Use a photo's GPS" body="Most accurate" onClick={fromPhoto} busy={busy === "photo"} disabled={isPreview} />
-            <WayButton icon={<Crosshair />} title="Type coordinates" body="From a phone or GPS unit" onClick={() => document.getElementById("f-paste")?.focus()} />
             <WayButton icon={<Search />} title="Search for the address" body="Approximate · needs internet" onClick={() => setPicking([f.address, f.area, f.city].filter(Boolean).join(", "))} disabled={!(f.area || f.address)} />
             <WayButton icon={<MapPin />} title="Pick on the map" body="Search for a place, then click the spot" onClick={() => setPicking("")} />
           </div>
           {note && <p className="rounded-md bg-muted px-3 py-2 text-sm">{note}</p>}
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="f-paste" label="Paste coordinates" hint='For example "26.8930, 80.9420"'>
+            <Field id="f-paste" label="Or paste coordinates" hint='From a phone or GPS unit, for example "26.8930, 80.9420"'>
               <Input id="f-paste" className="num" value={paste} onChange={(e) => applyPaste(e.target.value)} />
             </Field>
             <Field id="f-lat" label="Latitude" error={err("latitude")}>
@@ -599,13 +604,13 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
       {problems.length > 0 ? (
         <div className="rounded-md border border-destructive/40 bg-danger-soft px-4 py-3 text-sm text-destructive">
           <b>Fix these before saving:</b>
-          <ul className="mt-1 list-disc pl-5">{problems.map((i) => <li key={i.message}>{i.message}</li>)}</ul>
+          <ul className="mt-1 list-disc pl-5">{problems.map((i) => <li key={i.message}><button type="button" className="text-left underline underline-offset-2" onClick={() => onEdit(stepOf(i))}>{i.message}</button></li>)}</ul>
         </div>
       ) : (
         <div className="rounded-md border border-ok/30 bg-ok-soft px-4 py-3 text-sm text-ok"><b>Ready to save.</b>{warnings.length > 0 && " Have a look at the notes below first."}</div>
       )}
       {warnings.length > 0 && (
-        <ul className="grid gap-1.5">{warnings.map((i) => <li key={i.message} className="flex items-center gap-2 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"><TriangleAlert className="size-4" />{i.message}</li>)}</ul>
+        <ul className="grid gap-1.5">{warnings.map((i) => <li key={i.message} className="flex items-center gap-2 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn"><TriangleAlert className="size-4" /><button type="button" className="text-left underline-offset-2 hover:underline" onClick={() => onEdit(stepOf(i))}>{i.message}</button></li>)}</ul>
       )}
       <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
         {section("Basics", "basics", <>

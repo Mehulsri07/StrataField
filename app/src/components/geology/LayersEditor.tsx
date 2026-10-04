@@ -55,7 +55,7 @@ export function rowIssues(layers: LayerRow[], pipes: PipeRow[], materials: Mater
     ...numberProblems(layers, "Layer"),
     ...checkLayers(toLayers(layers, materials).filter((l) => Number.isFinite(l.startDepth) && Number.isFinite(l.endDepth)), totalDepth)
       .filter((i) => !i.message.startsWith("The layer from")),
-    ...layers.filter((r) => !r.materialId).map((r) => ({ severity: "problem" as const, message: `Choose a soil type for the layer from ${r.start || "?"} to ${r.end || "?"} ft.` })),
+    ...layers.flatMap((r, i) => (r.materialId ? [] : [{ severity: "problem" as const, message: `Choose a soil type for layer ${i + 1}.` }])),
   ];
   const pipeIssues: Issue[] = [
     ...numberProblems(pipes, "Pipe piece"),

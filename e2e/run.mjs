@@ -84,7 +84,7 @@ try {
     __t.btn('Pick on the map').click();
     await __t.until(() => document.querySelector('[role="dialog"] .leaflet-container'));
     const mapOpened = true; __t.btn('Cancel').click(); await __t.wait(300);
-    __t.type(document.querySelector('#i-location'), '26.8712, 80.9455'); await __t.wait(200);
+    __t.type(document.querySelector('#i-location'), '26.8712, 80.9455'); __t.type(document.querySelector('#i-zone'), 'Zone Import'); await __t.wait(200);
     go.click();
     await __t.until(() => /See all borewells/.test(__t.text()), 15000);
     delete window.__STRATA_TEST_CHOOSE__;
@@ -94,11 +94,11 @@ try {
     const b = r.borewell;
     return { id: ex.borewell.id, code: b.borewellId, layers: r.strata.length, pipes: r.pipes.map(p => p.startDepth + '-' + p.endDepth + ' ' + p.pipeType).join(', '),
       details: [b.ownerName, b.area, b.city, b.date, b.waterLevel, b.totalDepth, b.boreDia, b.pipeDia].join(' | '),
-      pump: [b.pumpModel, b.pumpHp, b.pumpLowering].join(' | '), at: [mapOpened, b.latitude, b.longitude, b.locationSource].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
+      pump: [b.pumpModel, b.pumpHp, b.pumpLowering].join(' | '), at: [mapOpened, b.latitude, b.longitude, b.locationSource, b.project].join(' | '), files: r.files.map(x => x.kind + ':' + x.originalName) };`);
   check("Excel import joins repeated soil rows into layers and reads both pipe columns", imported.layers === 7 && imported.pipes === "0-100 plain, 100-200 slotted", JSON.stringify(imported));
   check("…and fills in the details written beside the layers", imported.details === "Aliganj Test Site | Sector H, Aliganj | Lucknow | 2026-09-05 | 45 | 200 | 10 | 6" && imported.code === "Aliganj site log", imported.details + " / " + imported.code);
   check("…and the pump written on the log: model, power and lowering", imported.pump === "KSB 3C/20 | 2 | 120", imported.pump);
-  check("A location given while importing is saved with the borewell", imported.at === "true | 26.8712 | 80.9455 | typed", imported.at);
+  check("A location and a zone given while importing are saved with the borewell", imported.at === "true | 26.8712 | 80.9455 | typed | Zone Import", imported.at);
   check("The original Excel file is kept with the imported borewell", imported.files.includes("excel:Aliganj site log.xlsx"), imported.files.join(", "));
 
   // ── Excel import of a file laid out differently ────────────────────────
@@ -109,9 +109,12 @@ try {
     await __t.until(() => /Where the layers are in this file/.test(__t.text()), 15000);
     const status = /Check the columns/.test(__t.text());
     // Wrong column on purpose, then back: the layers disappear and come back.
-    await __t.choose(document.querySelector('#c-to'), 'Column C');
+    const importButton = () => [...document.querySelectorAll('main button')].find(b => /^Import \\d+ borewell/.test(b.innerText));
+    const waits = importButton().innerText + (importButton().disabled ? ' (off)' : ' (on)');
+    await __t.choose(document.querySelector('#c-to'), 'Column C · Soil type');
     await __t.until(() => /No soil layers were found with these choices/.test(__t.text()), 5000);
-    await __t.choose(document.querySelector('#c-to'), 'Column B');
+    await __t.choose(document.querySelector('#c-to'), 'Column B · To (ft)');
+    (await __t.until(() => __t.btn('These columns are right'))).click(); await __t.wait(300);
     const go = await __t.until(() => [...document.querySelectorAll('main button')].find(b => /^Import 1 borewell/.test(b.innerText) && !b.disabled), 15000);
     go.click();
     await __t.until(() => /See all borewells/.test(__t.text()), 15000);
@@ -119,15 +122,18 @@ try {
     const all = await __t.invoke('borewells_search', { filters: {} });
     const ex = all.find(i => i.borewell.importSource === 'Chinhat other layout.xlsx');
     const kept = (await __t.invoke('history_recent', { limit: 50 })).find(h => h.summary.startsWith('Notes from reading Chinhat other layout.xlsx'))?.summary ?? '';
+    const nextJob = !!__t.btn('Add their locations');
     // What a borewell with details missing looks like in the list, and the filter for them.
     location.hash = '#/borewells?missing=1';
     await __t.until(() => [...document.querySelectorAll('main tbody tr')].some(r => /Chinhat other layout/.test(r.innerText)), 8000);
     const missing = [...document.querySelectorAll('main tbody tr')].map(r => r.innerText.split('\\t').pop().trim());
     // Removed again so the counts later in this run stay as they were.
     if (ex) { await __t.invoke('borewell_delete', { id: ex.borewell.id }); await __t.invoke('borewell_delete_permanently', { id: ex.borewell.id }); }
-    return { status, kept, missing, layers: ex?.strata.map(l => l.startDepth + '-' + l.endDepth + ' ' + l.material).join(', ') };`);
+    return { status, kept, missing, waits, nextJob, layers: ex?.strata.map(l => l.startDepth + '-' + l.endDepth + ' ' + l.material).join(', ') };`);
   check("The notes from the Import screen are kept in the borewell's history", /columns were chosen/.test(other.kept) && /No water level was found/.test(other.kept), other.kept);
   check("Borewells: the Missing details filter lists only borewells with an owner, water level or date missing", other.missing.length >= 1 && other.missing.every(t => /^No /.test(t)), other.missing.join(" | "));
+  check("A file with guessed columns waits until the columns are confirmed", other.waits === "Import 0 borewells (off)", other.waits);
+  check("After importing, the screen offers to add the missing locations", other.nextJob);
   check("An Excel file in another layout is imported after its columns are chosen", other.status && other.layers === "0-30 Clay, 30-90 Fine Sand, 90-150 Coarse Sand", JSON.stringify(other));
 
   // ── Zones: rename, then merge ──────────────────────────────────────────
@@ -189,6 +195,15 @@ try {
     localStorage.removeItem('strata-new-borewell-draft');
     location.hash = '#/new'; await __t.until(() => document.querySelector('#f-id'));
     const id = document.querySelector('#f-id').value;
+    const nagging = !!document.querySelector('#f-owner-msg');
+    const step = (name) => [...document.querySelectorAll('main ol button')].find(b => b.innerText.includes(name));
+    step('Drilling').click(); await __t.wait(300);
+    __t.type(document.querySelector('#f-hole'), 'ten');
+    step('Check').click(); await __t.wait(300);
+    const problem = [...document.querySelectorAll('main li button')].find(b => /Hole size/.test(b.innerText));
+    const named = problem?.innerText ?? ''; problem?.click(); await __t.wait(300);
+    const led = !!document.querySelector('#f-hole'); if (led) __t.type(document.querySelector('#f-hole'), '');
+    step('Basics').click(); await __t.wait(300);
     __t.type(document.querySelector('#f-owner'), 'E2E Owner');
     __t.type(document.querySelector('#f-zone'), 'Zone E2E');
     __t.btn('Next: Location').click(); await __t.wait(300);
@@ -238,7 +253,7 @@ try {
     const r = await __t.invoke('borewell_get', { id: bwid });
     await __t.until(() => /Pump lowered to/.test(__t.text()));
     const shown = [...document.querySelectorAll('main dl > div')].filter(d => /^Pump/.test(d.textContent)).map(d => d.textContent).join(' ; ');
-    return { id, bwid, gapText, searched, place, dryWarning, shown, pump: [r.borewell.pumpType, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
+    return { id, bwid, gapText, searched, place, dryWarning, shown, nagging, named, led, pump: [r.borewell.pumpType, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
       meta: [r.borewell.ownerName, r.borewell.project, r.borewell.area, r.borewell.totalDepth, r.borewell.waterLevel, r.borewell.drillingMethod].join(' | '),
       strata: r.strata.map(l => (l.materialId ?? l.material) + ' ' + l.startDepth + '-' + l.endDepth).join('; '), pipes: r.pipes.map(p => p.pipeType + ' ' + p.startDepth + '-' + p.endDepth).join(', ') };`);
   check("The check step says the new borewell is ready to save", /Ready to save/.test(manual.ready), manual.ready);
@@ -248,6 +263,7 @@ try {
   check("Choosing a found place near Lucknow fills in its coordinates", /^offline: .*(internet|did not answer)/.test(manual.place) || / \| true \| true$/.test(manual.place), manual.place);
   check("The pump is saved with a new borewell and shown on its page", manual.pump === "Borewell submersible, 4 inch (100 mm) | KSB 3C/20 | 2 | 80" && /KSB 3C.20 · 2 HP/.test(manual.shown) && /80/.test(manual.shown), manual.pump + " / " + manual.shown);
   check("A pump lowered above the water level gets a warning", /run dry/.test(manual.dryWarning), manual.dryWarning);
+  check("A problem on the check step names its field and leads to it; steps open in any order", manual.named === "Hole size: type a number here." && manual.led && !manual.nagging, JSON.stringify([manual.named, manual.led, manual.nagging]));
   check("The location source is recorded for a new borewell", manual.source === "typed", manual.source);
   check("The unfinished-borewell draft is cleared after saving", manual.draftCleared);
 
