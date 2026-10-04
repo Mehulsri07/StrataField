@@ -189,6 +189,10 @@ pub const MIGRATIONS: &[&str] = &[
     ALTER TABLE borewells ADD COLUMN pump_hp       REAL;
     ALTER TABLE borewells ADD COLUMN pump_lowering REAL;
     "#,
+    // 3: the pump's maker, apart from its model.
+    r#"
+    ALTER TABLE borewells ADD COLUMN pump_make TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build understands.

@@ -31,6 +31,6 @@ export function zoneName(project: string | null | undefined): string {
 }
 
 /** "KSB 12C/17 · 5 HP · Borewell submersible", from whatever is filled in. */
-export function pumpText(b: Pick<BorewellInput, "pumpType" | "pumpModel" | "pumpHp">): string {
-  return [b.pumpModel, b.pumpHp != null ? `${b.pumpHp} HP` : "", b.pumpType].filter(Boolean).join(" · ");
+export function pumpText(b: Pick<BorewellInput, "pumpType" | "pumpMake" | "pumpModel" | "pumpHp">): string {
+  return [[b.pumpMake, b.pumpModel].filter(Boolean).join(" "), b.pumpHp != null ? `${b.pumpHp} HP` : "", b.pumpType].filter(Boolean).join(" · ");
 }

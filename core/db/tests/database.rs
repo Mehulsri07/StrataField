@@ -42,7 +42,13 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
             .unwrap();
         // Put the file back to how version 1 left it.
         db.with(|c| {
-            for col in ["pump_type", "pump_model", "pump_hp", "pump_lowering"] {
+            for col in [
+                "pump_type",
+                "pump_model",
+                "pump_hp",
+                "pump_lowering",
+                "pump_make",
+            ] {
                 c.execute_batch(&format!("ALTER TABLE borewells DROP COLUMN {col}"))?;
             }
             Ok(c.execute_batch("PRAGMA user_version = 1")?)
@@ -67,11 +73,15 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
 
     let mut with_pump = input("BW-NEW");
     with_pump.pump_type = "Borewell submersible".into();
-    with_pump.pump_model = " KSB 12C/17 ".into();
+    with_pump.pump_make = "KSB".into();
+    with_pump.pump_model = " 12C/17 ".into();
     with_pump.pump_hp = Some(5.0);
     with_pump.pump_lowering = Some(220.0);
     let saved = db.with_tx(|tx| borewells::create(tx, &with_pump)).unwrap();
-    assert_eq!(saved.pump_model, "KSB 12C/17");
+    assert_eq!(
+        (saved.pump_make.as_str(), saved.pump_model.as_str()),
+        ("KSB", "12C/17")
+    );
     assert_eq!(
         (saved.pump_hp, saved.pump_lowering),
         (Some(5.0), Some(220.0))

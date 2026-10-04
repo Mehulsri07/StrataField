@@ -9,6 +9,7 @@ export * from './constants';
 export * from './validation';
 export * from './layerInfo';
 export * from './numbers';
+export * from './pump';
 export * from './waterMap';
 export * from './section';
 export * from './elevation';

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Borewell, BorewellInput, ExcelParseResult, LocationSource, Material, ParseAnomaly, StrataLayer } from "@strata/core";
-import { parseCoordinatePair, parseNumber } from "@strata/core";
+import { parseCoordinatePair, parseNumber, splitPump } from "@strata/core";
 import type { ColumnMapping } from "@strata/core/parser";
 import { toast } from "sonner";
 import { CircleCheck, FileSpreadsheet, MapPin, TriangleAlert, Upload, X, XCircle } from "lucide-react";
@@ -19,7 +19,7 @@ import { useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
 import { cn } from "cn";
 
-interface Details { borewellId: string; ownerName: string; zone: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string; pumpModel: string; pumpHp: string; pumpLowering: string;
+interface Details { borewellId: string; ownerName: string; zone: string; area: string; city: string; date: string; totalDepth: string; waterLevel: string; boreDia: string; pipeDia: string; pumpMake: string; pumpModel: string; pumpHp: string; pumpLowering: string;
   /** Coordinates as typed or picked, "26.8930, 80.9420"; empty when the location is added later. */
   location: string; locationSource: LocationSource }
 
@@ -70,6 +70,7 @@ function describe(a: ParseAnomaly): string {
 
 function initialDetails(path: string, r: ExcelParseResult | null): Details {
   const m = r?.metadata;
+  const pump = splitPump(m?.pumpModel ?? "");
   return {
     // The file's name, not the site's: the site name becomes the owner, and one owner can have several borewells.
     borewellId: stem(path),
@@ -82,7 +83,8 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
     waterLevel: n(m?.waterLevel),
     boreDia: n(m?.boreDia),
     pipeDia: n(m?.pipeDia),
-    pumpModel: m?.pumpModel ?? "",
+    pumpMake: pump.make,
+    pumpModel: pump.model,
     pumpHp: n(m?.pumpHp),
     pumpLowering: n(m?.pumpLowering),
     location: "", locationSource: "typed",
@@ -159,7 +161,7 @@ export function ImportPage() {
         const borewell: BorewellInput = {
           borewellId: d.borewellId.trim(), ownerName: d.ownerName.trim(), project: d.zone.trim(), area: d.area, city: d.city, date: d.date,
           totalDepth: num(d.totalDepth), waterLevel: num(d.waterLevel), boreDia: num(d.boreDia), pipeDia: num(d.pipeDia),
-          pumpModel: d.pumpModel.trim(), pumpHp: num(d.pumpHp), pumpLowering: num(d.pumpLowering),
+          pumpMake: d.pumpMake.trim(), pumpModel: d.pumpModel.trim(), pumpHp: num(d.pumpHp), pumpLowering: num(d.pumpLowering),
           latitude: at?.latitude ?? null, longitude: at?.longitude ?? null, locationSource: at ? d.locationSource : "unknown", importSource: f.name,
         };
         const strata = (f.result?.strata ?? []).map((l) => resolveLayer(l, f.resolutions, mats));
@@ -351,10 +353,11 @@ function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
                 <Input className="num" inputMode="decimal" value={d.pipeDia} onChange={(e) => set({ pipeDia: e.target.value })} aria-label="Pipe size (inch)" />
               </div>
             </Field>
+            <Field id="i-pump-make" label="Pump company"><Input id="i-pump-make" value={d.pumpMake} onChange={(e) => set({ pumpMake: e.target.value })} /></Field>
             <Field id="i-pump" label="Pump model"><Input id="i-pump" value={d.pumpModel} onChange={(e) => set({ pumpModel: e.target.value })} /></Field>
             <Field id="i-pump-hp" label="Pump power (HP)"><Input id="i-pump-hp" className="num" inputMode="decimal" value={d.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} /></Field>
             <Field id="i-pump-lowering" label="Pump lowered to (ft)"><Input id="i-pump-lowering" className="num" inputMode="decimal" value={d.pumpLowering} onChange={(e) => set({ pumpLowering: e.target.value })} /></Field>
-            <Field id="i-location" label="Location" className="sm:col-span-3" hint='Optional. Paste coordinates, for example "26.8930, 80.9420", or pick the spot on the map.'
+            <Field id="i-location" label="Location" className="sm:col-span-2" hint='Optional. Paste coordinates, for example "26.8930, 80.9420", or pick the spot on the map.'
               warning={d.location.trim() && !at ? "These are not coordinates StrataField can read, so the borewell would be imported without a location." : undefined}>
               <div className="flex gap-2">
                 <Input id="i-location" className="num" value={d.location} onChange={(e) => set({ location: e.target.value, locationSource: "typed" })} />

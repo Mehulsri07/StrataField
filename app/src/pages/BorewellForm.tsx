@@ -18,7 +18,8 @@ import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, pumpText, zoneName } from "@/lib/format";
-import { numberText, parseCoordinatePair, parseNumber } from "@strata/core";
+import { PickOrAdd } from "@/components/app/PickOrAdd";
+import { numberText, parseCoordinatePair, parseNumber, PUMP_MAKES, splitPump } from "@strata/core";
 import { text } from "@/text";
 import { cn } from "cn";
 
@@ -45,6 +46,7 @@ interface FormState {
   drillingMethod: DrillingMethod | "";
   remarks: string;
   pumpType: string;
+  pumpMake: string;
   pumpModel: string;
   pumpHp: string;
   pumpLowering: string;
@@ -55,7 +57,6 @@ const PUMP_TYPES = [
   "Borewell submersible, 3 inch (80 mm)", "Borewell submersible, 4 inch (100 mm)", "Borewell submersible, 6 inch (150 mm)",
   "Openwell submersible", "Monobloc", "Self-priming monobloc", "Jet pump", "Hand pump",
 ];
-const PUMP_MAKES = ["KSB", "CRI", "Kirloskar", "Bahubali", "Pluga", "Varuna", "Lubi", "Crompton", "CG"];
 const PUMP_HP = ["0.5", "0.75", "1", "1.5", "2", "3", "4", "5", "6", "7.5", "10", "12.5", "15", "17.5", "20", "25"];
 
 interface StagedPhoto { path: string; captureDate: string | null; latitude: number | null; longitude: number | null }
@@ -71,7 +72,7 @@ const emptyForm = (): FormState => ({
   houseNo: "", address: "", area: "", city: text.app.city,
   latitude: "", longitude: "", locationSource: "unknown",
   totalDepth: "", waterLevel: "", dynamicWaterLevel: "", boreDia: "", pipeDia: "", drillingMethod: "", remarks: "",
-  pumpType: "", pumpModel: "", pumpHp: "", pumpLowering: "",
+  pumpType: "", pumpMake: "", pumpModel: "", pumpHp: "", pumpLowering: "",
 });
 
 function readDraft(): { draft: Draft; restored: boolean } {
@@ -118,18 +119,20 @@ function toInput(f: FormState): BorewellInput {
     locationSource: lat != null && lon != null ? (f.locationSource === "unknown" ? "typed" : f.locationSource) : "unknown",
     totalDepth: n(f.totalDepth), waterLevel: n(f.waterLevel), dynamicWaterLevel: n(f.dynamicWaterLevel),
     boreDia: n(f.boreDia), pipeDia: n(f.pipeDia), drillingMethod: f.drillingMethod || null, remarks: f.remarks,
-    pumpType: f.pumpType.trim(), pumpModel: f.pumpModel.trim(), pumpHp: n(f.pumpHp), pumpLowering: n(f.pumpLowering),
+    pumpType: f.pumpType.trim(), pumpMake: f.pumpMake.trim(), pumpModel: f.pumpModel.trim(), pumpHp: n(f.pumpHp), pumpLowering: n(f.pumpLowering),
   };
 }
 
 function fromBorewell(b: Borewell): FormState {
+  // A record from before the company had its own box has it written inside the model.
+  const pump = b.pumpMake ? { make: b.pumpMake, model: b.pumpModel } : splitPump(b.pumpModel);
   return {
     borewellId: b.borewellId, ownerName: b.ownerName, project: b.project, date: b.date,
     houseNo: b.houseNo, address: b.address, area: b.area, city: b.city,
     latitude: numberText(b.latitude), longitude: numberText(b.longitude), locationSource: b.locationSource,
     totalDepth: numberText(b.totalDepth), waterLevel: numberText(b.waterLevel), dynamicWaterLevel: numberText(b.dynamicWaterLevel),
     boreDia: numberText(b.boreDia), pipeDia: numberText(b.pipeDia), drillingMethod: b.drillingMethod ?? "", remarks: b.remarks,
-    pumpType: b.pumpType, pumpModel: b.pumpModel, pumpHp: numberText(b.pumpHp), pumpLowering: numberText(b.pumpLowering),
+    pumpType: b.pumpType, pumpMake: pump.make, pumpModel: pump.model, pumpHp: numberText(b.pumpHp), pumpLowering: numberText(b.pumpLowering),
   };
 }
 
@@ -198,6 +201,8 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   const layers = toLayers(draft.layers, mats);
   const pipes = toPipes(draft.pipes);
 
+  /** What other borewells have in a box, for the dropdowns: each value once, in A to Z order. */
+  const used = (pick: (b: Borewell) => string) => [...new Set((all.data ?? []).map((i) => pick(i.borewell)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const duplicate = (all.data ?? []).some((i) => i.borewell.borewellId.toLowerCase() === f.borewellId.trim().toLowerCase() && i.borewell.id !== id);
   const numberIssues: Issue[] = (["totalDepth", "waterLevel", "dynamicWaterLevel", "boreDia", "pipeDia", "latitude", "longitude", "pumpHp", "pumpLowering"] as const)
     .filter((k) => parseNumber(f[k]) === undefined)
@@ -341,15 +346,14 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
         </Panel>
         <Panel title="Pump">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="f-pump-type" label="Pump type" hint="Pick one, or type your own.">
-              <Input id="f-pump-type" list="f-pump-types" value={f.pumpType} onChange={(e) => set({ pumpType: e.target.value })} />
-              <datalist id="f-pump-types">{PUMP_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+            <Field id="f-pump-type" label="Pump type">
+              <PickOrAdd id="f-pump-type" value={f.pumpType} options={[...PUMP_TYPES, ...used((b) => b.pumpType)]} addLabel="Add a new type…" onChange={(v) => set({ pumpType: v })} />
             </Field>
-            <Field id="f-pump-model" label="Pump model" hint="Make and model, e.g. KSB 12C/17.">
-              <Input id="f-pump-model" list="f-pump-models" value={f.pumpModel} onChange={(e) => set({ pumpModel: e.target.value })} />
-              <datalist id="f-pump-models">
-                {[...new Set([...(all.data ?? []).map((i) => i.borewell.pumpModel).filter(Boolean), ...PUMP_MAKES])].map((m) => <option key={m} value={m} />)}
-              </datalist>
+            <Field id="f-pump-make" label="Pump company">
+              <PickOrAdd id="f-pump-make" value={f.pumpMake} options={[...PUMP_MAKES, ...used((b) => b.pumpMake)]} addLabel="Add a new company…" onChange={(v) => set({ pumpMake: v, pumpModel: "" })} />
+            </Field>
+            <Field id="f-pump-model" label="Pump model" hint={f.pumpMake ? `Models you have used from ${f.pumpMake}, or add a new one.` : "Choose the company first to see its models."}>
+              <PickOrAdd key={f.pumpMake} id="f-pump-model" value={f.pumpModel} options={used((b) => (b.pumpMake === f.pumpMake ? b.pumpModel : ""))} addLabel="Add a new model…" onChange={(v) => set({ pumpModel: v })} />
             </Field>
             <Field id="f-pump-hp" label="Power (HP)" error={err("pumpHp")}>
               <Input id="f-pump-hp" className="num" inputMode="decimal" list="f-pump-hps" value={f.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} aria-invalid={!!err("pumpHp") || undefined} />

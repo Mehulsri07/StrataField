@@ -29,6 +29,7 @@ export function exportRows(records: BorewellRecord[]) {
     'Pipe size (inch)': b.pipeDia,
     'Drilling method': b.drillingMethod ?? '',
     'Pump type': b.pumpType,
+    'Pump company': b.pumpMake,
     'Pump model': b.pumpModel,
     'Pump power (HP)': b.pumpHp,
     'Pump lowered to (ft)': b.pumpLowering,
