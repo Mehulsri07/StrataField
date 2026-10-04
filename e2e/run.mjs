@@ -421,6 +421,17 @@ try {
     check("Export builds the workbook; writing is refused for a path not picked in the Save dialog", /forbidden path/.test(refused) && !fs.existsSync(out), refused.slice(0, 80));
   }
 
+  // The PDF report itself, taken before it is written: a real PDF, with the drawing (and, with internet, the map).
+  const report = await page(`
+    window.__pdf = null; window.__STRATA_TEST_KEEP__ = (bytes) => { window.__pdf = bytes; };
+    location.hash = '#/'; await __t.wait(300); location.hash = '#/borewell/${manual.bwid}';
+    await __t.until(() => document.querySelector('main h1')?.textContent.includes('${manual.id}') && __t.btn('Make PDF report'), 8000); await __t.wait(400);
+    __t.btn('Make PDF report').click();
+    await __t.until(() => window.__pdf, 30000).catch(() => {});
+    delete window.__STRATA_TEST_KEEP__;
+    return window.__pdf ? { head: String.fromCharCode(...window.__pdf.subarray(0, 5)), size: window.__pdf.length } : { head: 'not built: ' + [...document.querySelectorAll('[data-sonner-toast]')].map(t => t.innerText).join(' | '), size: 0 };`);
+  check("The PDF report of a borewell is built, with its drawing", report.head === "%PDF-" && report.size > 15000, `${report.head} ${report.size} bytes`);
+
   // ── History ────────────────────────────────────────────────────────────
   const history = await page(`
     location.hash = '#/borewell/${manual.bwid}'; await __t.until(() => __t.btn('History'), 8000);

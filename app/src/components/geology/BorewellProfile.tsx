@@ -26,16 +26,26 @@ export function BorewellProfile({
   height?: number;
   selectedId?: string | null;
   onLayerClick?: (layer: StrataLayer) => void;
-  /** For saved pictures and PDFs: leaves out the hover and selection outlines (stylesheets do not apply there). */
+  /**
+   * For saved pictures and PDFs, which are read without a mouse: each layer's name is written on the
+   * layer, the depth marks are where the layers change, and the hover and selection outlines are left
+   * out (stylesheets do not apply there).
+   */
   forPrint?: boolean;
 }) {
   const depth = borewell.totalDepth || Math.max(1, ...strata.map((l) => l.endDepth));
   const W = 380, top = 30, H = height, bottom = top + H;
   const y = (d: number) => top + (d / depth) * H;
-  const colX = 44, colW = 96, boreX = 164, boreW = 44, pipeW = 26, labX = 228;
+  // In print the layer column is wider, since the names are written inside it.
+  const colX = 44, colW = forPrint ? 150 : 96, boreX = colX + colW + 24, boreW = 44, pipeW = 26, labX = boreX + boreW + 20;
   const px = boreX + (boreW - pipeW) / 2;
   const step = depth > 300 ? 50 : 20;
-  const ticks = Array.from({ length: Math.floor(depth / step) + 1 }, (_, i) => i * step);
+  const ticks = forPrint
+    ? [...new Set([0, ...strata.flatMap((l) => [l.startDepth, l.endDepth]), depth])].filter((d) => d >= 0 && d <= depth).sort((a, b) => a - b)
+    : Array.from({ length: Math.floor(depth / step) + 1 }, (_, i) => i * step);
+  // Marks closer than a line of text keep their tick but only one of them is numbered.
+  const numbered = ticks.filter((d, i) => i === 0 || y(d) - y(ticks[i - 1]) >= 9 || i === ticks.length - 1)
+    .filter((d, i, kept) => i === kept.length - 1 || y(kept[i + 1]) - y(d) >= 9);
   const wl = borewell.waterLevel;
   const lastPipe = [...pipes].sort((a, b) => b.endDepth - a.endDepth)[0];
 
@@ -53,6 +63,23 @@ export function BorewellProfile({
     return null;
   };
 
+  // In print, where each name goes: on its layer, clear of the water line; or, for a layer too thin
+  // to write on, beside it, each one below the last so they never pile up.
+  const printLabel: { on: boolean; at: number; size: number }[] = [];
+  for (const l of strata) {
+    const y1 = y(l.startDepth), h = Math.max(0, y(l.endDepth) - y1);
+    if (h >= 11) {
+      let at = y1 + h / 2 + 4;
+      if (wl != null && Math.abs(at - 4 - y(wl)) < 9) at = y(wl) + 15 <= y1 + h - 3 ? y(wl) + 15 : y(wl) - 6 >= y1 + 11 ? y(wl) - 6 : at;
+      printLabel.push({ on: true, at, size: h >= 14 ? 11.5 : 9.5 });
+    } else {
+      const lastBeside = Math.max(-Infinity, ...printLabel.filter((p) => !p.on).map((p) => p.at));
+      let at = Math.max(y1 + h / 2 + 3, lastBeside + 9.5);
+      if (waterLabelY != null && Math.abs(at - waterLabelY) < 11) at = waterLabelY + 12;
+      printLabel.push({ on: false, at, size: 9.5 });
+    }
+  }
+
   return (
     <svg
       viewBox={`0 0 ${W} ${bottom + 34}`}
@@ -60,17 +87,17 @@ export function BorewellProfile({
       role="group"
       aria-label={`${borewell.borewellId}: ${strata.length} soil layers to ${depth} ft`}
     >
-      <text x={colX + colW / 2} y="16" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">LAYERS</text>
+      <text x={colX + colW / 2} y="16" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">{forPrint ? "STRATA" : "LAYERS"}</text>
       <text x={boreX + boreW / 2} y="16" textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">PIPE</text>
       {ticks.map((d) => (
         <g key={d}>
           <path d={`M${colX - 6} ${y(d)}H${colX}`} stroke="var(--input)" />
-          <text x={colX - 9} y={y(d) + 3.5} textAnchor="end" fontSize="10" fill="var(--muted-foreground)" className="num">{d}</text>
+          {numbered.includes(d) && <text x={colX - 9} y={y(d) + 3.5} textAnchor="end" fontSize="10" fill="var(--muted-foreground)" className="num">{d}</text>}
         </g>
       ))}
       <text x="10" y={top - 12} fontSize="10" fill="var(--muted-foreground)">ft</text>
 
-      {strata.map((l) => {
+      {strata.map((l, i) => {
         const y1 = y(l.startDepth), h = Math.max(0, y(l.endDepth) - y1);
         const selected = l.id === selectedId;
         const label = `${l.material}, ${l.startDepth} to ${l.endDepth} ft`;
@@ -93,7 +120,12 @@ export function BorewellProfile({
               x={colX + 1} y={y1 + 1} width={colW - 2} height={Math.max(0, h - 2)} fill="none" stroke="var(--primary)" strokeWidth="2.5"
               className={selected ? "" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}
             />}
-            {labelY(y1, h) != null && (
+            {forPrint ? (
+              // On the layer, with a light edge so it reads over any pattern; beside it when the layer is too thin.
+              printLabel[i].on
+                ? <text x={colX + colW / 2} y={printLabel[i].at} textAnchor="middle" fontSize={printLabel[i].size} fontWeight="600" fill="#16202a" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.85" strokeLinejoin="round" paintOrder="stroke">{l.material}</text>
+                : <text x={labX} y={printLabel[i].at} fontSize={printLabel[i].size} fill="var(--foreground)">{l.material} <tspan fill="var(--muted-foreground)" fontSize="8.5">{l.startDepth}–{l.endDepth}</tspan></text>
+            ) : labelY(y1, h) != null && (
               <text x={labX} y={labelY(y1, h)!} fontSize="11.5" fill="var(--foreground)">
                 {l.material} <tspan fill="var(--muted-foreground)" fontSize="10" className="num">{l.startDepth}–{l.endDepth}</tspan>
               </text>

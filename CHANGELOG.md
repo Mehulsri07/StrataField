@@ -3,6 +3,22 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Changed
+- **The PDF report of a borewell reads better on paper.**
+  - The drawing's column is headed **STRATA**, each layer's name is written on the layer, and the
+    depth marks are where the layers change (0, 10, 60, 110...) instead of every 50 ft. A layer too
+    thin to write on has its name and depths beside it.
+  - A small street map shows where the borewell is, when it has a location and there is internet.
+    Reports of more than 20 borewells at once leave the maps out.
+  - **Pipe pieces** is now the number of 10 ft lengths: the tubewell's depth divided by 10, rounded up.
+  - The top of each page and the footer give the date the borewell was drilled, not the date the
+    report was made.
+  - The details take less room, two to a row, and long names run onto a second line instead of
+    being cut off.
+- **Save as picture** draws the borewell the same way.
+
 ## [1.0.10] - 2026-10-04
 
 ### Changed

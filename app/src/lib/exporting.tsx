@@ -59,10 +59,64 @@ const INK = rgb(0.086, 0.125, 0.165), QUIET = rgb(0.353, 0.404, 0.455), LINE = r
 const METHOD: Record<string, string> = { ROTARY: "Rotary", DTH: "DTH (down-the-hole)", MANUAL: "Manual", UNKNOWN: "Not known" };
 const LOCATION: Record<string, string> = { gps: "from GPS", photo: "from a photo's GPS", map: "picked on the map", typed: "typed in", address: "approximate, from the address", imported: "from an Excel file", unknown: "" };
 
+const PIPE_LENGTH_FT = 10;
+const MAX_MAPS = 20;
+
+type TileCache = Map<string, Promise<HTMLImageElement | null>>;
+
+/** One map picture from the online street map, or null if it does not arrive (no internet, or too slow). */
+function tile(z: number, x: number, y: number, cache: TileCache) {
+  const key = `${z}/${x}/${y}`;
+  let got = cache.get(key);
+  if (!got) {
+    got = new Promise<HTMLImageElement | null>((done) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous"; // so the canvas it is drawn on can be saved
+      img.onload = () => done(img);
+      img.onerror = () => done(null);
+      setTimeout(() => done(null), 6000);
+      img.src = `https://tile.openstreetmap.org/${key}.png`;
+    });
+    cache.set(key, got);
+  }
+  return got;
+}
+
+/**
+ * A street map centred on a place with a dot on it, `width` by `height` points, as PNG bytes.
+ * Null when the map cannot be fetched; the report is then made without it.
+ */
+async function mapPng(lat: number, lon: number, width: number, height: number, cache: TileCache, zoom = 16): Promise<Uint8Array | null> {
+  if (isPreview) return null;
+  const W = Math.round(width * 2), H = Math.round(height * 2), T = 256, n = 2 ** zoom;
+  // Where the place is on the world map at this zoom, in pixels (web Mercator).
+  const cx = ((lon + 180) / 360) * n * T;
+  const rad = (lat * Math.PI) / 180;
+  const cy = ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * n * T;
+  const x0 = cx - W / 2, y0 = cy - H / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext("2d")!;
+  const jobs: Promise<boolean>[] = [];
+  for (let tx = Math.floor(x0 / T); tx * T < x0 + W; tx++) for (let ty = Math.floor(y0 / T); ty * T < y0 + H; ty++) {
+    jobs.push(tile(zoom, tx, ty, cache).then((img) => { if (img) g.drawImage(img, Math.round(tx * T - x0), Math.round(ty * T - y0)); return !!img; }));
+  }
+  if (!(await Promise.all(jobs)).every(Boolean)) return null;
+  g.beginPath(); g.arc(W / 2, H / 2, 11, 0, 2 * Math.PI); g.fillStyle = "#0d6883"; g.fill();
+  g.lineWidth = 5; g.strokeStyle = "#ffffff"; g.stroke();
+  try {
+    const blob: Blob | null = await new Promise((ok) => canvas.toBlob(ok, "image/png"));
+    return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+  } catch {
+    return null; // the map server did not allow its pictures to be copied
+  }
+}
+
 class Writer {
   page!: PDFPage;
   y = 0;
   pages: PDFPage[] = [];
+  /** `header` is the small line at the top left of every page, after "StrataField". */
   constructor(private doc: PDFDocument, private font: PDFFont, private bold: PDFFont, private title: string,
     readonly size: [number, number] = A4, private header = "Borewell report") {}
 
@@ -86,6 +140,15 @@ class Writer {
     let out = safe(s);
     while (out.length > 1 && f.widthOfTextAtSize(out, size) > width) out = out.slice(0, -2) + "…";
     return out;
+  }
+  /** The text over at most two lines of `width`; what does not fit on the second is cut short. */
+  wrap(s: string, width: number, size = 9.5, useBold = false): string[] {
+    const f = useBold ? this.bold : this.font;
+    const words = safe(s).split(" ");
+    let first = "";
+    while (words.length && f.widthOfTextAtSize(first ? `${first} ${words[0]}` : words[0], size) <= width) first = first ? `${first} ${words.shift()}` : words.shift()!;
+    if (!first) return [this.fit(s, width, size, useBold)];
+    return words.length ? [first, this.fit(words.join(" "), width, size, useBold)] : [first];
   }
   rule(y = this.y) {
     this.page.drawLine({ start: { x: M, y }, end: { x: this.size[0] - M, y }, thickness: 0.6, color: LINE });
@@ -136,11 +199,15 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
   doc.setCreator("StrataField");
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const made = formatDate(new Date().toISOString());
+  // A map for each borewell is only fetched for a short report: hundreds of them would be slow and
+  // more than the map server allows.
+  const tiles: TileCache = new Map();
+  const withMaps = records.length <= MAX_MAPS;
 
   for (const r of records) {
     const b = r.borewell;
-    const w = new Writer(doc, font, bold, b.borewellId);
+    const drilled = b.date ? formatDate(b.date) : "";
+    const w = new Writer(doc, font, bold, b.borewellId, A4, drilled ? `Borewell report · drilled ${drilled}` : "Borewell report");
     w.newPage();
     w.text(w.fit(`${b.borewellId}${b.ownerName ? ` · ${b.ownerName}` : ""}`, A4[0] - 2 * M, 18, true), M, w.y, 18, INK, true);
     w.y -= 16;
@@ -158,32 +225,51 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
 
     const ft = (v: number | null) => (v == null ? "—" : `${v} ft`);
     const inch = (v: number | null) => (v == null ? "—" : `${v}"`);
-    const facts: [string, string][] = [
+    // The pipe goes down in 10 ft lengths, so the count is the tubewell's depth in tens, rounded up.
+    const tubewell = Math.max(0, ...r.pipes.map((p) => p.endDepth));
+    const located = b.latitude != null && b.longitude != null;
+    // Short facts sit two to a row; long ones take a whole row.
+    const facts: [string, string, boolean?][] = [
       ["Total depth", ft(b.totalDepth)],
       ["Water level", ft(b.waterLevel)],
       ...(b.dynamicWaterLevel != null ? [["Water level while pumping", ft(b.dynamicWaterLevel)] as [string, string]] : []),
       ["Hole size / pipe size", `${inch(b.boreDia)} / ${inch(b.pipeDia)}`],
       ["Drilling method", b.drillingMethod ? METHOD[b.drillingMethod] : "—"],
-      ...(pumpText(b) ? [["Pump", pumpText(b)] as [string, string]] : []),
-      ...(b.pumpLowering != null ? [["Pump lowered to", ft(b.pumpLowering)] as [string, string]] : []),
-      ["Date drilled", b.date ? formatDate(b.date) : "—"],
-      ["Owner", b.ownerName || "—"],
-      ["Address", [b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ") || "—"],
-      ["GPS location", b.latitude != null && b.longitude != null ? `${b.latitude.toFixed(5)}, ${b.longitude.toFixed(5)}` : "Not recorded"],
-      ...(b.latitude != null && LOCATION[b.locationSource] ? [["", LOCATION[b.locationSource]] as [string, string]] : []),
+      ["Date drilled", drilled || "—"],
       ["Zone", zoneName(b.project)],
       ["Soil layers", `${r.strata.length}`],
-      ["Pipe pieces", `${r.pipes.length}`],
+      ["Pipe pieces (10 ft each)", tubewell > 0 ? `${Math.ceil(tubewell / PIPE_LENGTH_FT)}` : "—"],
+      ...(b.pumpLowering != null ? [["Pump lowered to", ft(b.pumpLowering)] as [string, string]] : []),
+      ...(pumpText(b) ? [["Pump", pumpText(b), true] as [string, string, boolean]] : []),
+      ["Owner", b.ownerName || "—", true],
+      ["Address", [b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ") || "—", true],
+      ["GPS location", located ? `${b.latitude!.toFixed(5)}, ${b.longitude!.toFixed(5)}${LOCATION[b.locationSource] ? ` (${LOCATION[b.locationSource]})` : ""}` : "Not recorded", true],
     ];
-    for (const [k, v] of facts) {
-      if (k) w.text(k, M, w.y, 8, QUIET);
-      w.text(w.fit(v, 250 - 10, 10.5, true), M, w.y - (k ? 12 : 0), 10.5, INK, true);
-      w.y -= k ? 28 : 16;
+    const LEFT = 250, HALF = LEFT / 2;
+    let col = 0;
+    for (const [k, v, wide] of facts) {
+      if (wide && col === 1) { w.y -= 28; col = 0; }
+      const x = M + col * HALF;
+      w.text(k, x, w.y, 8, QUIET);
+      const lines = wide ? w.wrap(v, LEFT - 10, 10.5, true) : [w.fit(v, HALF - 10, 10.5, true)];
+      lines.forEach((line, i) => w.text(line, x, w.y - 12 - i * 13, 10.5, INK, true));
+      if (wide || col === 1) { w.y -= 28 + (lines.length - 1) * 13; col = 0; } else col = 1;
     }
+    if (col === 1) w.y -= 28;
     if (b.remarks) {
       w.text("Notes", M, w.y, 8, QUIET);
-      w.text(w.fit(b.remarks, 250), M, w.y - 12, 10);
+      w.text(w.fit(b.remarks, LEFT), M, w.y - 12, 10);
       w.y -= 28;
+    }
+    // A small map of where the borewell is, in the room left beside the drawing.
+    const mapH = Math.min(190, w.y - (top - drawH) - 14);
+    const map = withMaps && located && mapH >= 90 ? await mapPng(b.latitude!, b.longitude!, LEFT - 10, mapH, tiles) : null;
+    if (map) {
+      const mapY = w.y - mapH + 6;
+      w.page.drawImage(await doc.embedPng(map), { x: M, y: mapY, width: LEFT - 10, height: mapH });
+      w.page.drawRectangle({ x: M, y: mapY, width: LEFT - 10, height: mapH, borderColor: LINE, borderWidth: 0.6 });
+      w.text("Map © OpenStreetMap contributors", M, mapY - 9, 6.5, QUIET);
+      w.y = mapY - 12;
     }
     w.y = Math.min(w.y, top - drawH) - 16;
 
@@ -204,7 +290,7 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
     }
 
     w.pages.forEach((p, i) => {
-      const foot = `Made with StrataField on ${made}. Layer depths are as recorded at the borewell.`;
+      const foot = `Made with StrataField.${drilled ? ` Drilled on ${drilled}.` : ""} Layer depths are as recorded at the borewell.`;
       p.drawText(safe(foot), { x: M, y: M - 8, size: 7.5, font, color: QUIET });
       const n = `Page ${i + 1} of ${w.pages.length}`;
       p.drawText(n, { x: A4[0] - M - font.widthOfTextAtSize(n, 7.5), y: M - 8, size: 7.5, font, color: QUIET });
@@ -309,6 +395,9 @@ export async function saveFile(suggestedName: string, kind: "pdf" | "excel" | "p
   }[kind];
   // The end-to-end test stands in for the Save dialog, only in builds made for it.
   const testSave = import.meta.env.VITE_E2E === "1" ? (window as { __STRATA_TEST_SAVE__?: (name: string) => string | null }).__STRATA_TEST_SAVE__ : undefined;
+  // ...and can take the file's bytes itself, to look at what would have been saved.
+  const testKeep = import.meta.env.VITE_E2E === "1" ? (window as { __STRATA_TEST_KEEP__?: (bytes: Uint8Array) => void }).__STRATA_TEST_KEEP__ : undefined;
+  if (testKeep) { testKeep(bytes); return suggestedName; }
   const { save } = await import("@tauri-apps/plugin-dialog");
   const path = testSave ? testSave(suggestedName) : await save({ defaultPath: suggestedName, filters });
   if (!path) return null;
