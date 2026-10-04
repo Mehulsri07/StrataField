@@ -42,8 +42,11 @@ pub struct Borewell {
     pub water_level_on: Option<String>,
     /// The kind of pump, e.g. "Borewell submersible, 4 inch (100 mm)". Empty when not recorded.
     pub pump_type: String,
-    /// Make and model, e.g. "KSB 12C/17".
+    /// The model, e.g. "12C/17". Records from before the maker had its own box may still have the
+    /// maker written here as well ("KSB 12C/17").
     pub pump_model: String,
+    /// The company that made the pump, e.g. "KSB".
+    pub pump_make: String,
     pub pump_hp: Option<f64>,
     /// How deep the pump hangs, in feet below ground.
     pub pump_lowering: Option<f64>,
@@ -82,6 +85,7 @@ pub struct BorewellInput {
     pub import_method: Option<String>,
     pub pump_type: String,
     pub pump_model: String,
+    pub pump_make: String,
     pub pump_hp: Option<f64>,
     pub pump_lowering: Option<f64>,
 }

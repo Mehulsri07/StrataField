@@ -78,7 +78,8 @@ export interface Borewell {
   deletedAt: string | null;  // ISO datetime if in the Recycle bin, else null
   waterLevelOn: string | null; // date the water level was measured (newest reading, else the drilling date)
   pumpType: string;          // e.g. "Borewell submersible, 4 inch (100 mm)"; '' when not recorded
-  pumpModel: string;         // make and model, e.g. "KSB 12C/17"
+  pumpMake: string;          // the company, e.g. "KSB"
+  pumpModel: string;         // e.g. "12C/17"; older records may have the company here too
   pumpHp: number | null;
   pumpLowering: number | null; // how deep the pump hangs, feet below ground
 }

@@ -3,6 +3,16 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Changed
+- **Pump company and model are chosen from lists.** The pump now has a **Pump company** box and a
+  **Pump model** box, both dropdowns. The model list shows the models you have already used from
+  the chosen company. Each list, and the pump type's, ends with **Add a new…** for anything not on
+  it yet; once saved it is on the list. Pumps already recorded as "KSB 12C/17" in one box are split
+  into company and model when the borewell is opened for editing, and Import splits them as it
+  reads a log. The Excel export has a **Pump company** column.
+
 ## [1.0.9] - 2026-10-04
 
 ### New
