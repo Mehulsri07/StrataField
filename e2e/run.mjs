@@ -197,14 +197,14 @@ try {
     const id = document.querySelector('#f-id').value;
     const nagging = !!document.querySelector('#f-owner-msg');
     const step = (name) => [...document.querySelectorAll('main ol button')].find(b => b.innerText.includes(name));
-    step('Drilling').click(); await __t.wait(300);
-    __t.type(document.querySelector('#f-hole'), 'ten');
+    step('Drilling').click();
+    __t.type(await __t.until(() => document.querySelector('#f-hole')), 'ten');
     step('Check').click(); await __t.wait(300);
     const problem = [...document.querySelectorAll('main li button')].find(b => /Hole size/.test(b.innerText));
     const named = problem?.innerText ?? ''; problem?.click(); await __t.wait(300);
     const led = !!document.querySelector('#f-hole'); if (led) __t.type(document.querySelector('#f-hole'), '');
-    step('Basics').click(); await __t.wait(300);
-    __t.type(document.querySelector('#f-owner'), 'E2E Owner');
+    step('Basics').click();
+    __t.type(await __t.until(() => document.querySelector('#f-owner')), 'E2E Owner');
     __t.type(document.querySelector('#f-zone'), 'Zone E2E');
     __t.btn('Next: Location').click(); await __t.wait(300);
     __t.type(document.querySelector('#f-area'), 'Vipul Khand');

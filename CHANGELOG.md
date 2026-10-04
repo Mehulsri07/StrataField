@@ -17,6 +17,15 @@ for a version is copied into its GitHub release notes, so write it for the peopl
     report was made.
   - The details take less room, two to a row, and long names run onto a second line instead of
     being cut off.
+  - **Your letterhead.** Enter your company's name, address, phone and email once under
+    **Settings & backup → Report letterhead**; they are printed across the top of each report.
+  - **Nearby borewells.** A report of up to 20 borewells lists the closest ones within 1 km, with
+    how far away they are, their depth and their water level.
+  - **Lines to sign**, for the client and the driller, at the end.
+  - When no layer has notes, the layers and the pipes sit side by side, which keeps most reports
+    on one sheet.
+- **The pump is drawn on the borewell.** A marker in the pipe at the depth the pump was lowered to,
+  on the borewell's page and in the report.
 - **Save as picture** draws the borewell the same way.
 
 ## [1.0.10] - 2026-10-04

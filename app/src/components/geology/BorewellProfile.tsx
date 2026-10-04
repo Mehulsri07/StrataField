@@ -48,6 +48,9 @@ export function BorewellProfile({
     .filter((d, i, kept) => i === kept.length - 1 || y(kept[i + 1]) - y(d) >= 9);
   const wl = borewell.waterLevel;
   const lastPipe = [...pipes].sort((a, b) => b.endDepth - a.endDepth)[0];
+  // The pump hangs inside the pipe at the depth it was lowered to; its label keeps clear of the water's.
+  const pumpAt = borewell.pumpLowering != null && borewell.pumpLowering > 0 && borewell.pumpLowering <= depth ? borewell.pumpLowering : null;
+  const pumpLabelY = pumpAt == null ? null : wl != null && Math.abs(y(pumpAt) - 4 - (y(wl) - 2)) < 13 ? y(wl) + 12 : y(pumpAt) - 4;
 
   // Layer names share a column with the "Water … ft" label. Move a name above or below that label
   // when they would overlap, or leave it out if the layer is too thin (the popup still has it).
@@ -157,6 +160,14 @@ export function BorewellProfile({
           <path d={`M${colX - 4} ${y(wl)}H${boreX + boreW + 8}`} stroke="var(--water)" strokeWidth="1.6" strokeDasharray="5 3" />
           <path d={`M${boreX + boreW + 8} ${y(wl) - 9}l5 8 5-8z`} fill="var(--water)" />
           <text x={boreX + boreW + 22} y={y(wl) - 2} fontSize="11" fontWeight="600" fill="var(--water)">Water {wl} ft</text>
+        </g>
+      )}
+      {pumpAt != null && (
+        <g pointerEvents="none">
+          <title>Pump lowered to {pumpAt} ft</title>
+          <rect x={px + 4} y={y(pumpAt) - 16} width={pipeW - 8} height="16" rx="2" fill="#b45309" stroke="#ffffff" strokeWidth="1" />
+          <path d={`M${px + pipeW / 2} ${top}V${y(pumpAt) - 16}`} stroke="#b45309" strokeWidth="1.2" />
+          <text x={boreX + boreW + 22} y={pumpLabelY!} fontSize="11" fontWeight="600" fill="#b45309">Pump {pumpAt} ft</text>
         </g>
       )}
       <text x={colX} y={bottom + 20} fontSize="11" fill="var(--muted-foreground)" className="num">
