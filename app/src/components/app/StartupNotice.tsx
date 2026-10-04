@@ -31,7 +31,7 @@ export function StartupNotice({ status }: { status: StartupStatus }) {
   return (
     <div
       role="status"
-      className={`mx-6 mt-5 flex gap-3 rounded-md border p-4 ${failed ? "border-destructive/40 bg-danger-soft" : "border-ok/30 bg-ok-soft"}`}
+      className={`mx-8 mt-5 flex max-w-[1256px] gap-3 rounded-md border p-4 ${failed ? "border-destructive/40 bg-danger-soft" : "border-ok/30 bg-ok-soft"}`}
     >
       {failed ? <TriangleAlert className="mt-0.5 size-5 shrink-0 text-destructive" /> : <CircleCheck className="mt-0.5 size-5 shrink-0 text-ok" />}
       <div className="grid gap-1 text-sm">

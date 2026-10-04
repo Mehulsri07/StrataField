@@ -148,7 +148,8 @@ export function Borewells() {
         {rows.error && <p className="px-4 py-3 text-sm text-destructive">{rows.error}</p>}
 
         <div className="overflow-x-auto">
-          <Table>
+          {/* Owner and Area take what room is left and cut long names short, so the columns after them stay in view. */}
+          <Table className="min-w-[880px]">
             <TableHeader>
               <TableRow>
                 <SortHead label="Borewell ID" k="borewellId" sort={sort} onSort={toggleSort} />
@@ -170,9 +171,9 @@ export function Borewells() {
                   onClick={() => navigate(`/borewell/${b.id}`)}
                   onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) navigate(`/borewell/${b.id}`); }}
                 >
-                  <TableCell className="num font-medium text-primary">{b.borewellId}</TableCell>
-                  <TableCell>{b.ownerName || <span className="text-muted-foreground">Not entered</span>}</TableCell>
-                  <TableCell>{b.area}<div className="text-xs text-muted-foreground">{zoneName(b.project)}</div></TableCell>
+                  <TableCell className="num max-w-36 truncate font-medium text-primary" title={b.borewellId}>{b.borewellId}</TableCell>
+                  <TableCell className="w-[24%] max-w-0 truncate" title={b.ownerName}>{b.ownerName || <span className="text-muted-foreground">Not entered</span>}</TableCell>
+                  <TableCell className="w-[20%] max-w-0 truncate" title={b.area}>{b.area}<div className="truncate text-xs text-muted-foreground">{zoneName(b.project)}</div></TableCell>
                   <TableCell className="num whitespace-nowrap">{b.date ? formatDate(b.date) : "—"}</TableCell>
                   <TableCell className="num text-right">{b.totalDepth ?? "—"}</TableCell>
                   <TableCell className="num text-right">{b.waterLevel ?? "—"}</TableCell>
