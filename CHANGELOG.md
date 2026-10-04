@@ -3,7 +3,7 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
-## [Unreleased]
+## [1.0.10] - 2026-10-04
 
 ### Changed
 - **Pump company and model are chosen from lists.** The pump now has a **Pump company** box and a
