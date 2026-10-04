@@ -136,6 +136,6 @@ export function missingDetails(b: Pick<BorewellInput, 'ownerName' | 'waterLevel'
   return [
     !b.ownerName?.trim() && 'owner',
     b.waterLevel == null && 'water level',
-    !b.date && 'date drilled',
+    !b.date && 'lowering date',
   ].filter((v): v is string => !!v);
 }

@@ -310,7 +310,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
               <Input id="f-zone" list="f-zone-list" value={f.project} onChange={(e) => set({ project: e.target.value })} placeholder="e.g. Zone 3 · Trans-Gomti" />
               <datalist id="f-zone-list">{(zones.data ?? []).map((z) => <option key={z.id} value={z.name} />)}</datalist>
             </Field>
-            <Field id="f-date" label="Date drilled">
+            <Field id="f-date" label="Tubewell lowering date">
               <Input id="f-date" type="date" value={f.date} onChange={(e) => set({ date: e.target.value })} />
             </Field>
           </div>
@@ -621,7 +621,7 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
           {row("Borewell ID", <span className="num">{f.borewellId}</span>)}
           {row("Owner", f.ownerName)}
           {row("Zone", zoneName(f.project))}
-          {row("Date drilled", f.date && formatDate(f.date))}
+          {row("Tubewell lowering date", f.date && formatDate(f.date))}
         </>)}
         {section("Location", "location", <>
           {row("Address", [f.houseNo, f.address, f.area, f.city].filter(Boolean).join(", "))}

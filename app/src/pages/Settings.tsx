@@ -19,6 +19,7 @@ import { api, files, isPreview, type SecondCopy } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
 import { useStartup } from "@/lib/hooks";
 import { formatWhen } from "@/lib/format";
+import { LETTERHEAD_KEY, type Letterhead } from "@/lib/exporting";
 import { useTheme } from "@/lib/theme";
 import { checkForUpdate, type AvailableUpdate } from "@/lib/updates";
 import { text } from "@/text";
@@ -54,6 +55,7 @@ export function Settings() {
       <OlderApp />
       <UnlinkedNames />
       <Zones />
+      <LetterheadPanel />
       <SoilTypes />
       <Appearance />
       <About />
@@ -523,6 +525,33 @@ function SoilTypes() {
 }
 
 // ── Appearance and about ────────────────────────────────────────────────
+
+/** Who the reports are from: shown across the top of each borewell's PDF report. */
+function LetterheadPanel() {
+  const { bump } = useDataVersion();
+  const saved = useLoad("settings-letterhead", () => api.settings.get<Letterhead>(LETTERHEAD_KEY));
+  const [draft, setDraft] = useState<Letterhead | null>(null);
+  const v = draft ?? saved.data ?? { name: "", address: "", contact: "" };
+  const set = (patch: Partial<Letterhead>) => setDraft({ ...v, ...patch });
+  const save = async () => {
+    try {
+      await api.settings.set(LETTERHEAD_KEY, { name: v.name.trim(), address: v.address.trim(), contact: v.contact.trim() });
+      bump();
+      toast.success("Letterhead saved. New PDF reports will use it.");
+    } catch (e) { toast.error(String(e)); }
+  };
+  return (
+    <Panel title={<span id="letterhead" className="scroll-mt-20">Report letterhead</span>} bodyClassName="grid gap-4">
+      <p className="text-sm text-muted-foreground">Your company's details, printed across the top of each borewell's PDF report. Leave them empty for a plain report.</p>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field id="lh-name" label="Company name"><Input id="lh-name" value={v.name} onChange={(e) => set({ name: e.target.value })} /></Field>
+        <Field id="lh-address" label="Address"><Input id="lh-address" value={v.address} onChange={(e) => set({ address: e.target.value })} /></Field>
+        <Field id="lh-contact" label="Phone and email"><Input id="lh-contact" value={v.contact} onChange={(e) => set({ contact: e.target.value })} /></Field>
+      </div>
+      <div><Button onClick={save} disabled={!draft || isPreview || JSON.stringify(draft) === JSON.stringify(saved.data)}>Save letterhead</Button></div>
+    </Panel>
+  );
+}
 
 function Appearance() {
   const { theme, setTheme } = useTheme();

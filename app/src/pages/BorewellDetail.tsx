@@ -84,7 +84,7 @@ export function BorewellDetail() {
     <Page>
       <PageHeader
         title={<><span className="num">{b.borewellId}</span>{b.ownerName && <> · {b.ownerName}</>}</>}
-        sub={<>{zoneName(b.project)} · {[b.area, b.city].filter(Boolean).join(", ")}{b.date && <> · drilled {formatDate(b.date)}</>}</>}
+        sub={<>{zoneName(b.project)} · {[b.area, b.city].filter(Boolean).join(", ")}{b.date && <> · tubewell lowered {formatDate(b.date)}</>}</>}
         actions={
           b.deletedAt ? null : (
             <>
@@ -129,7 +129,7 @@ export function BorewellDetail() {
                   {pumpText({ ...b, pumpType: "" }) && <FactText label="Pump">{pumpText({ ...b, pumpType: "" })}</FactText>}
                   {b.pumpType && <FactText label="Pump type">{b.pumpType}</FactText>}
                   {b.pumpLowering != null && <Fact label="Pump lowered to" value={b.pumpLowering} unit="ft" />}
-                  <FactText label="Date drilled">{b.date ? formatDate(b.date) : "—"}</FactText>
+                  <FactText label="Tubewell lowering date">{b.date ? formatDate(b.date) : "—"}</FactText>
                   <FactText label="Zone">{zoneName(b.project)}</FactText>
                   <FactText label="Added by">{b.importMethod === "excel" ? `Excel file${b.importSource ? ` (${b.importSource})` : ""}` : b.importMethod === "legacy" ? "The older StrataField" : "Typed in"}</FactText>
                 </dl>

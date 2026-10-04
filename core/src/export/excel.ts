@@ -21,7 +21,7 @@ export function exportRows(records: BorewellRecord[]) {
     Latitude: b.latitude,
     Longitude: b.longitude,
     'Location from': LOCATION[b.locationSource] ?? '',
-    'Date drilled': b.date,
+    'Tubewell lowering date': b.date,
     'Total depth (ft)': b.totalDepth,
     'Water level (ft)': b.waterLevel,
     'Water level while pumping (ft)': b.dynamicWaterLevel,

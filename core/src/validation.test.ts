@@ -57,7 +57,7 @@ describe('checkPipes', () => {
 
 describe('missingDetails', () => {
   it('names what an imported record still lacks', () => {
-    expect(missingDetails({ ownerName: ' ', waterLevel: null, date: '' })).toEqual(['owner', 'water level', 'date drilled']);
+    expect(missingDetails({ ownerName: ' ', waterLevel: null, date: '' })).toEqual(['owner', 'water level', 'lowering date']);
     expect(missingDetails({ ownerName: 'Asha', waterLevel: 0, date: '2026-01-01' })).toEqual([]);
   });
 });

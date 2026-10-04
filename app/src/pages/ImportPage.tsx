@@ -59,7 +59,7 @@ function describe(a: ParseAnomaly): string {
     case "DEPTH_GAP": return `There is a gap between layers${row}. It stays empty unless you fill it in later.`;
     case "DEPTH_OVERLAP": return `Two layers overlap${row}. Check them after importing.`;
     case "WATER_LEVEL_MISSING": return "No water level was found. Enter it below if you know it.";
-    case "DATE_MISSING": return "No drilling date was found. Enter it below if you know it.";
+    case "DATE_MISSING": return "No tubewell lowering date was found. Enter it below if you know it.";
     case "SITE_NAME_MISSING": return "No site or owner name was found. Enter it below.";
     case "NO_STRATA_FOUND": return "No soil layers were found in this file.";
     case "NON_STANDARD_FORMAT": return "This file is not laid out like a drilling log StrataField knows. Choose where the depths and soil names are.";
@@ -338,7 +338,7 @@ function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
               <Input id="i-id" className="num" value={d.borewellId} onChange={(e) => set({ borewellId: e.target.value })} />
             </Field>
             <Field id="i-owner" label="Owner's name"><Input id="i-owner" value={d.ownerName} onChange={(e) => set({ ownerName: e.target.value })} /></Field>
-            <Field id="i-date" label="Date drilled"><Input id="i-date" type="date" value={d.date} onChange={(e) => set({ date: e.target.value })} /></Field>
+            <Field id="i-date" label="Tubewell lowering date"><Input id="i-date" type="date" value={d.date} onChange={(e) => set({ date: e.target.value })} /></Field>
             <Field id="i-zone" label="Zone" hint="Pick one you used before, or type a new one.">
               <Input id="i-zone" list="i-zone-list" value={d.zone} onChange={(e) => set({ zone: e.target.value })} />
               <datalist id="i-zone-list">{zones.map((z) => <option key={z} value={z} />)}</datalist>

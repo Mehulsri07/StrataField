@@ -86,7 +86,7 @@ export function Home() {
               {waters.length > 0 && <>Water is typically <Num>{median(waters)} ft</Num> below ground{waters.length > 1 && ` (${Math.min(...waters)} to ${Math.max(...waters)} ft)`}{olderLeftOut && `, going by readings since ${cutoff.slice(0, 4)}`}. </>}
               {depths.length > 0 && <>Borewells go about <Num>{median(depths)} ft</Num> deep. </>}
               {located.length === all.length ? "All of them are on the map." : <><Num>{located.length}</Num> of {all.length} are on the map.</>}
-              {newest && (newest.date ? ` Last drilled ${formatDate(newest.date)}.` : ` Last added ${formatWhen(newest.createdAt)}.`)}
+              {newest && (newest.date ? ` Last tubewell lowered ${formatDate(newest.date)}.` : ` Last added ${formatWhen(newest.createdAt)}.`)}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">{actions}</div>
