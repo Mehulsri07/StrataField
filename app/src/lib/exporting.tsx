@@ -233,12 +233,12 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
 
   for (const r of records) {
     const b = r.borewell;
-    const drilled = b.date ? formatDate(b.date) : "";
-    const w = new Writer(doc, font, bold, b.borewellId, A4, drilled ? `Borewell report · drilled ${drilled}` : "Borewell report", letterhead);
+    const lowered = b.date ? formatDate(b.date) : "";
+    const w = new Writer(doc, font, bold, b.borewellId, A4, lowered ? `Borewell report · tubewell lowered ${lowered}` : "Borewell report", letterhead);
     w.newPage();
     w.text(w.fit(`${b.borewellId}${b.ownerName ? ` · ${b.ownerName}` : ""}`, A4[0] - 2 * M, 18, true), M, w.y, 18, INK, true);
     w.y -= 16;
-    w.text(w.fit([zoneName(b.project), [b.area, b.city].filter(Boolean).join(", "), b.date && `drilled ${formatDate(b.date)}`].filter(Boolean).join(" · "), A4[0] - 2 * M), M, w.y, 10, QUIET);
+    w.text(w.fit([zoneName(b.project), [b.area, b.city].filter(Boolean).join(", "), b.date && `tubewell lowered ${formatDate(b.date)}`].filter(Boolean).join(" · "), A4[0] - 2 * M), M, w.y, 10, QUIET);
     w.y -= 14;
     w.rule();
     w.y -= 18;
@@ -262,7 +262,7 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
       ...(b.dynamicWaterLevel != null ? [["Water level while pumping", ft(b.dynamicWaterLevel)] as [string, string]] : []),
       ["Hole size / pipe size", `${inch(b.boreDia)} / ${inch(b.pipeDia)}`],
       ["Drilling method", b.drillingMethod ? METHOD[b.drillingMethod] : "—"],
-      ["Date drilled", drilled || "—"],
+      ["Tubewell lowering date", lowered || "—"],
       ["Zone", zoneName(b.project)],
       ["Pipe pieces (10 ft each)", tubewell > 0 ? `${Math.ceil(tubewell / PIPE_LENGTH_FT)}` : "—"],
       ...(b.pumpLowering != null ? [["Pump lowered to", ft(b.pumpLowering)] as [string, string]] : []),
@@ -355,7 +355,7 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
     w.y -= 20;
 
     w.pages.forEach((p, i) => {
-      const foot = `Made with StrataField.${drilled ? ` Drilled on ${drilled}.` : ""} Layer depths are as recorded at the borewell.`;
+      const foot = `Made with StrataField.${lowered ? ` Tubewell lowered on ${lowered}.` : ""} Layer depths are as recorded at the borewell.`;
       p.drawText(safe(foot), { x: M, y: M - 8, size: 7.5, font, color: QUIET });
       const n = `Page ${i + 1} of ${w.pages.length}`;
       p.drawText(n, { x: A4[0] - M - font.widthOfTextAtSize(n, 7.5), y: M - 8, size: 7.5, font, color: QUIET });

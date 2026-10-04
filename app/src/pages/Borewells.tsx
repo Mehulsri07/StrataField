@@ -140,8 +140,8 @@ export function Borewells() {
             <RangeInput id="f-max-depth" label="Shallower than (ft)" value={range.maxDepth} onChange={(v) => setRange({ ...range, maxDepth: v })} />
             <RangeInput id="f-min-water" label="Water deeper than (ft)" value={range.minWater} onChange={(v) => setRange({ ...range, minWater: v })} />
             <RangeInput id="f-max-water" label="Water shallower than (ft)" value={range.maxWater} onChange={(v) => setRange({ ...range, maxWater: v })} />
-            <div className="grid gap-1.5"><Label htmlFor="f-from">Drilled from</Label><Input id="f-from" type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} /></div>
-            <div className="grid gap-1.5"><Label htmlFor="f-to">Drilled until</Label><Input id="f-to" type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} /></div>
+            <div className="grid gap-1.5"><Label htmlFor="f-from">Lowered from</Label><Input id="f-from" type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} /></div>
+            <div className="grid gap-1.5"><Label htmlFor="f-to">Lowered until</Label><Input id="f-to" type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} /></div>
           </div>
         )}
 
@@ -155,7 +155,7 @@ export function Borewells() {
                 <SortHead label="Borewell ID" k="borewellId" sort={sort} onSort={toggleSort} />
                 <TableHead>Owner</TableHead>
                 <TableHead>Area</TableHead>
-                <SortHead label="Date drilled" k="date" sort={sort} onSort={toggleSort} />
+                <SortHead label="Lowering date" k="date" sort={sort} onSort={toggleSort} />
                 <SortHead label="Total depth (ft)" k="totalDepth" sort={sort} onSort={toggleSort} right />
                 <SortHead label="Water level (ft)" k="waterLevel" sort={sort} onSort={toggleSort} right />
                 <TableHead>Layers <span className="font-normal text-muted-foreground">(blue = water)</span></TableHead>

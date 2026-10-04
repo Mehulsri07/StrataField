@@ -51,7 +51,7 @@ export function RecycleBin() {
                   <TableHead className="pl-4">Borewell ID</TableHead>
                   <TableHead>Owner</TableHead>
                   <TableHead>Area</TableHead>
-                  <TableHead>Date drilled</TableHead>
+                  <TableHead>Lowering date</TableHead>
                   <TableHead className="text-right">Layers</TableHead>
                   <TableHead>Deleted</TableHead>
                   <TableHead><span className="sr-only">Actions</span></TableHead>

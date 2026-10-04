@@ -27,6 +27,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **The pump is drawn on the borewell.** A marker in the pipe at the depth the pump was lowered to,
   on the borewell's page and in the report.
 - **Save as picture** draws the borewell the same way.
+- **"Date drilled" is now "Tubewell lowering date"** everywhere: the form, the borewell's page,
+  the lists, Import, the PDF report and the Excel export. It is the same date as before under a
+  new name; nothing you entered changes.
 
 ## [1.0.10] - 2026-10-04
 
