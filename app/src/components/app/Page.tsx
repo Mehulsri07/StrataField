@@ -5,15 +5,15 @@ import { Button } from "@/components/ui/button";
 import { cn } from "cn";
 import { text } from "@/text";
 
-/** Page frame: consistent padding and width so every screen lines up the same way. */
+/** Page frame: every screen starts at the same left edge, whatever its width, and keeps the same padding. */
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("mx-auto grid max-w-[1320px] gap-7 px-8 pt-7 pb-12", className)}>{children}</div>;
+  return <div className={cn("grid max-w-[1320px] gap-7 px-8 pt-7 pb-12", className)}>{children}</div>;
 }
 
 export function PageHeader({ title, sub, actions }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-72">
         <h1 className="text-xl leading-tight font-semibold">{title}</h1>
         {sub && <p className="mt-1 text-[13px] text-muted-foreground">{sub}</p>}
       </div>
@@ -34,7 +34,7 @@ export function Panel({ title, actions, children, className, bodyClassName, fram
   return (
     <section className={cn("min-w-0", className)}>
       {(title || actions) && (
-        <div className={cn("flex min-h-9 items-center gap-2.5 pb-2", !framed && "border-b border-border")}>
+        <div className={cn("flex h-11 items-center gap-2.5", !framed && "border-b border-border")}>
           {title && <h2 className="text-[15px] font-semibold">{title}</h2>}
           {actions && <div className="ml-auto flex gap-2">{actions}</div>}
         </div>

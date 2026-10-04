@@ -33,6 +33,10 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   when clicked. Notes such as "The owner's name is empty" no longer appear before you have typed
   anything. The Zone box explains what a zone is and says when it was carried over from the last
   borewell. The Location step has three ways to choose from instead of four.
+- **Tidier screens.** Section headings and the lines under them now sit level across a screen,
+  every screen starts at the same left edge and no longer shifts when a scrollbar appears, the
+  Borewells list keeps each row to one height, and the borewell card on the Map no longer covers the
+  map's buttons.
 - **Water colours stay within 500 m of a borewell.** The Map used to colour up to about 3 km around
   each borewell. An estimate that far away says little, so colours now reach 500 m and are drawn
   finer. Zoom in to see them.

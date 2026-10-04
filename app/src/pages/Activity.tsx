@@ -25,7 +25,7 @@ export function Activity() {
       <section className="min-w-0 rounded-md border border-border">
         <div className="relative border-b border-border px-4 py-3">
           <Search className="pointer-events-none absolute top-1/2 left-6.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input type="search" className="max-w-[380px] pl-8" placeholder="Search the activity, e.g. a borewell ID or “Notes from”" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the activity" />
+          <Input type="search" className="max-w-[380px] pl-8" placeholder="Search by borewell, file name or words" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the activity" />
         </div>
         {history.error && <p className="px-4 py-3 text-sm text-destructive">{history.error}</p>}
         {rows.length > 0 ? (

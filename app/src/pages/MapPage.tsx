@@ -129,7 +129,7 @@ function SelectedCard({ item, onClose, onOpen, onLayer }: {
 }) {
   const b = item.borewell;
   return (
-    <div className="absolute top-3 right-3 z-[500] grid w-72 gap-2.5 rounded-md border border-input bg-card p-3.5 text-sm shadow-panel" role="dialog" aria-label={`${b.borewellId} details`}>
+    <div className="absolute top-14 right-3 z-[500] grid w-72 gap-2.5 rounded-md border border-input bg-card p-3.5 text-sm shadow-panel" role="dialog" aria-label={`${b.borewellId} details`}>
       <div className="flex items-start gap-2">
         <div className="min-w-0">
           <div className="num font-medium text-primary">{b.borewellId}</div>

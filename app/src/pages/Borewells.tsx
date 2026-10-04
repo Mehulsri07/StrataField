@@ -181,7 +181,7 @@ export function Borewells() {
                       <StrataStrip strata={strata} totalDepth={b.totalDepth} waterLevel={b.waterLevel} onLayerClick={(l) => showLayer(l)} />
                     ) : <span className="text-xs text-muted-foreground">None yet</span>}
                   </TableCell>
-                  <TableCell><BorewellStatus borewell={b} strata={strata} /></TableCell>
+                  <TableCell><BorewellStatus borewell={b} strata={strata} brief /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
