@@ -432,6 +432,46 @@ try {
     return window.__pdf ? { head: String.fromCharCode(...window.__pdf.subarray(0, 5)), size: window.__pdf.length } : { head: 'not built: ' + [...document.querySelectorAll('[data-sonner-toast]')].map(t => t.innerText).join(' | '), size: 0 };`);
   check("The PDF report of a borewell is built, with its drawing", report.head === "%PDF-" && report.size > 15000, `${report.head} ${report.size} bytes`);
 
+  // ── Two logs on one sheet, edited in the table, then given a location one after another ──
+  const batch = await page(`
+    window.__STRATA_TEST_CHOOSE__ = () => ['${f.twoLogs}'];
+    location.hash = '#/'; await __t.wait(300); location.hash = '#/import'; await __t.wait(800);
+    __t.btn('Choose Excel files').click();
+    await __t.until(() => document.querySelectorAll('main tbody tr').length === 2, 15000);
+    const rows = [...document.querySelectorAll('main tbody tr')].map(r => r.querySelector('td:nth-child(2)').innerText.replace(/\\n/g, ' / '));
+    __t.type(document.querySelector('[aria-label="A zone for every file"]'), 'Zone Batch'); await __t.wait(150); __t.btn('Use for all').click(); await __t.wait(200);
+    __t.type(document.querySelector('[aria-label="Owner for Two wells.xlsx (log 2)"]'), 'Second Owner'); await __t.wait(200);
+    (await __t.until(() => [...document.querySelectorAll('main button')].find(b => /^Import 2 borewells/.test(b.innerText) && !b.disabled), 8000)).click();
+    await __t.until(() => /See all borewells/.test(__t.text()), 15000);
+    delete window.__STRATA_TEST_CHOOSE__;
+    const mine = async () => (await __t.invoke('borewells_search', { filters: {} })).filter(i => (i.borewell.importSource ?? '').startsWith('Two wells.xlsx')).sort((a, b) => a.borewell.borewellId.localeCompare(b.borewell.borewellId));
+    const made = await mine();
+    const saved = made.map(i => [i.borewell.borewellId, i.borewell.ownerName, i.borewell.project, i.strata.map(l => l.endDepth + (l.remarks ? ' ' + l.remarks : '')).join(',')].join(' | '));
+    // Add locations: the map opens for the first borewell without one; skipping brings up the next.
+    __t.btn('Add their locations').click();
+    const title = () => document.querySelector('[role="dialog"] h2')?.textContent ?? '';
+    await __t.until(() => /^Where is /.test(title()), 8000);
+    const firstUp = title();
+    __t.btn('Skip this one').click(); await __t.until(() => /^Where is /.test(title()) && title() !== firstUp, 8000);
+    __t.btn('Stop for now').click(); await __t.wait(400);
+    // Choosing one from the list puts it next; a click on the map and "Use this location" saves it.
+    [...document.querySelectorAll('main li')].find(li => /Two wells 2/.test(li.innerText)).querySelector('button').click();
+    await __t.until(() => title() === 'Where is Two wells 2?', 8000);
+    const prefilled = document.querySelector('[role="combobox"][aria-label="Search for a place"]').value;
+    const m = await __t.until(() => document.querySelector('[role="dialog"] .leaflet-container')); await __t.wait(800);
+    const box = m.getBoundingClientRect();
+    m.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: box.left + box.width / 2 + 40, clientY: box.top + box.height / 2 + 30 })); await __t.wait(300);
+    __t.btn('Use this location').click();
+    await __t.until(async () => (await mine())[1].borewell.latitude != null, 8000);
+    const after = await mine();
+    const placed = [after[1].borewell.locationSource, after[0].borewell.latitude == null, !/Two wells 2/.test(document.querySelector('main').innerText)].join(' | ');
+    document.querySelector('[role="dialog"]') && __t.btn('Stop for now')?.click(); await __t.wait(300);
+    for (const i of after) { await __t.invoke('borewell_delete', { id: i.borewell.id }); await __t.invoke('borewell_delete_permanently', { id: i.borewell.id }); }
+    return { rows, saved, firstUp, prefilled, placed };`);
+  check("A sheet with two logs gives two rows on the Import screen", batch.rows.length === 2 && /^Two wells.xlsx/.test(batch.rows[0]) && /\(log 2\)/.test(batch.rows[1]), batch.rows.join(" ; "));
+  check("Details edited in the Import table, a zone for every file and a soil's note are saved", batch.saved.join(" ; ") === "Two wells | North Gate | Zone Batch | 40,120 Good,150 ; Two wells 2 | Second Owner | Zone Batch | 60,180,220", batch.saved.join(" ; "));
+  check("Add locations goes through the borewells without one: skip, choose one, click the map", /^Where is /.test(batch.firstUp) && /Station Road/.test(batch.prefilled) && batch.placed === "map | true | true", `${batch.firstUp} / ${batch.prefilled} / ${batch.placed}`);
+
   // ── History ────────────────────────────────────────────────────────────
   const history = await page(`
     location.hash = '#/borewell/${manual.bwid}'; await __t.until(() => __t.btn('History'), 8000);

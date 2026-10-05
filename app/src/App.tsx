@@ -12,6 +12,7 @@ const BorewellForm = lazy(() => import("@/pages/BorewellForm").then((m) => ({ de
 const MapPage = lazy(() => import("@/pages/MapPage").then((m) => ({ default: m.MapPage })));
 const EditLayers = lazy(() => import("@/pages/EditLayers").then((m) => ({ default: m.EditLayers })));
 const ImportPage = lazy(() => import("@/pages/ImportPage").then((m) => ({ default: m.ImportPage })));
+const LocatePage = lazy(() => import("@/pages/LocatePage").then((m) => ({ default: m.LocatePage })));
 const SectionPage = lazy(() => import("@/pages/SectionPage").then((m) => ({ default: m.SectionPage })));
 const Activity = lazy(() => import("@/pages/Activity").then((m) => ({ default: m.Activity })));
 const ExportPage = lazy(() => import("@/pages/ExportPage").then((m) => ({ default: m.ExportPage })));
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="section" element={<SectionPage />} />
         <Route path="new" element={<BorewellForm key="new" mode="new" />} />
         <Route path="import" element={<ImportPage />} />
+        <Route path="locate" element={<LocatePage />} />
         <Route path="export" element={<ExportPage />} />
         <Route path="activity" element={<Activity />} />
         <Route path="recycle-bin" element={<RecycleBin />} />

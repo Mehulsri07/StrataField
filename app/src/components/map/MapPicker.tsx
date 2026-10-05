@@ -101,9 +101,13 @@ function PlaceSearch({ initial, onChoose }: { initial: string; onChoose: (p: Pla
  * Choose a borewell's position: search for a place to jump there, then click the exact spot.
  * Other borewells are shown faintly for reference.
  */
-export function MapPicker({ open, initial, search = "", others, onClose, onPick }: {
+export function MapPicker({ open, initial, search = "", others, heading, detail, onClose, onPick, onSkip }: {
   open: boolean;
   initial: Point | null;
+  /** When borewells are placed one after another: whose turn it is, and a way to leave it for later. */
+  heading?: string;
+  detail?: string;
+  onSkip?: () => void;
   /** What to search for as soon as the map opens, e.g. the address typed in the form. */
   search?: string;
   others: Borewell[];
@@ -116,8 +120,8 @@ export function MapPicker({ open, initial, search = "", others, onClose, onPick 
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Pick the borewell on the map</DialogTitle>
-          <DialogDescription>Search for a place to go there, then zoom in and click exactly where the borewell is. Click again to move it.</DialogDescription>
+          <DialogTitle>{heading ?? "Pick the borewell on the map"}</DialogTitle>
+          <DialogDescription>{detail && <span className="mb-1 block text-foreground">{detail}</span>}Search for a place to go there, then zoom in and click exactly where the borewell is. Click again to move it.</DialogDescription>
         </DialogHeader>
         <div className="relative h-[60vh] min-h-[360px] overflow-hidden rounded-md border border-border">
           {open && (
@@ -147,7 +151,8 @@ export function MapPicker({ open, initial, search = "", others, onClose, onPick 
           <span className="num mr-auto self-center text-sm text-muted-foreground">
             {point ? `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}${point.found ? " · approximate, click the exact spot" : ""}` : "No point chosen yet"}
           </span>
-          <Button variant="outline" onClick={onClose}>{text.actions.cancel}</Button>
+          <Button variant="outline" onClick={onClose}>{onSkip ? "Stop for now" : text.actions.cancel}</Button>
+          {onSkip && <Button variant="outline" onClick={onSkip}>Skip this one</Button>}
           <Button disabled={!point} onClick={() => point && onPick(point)}>Use this location</Button>
         </DialogFooter>
       </DialogContent>

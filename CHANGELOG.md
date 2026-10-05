@@ -3,6 +3,22 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Check many files at once on Import.** Every chosen file is a row in one table, where you can
+  type its borewell ID, owner, zone and location without opening it. **A zone for every file**
+  fills the zone in for all of them. Click a file's name to see its depths, pump and drawing below.
+- **Two logs on one sheet.** A sheet with a second log under the first now gives two rows, one per
+  borewell. A second log that is the first one drawn again (the same layers, or no site of its own)
+  is listed but left unticked.
+- **Notes beside a soil.** "Good", "Moderate" and the like, written next to a soil on a log, are kept
+  as that layer's note.
+- **Add locations one after another.** A new screen goes through every borewell without a location:
+  the map opens with its address (or site name) already searched, you click the spot, and the next
+  one comes up. Reach it from "without a location" on Home or **Add their locations** after
+  importing.
+
 ## [1.0.11] - 2026-10-05
 
 ### Changed

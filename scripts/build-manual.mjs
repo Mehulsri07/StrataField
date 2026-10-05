@@ -162,10 +162,15 @@ async function takeShots() {
       __t.btn('Choose Excel files').click(); await __t.until(() => /What will be imported/.test(__t.text()), 15000); return true;`);
     await shot("import-review");
     await page(`window.__STRATA_TEST_CHOOSE__ = () => [${JSON.stringify(logs.other)}]; __t.btn('Add more files').click();
-      await __t.until(() => document.querySelectorAll('main li').length === 2, 15000);
-      document.querySelectorAll('main li')[1].querySelector('button.min-w-0').click(); await __t.until(() => /Where the layers are in this file/.test(__t.text()), 8000); return true;`);
+      await __t.until(() => document.querySelectorAll('main tbody tr').length === 2, 15000);
+      document.querySelectorAll('main tbody tr')[1].querySelector('td:nth-child(2) button').click(); await __t.until(() => /Where the layers are in this file/.test(__t.text()), 8000); return true;`);
     await shot("import-columns");
     await page(`__t.btn('These columns are right').click(); await __t.wait(300); [...document.querySelectorAll('main button')].find(b => /^Import 2 borewells/.test(b.innerText)).click(); await __t.until(() => /See all borewells/.test(__t.text()), 20000).catch(() => { throw new Error('Import did not finish: ' + [...document.querySelectorAll('[data-sonner-toast]')].map(t => t.innerText).join(' | ') + ' || ' + __t.text().slice(0, 400)); }); delete window.__STRATA_TEST_CHOOSE__; return true;`);
+
+    // Add locations, before the imported borewells are given one.
+    await page(`location.hash = '#/locate'; await __t.until(() => document.querySelector('[role="dialog"] .leaflet-container'), 8000); return true;`);
+    await shot("locate", 2500);
+    await page(`__t.btn('Stop for now').click(); await __t.wait(300); return true;`);
 
     await go("#/", 1800);
     await shot("home");

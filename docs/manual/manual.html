@@ -122,9 +122,11 @@
 
 <h1>3. Bring in Excel drilling logs</h1>
 <p class="lead">Choose <b class="ui">Import Excel</b>, then <b class="ui">Choose Excel files</b>. You can choose many files at once. Nothing is saved until you press Import.</p>
-<figure><img src="shots/import-review.jpg" alt="Import Excel, checking a file"><figcaption>Each file is read and shown for checking: the details found in it, and a drawing of what will be imported.</figcaption></figure>
+<figure><img src="shots/import-review.jpg" alt="Import Excel, checking a file"><figcaption>Every file is a row in the table. Under it are the details and drawing of the row you clicked.</figcaption></figure>
+<p>In the table you can type each borewell's <b>ID</b>, <b>owner</b>, <b>zone</b> and <b>location</b> straight into its row, so many files can be checked in one go. To give every file the same zone, type it in <b>A zone for every file</b> and click <b class="ui">Use for all</b>. Click a file's name to see its depths, pump and drawing underneath.</p>
+<p>A sheet with two logs, one under the other, gives two rows, the second marked <b>(log 2)</b>. If the second has the same layers as the first, or no site of its own, it is the same borewell drawn again: it is listed as <b>Same as the first log</b> and left unticked. A word such as "Good" written beside a soil is kept as that layer's note.</p>
 <p>StrataField reads the soil layers, the plain pipe and screens, the site name, address, date, hole and pipe sizes and the water level. Rows of the same soil are joined into one layer. Logs in metres are converted to feet.</p>
-<p>The list on the left shows each file as:</p>
+<p>Under its name, each file says:</p>
 <table>
   <tr><th style="width:38mm">It says</th><th>What it means</th></tr>
   <tr><td><b>Ready</b></td><td>Everything was found. Have a quick look and import.</td></tr>
@@ -137,7 +139,9 @@
 <figure><img src="shots/import-columns.jpg" alt="Choosing the columns"><figcaption>The start of the file is shown, with the columns in use shaded. Change a choice and the drawing updates.</figcaption></figure>
 <p>Under <b>Where the layers are in this file</b>, check that each box points at the right column: where a layer ends, the soil name, the first row with a layer, and, if the file has them, where a layer starts and the pipe type. Say whether the depths are in feet or metres.</p>
 <h2>After importing</h2>
-<p>Give each file its <b>Zone</b> on the Import screen, the same way as for a new borewell. The file does not say where the borewell is. Under <b>Location</b> on the Import screen you can paste its coordinates or click <b class="ui">Pick on the map</b> before importing; left empty, the borewell has no position on the map until you add one. It may also have no owner, water level or date if the file did not say. To find them, open <b>Borewells</b> and click <b class="ui">No location</b> or <b class="ui">Missing details</b>. The notes from the Import screen are kept in each borewell's <b>History</b> tab.</p>
+<figure><img src="shots/locate.jpg" alt="Adding locations one after another"><figcaption>Add locations: the map opens for each borewell in turn, with its address already searched.</figcaption></figure>
+<p>The file does not say where the borewell is. After importing, click <b class="ui">Add their locations</b> (or the "without a location" line on Home). StrataField goes through every borewell that has no location: search or zoom to the place, click the spot and <b class="ui">Use this location</b>, and the next one comes up. <b class="ui">Skip this one</b> leaves a borewell for later; <b class="ui">Stop for now</b> closes the map.</p>
+<p>Give each file its <b>Zone</b> on the Import screen, the same way as for a new borewell. Under <b>Location</b> on the Import screen you can paste its coordinates or click <b class="ui">Pick on the map</b> before importing; left empty, the borewell has no position on the map until you add one. It may also have no owner, water level or date if the file did not say. To find them, open <b>Borewells</b> and click <b class="ui">No location</b> or <b class="ui">Missing details</b>. The notes from the Import screen are kept in each borewell's <b>History</b> tab.</p>
 
 <h1>4. Find a borewell</h1>
 <p class="lead">Open <b class="ui">Borewells</b>, or press <kbd>Ctrl</kbd> + <kbd>K</kbd> from anywhere and start typing.</p>

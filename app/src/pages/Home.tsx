@@ -146,7 +146,7 @@ export function Home() {
             <div className="grid gap-7">
               <Panel title="Needs attention" bodyClassName="grid pt-1">
                 {located.length < all.length && (
-                  <Attention tone="warn" to="/borewells?noLocation=1"
+                  <Attention tone="warn" to="/locate"
                     title={`${plural(all.length - located.length, "borewell")} without a location`}
                     sub="Add a location so it shows on the map" />
                 )}

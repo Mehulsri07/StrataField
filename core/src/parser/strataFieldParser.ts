@@ -73,6 +73,8 @@ const inches = (cell: unknown) => { const m = /^\s*([0-9.]+)\s*"/.exec(String(ce
 const isLabel = (cell: unknown) => typeof cell === 'string' && /[a-z]{3}/i.test(cell) && !/^\s*[\d.]+\s*[a-z."']{0,5}\s*$/i.test(cell);
 
 const SOIL_HEADING = /str[ae]ta\s*chart/i;
+/** A word about how good a layer is for water, written beside the soil's name. */
+const QUALITY = /^\s*(v(ery)?\.?\s*)?(good|moderate|average|fair|poor|bad|excellent)\s*\.?\s*$/i;
 const PIPE_HEADING = /lowering\s*ass[ae]mbly/i;
 
 /**
@@ -120,6 +122,24 @@ export function parseStrataWorkbook(data: Uint8Array | ArrayBuffer, mapping?: Co
   return parseStrataRows(readSheetRows(data), mapping);
 }
 
+/**
+ * Every drilling log on a sheet: the first, then any written below it under their own "Streta Chart"
+ * heading. A further log with the same layers as the first is the same borewell drawn again (logs
+ * are sometimes drawn once in feet and once to scale), and is marked so it is not imported twice.
+ */
+export function parseStrataLogs(rows: any[][]): ExcelParseResult[] {
+  const first = parseStrataRows(rows);
+  if (!first.success) return [first];
+  const soilHeadings = (rows || []).map((r, i) => (cellAt(r, SOIL_HEADING) >= 0 ? i : -1)).filter(i => i >= 0);
+  const key = (r: ExcelParseResult) => r.strata.map(l => `${Math.round(l.startDepth / 5)}-${Math.round(l.endDepth / 5)}-${l.materialId ?? l.material}`).join('|');
+  const further = soilHeadings.slice(1).map(i => parseStrataRows(rows.slice(i))).filter(r => r.success && r.strata.length > 0);
+  for (const r of further) {
+    // The same layers, or no site of its own: the first borewell drawn a second time, not another one.
+    if (key(r) === key(first) || r.metadata.siteName === null) addAnomaly(r.anomalies, 'SAME_AS_FIRST_LOG', 'warning', 'This log looks like the first one on the sheet drawn again.');
+  }
+  return [first, ...further];
+}
+
 /** Reads the layers from a sheet's rows: the standard layout, or wherever `mapping` says they are. */
 export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelParseResult {
   const anomalies: ParseAnomaly[] = [];
@@ -146,7 +166,7 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     if (next !== undefined) {
       endIdx = next;
       addAnomaly(anomalies, 'MULTI_BOREWELL_SHEET', 'warning',
-        `Multiple borewell sections detected. Second header at row ${next + 1}. Only the first borewell is parsed.`);
+        `Multiple borewell sections detected. Second header at row ${next + 1}. This log ends there.`);
     }
   }
 
@@ -268,12 +288,15 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     // at each depth, the piece that ends there is the one named on that row, or else the last one
     // named above it since the previous depth.
     const read = (nameCols: number[], markCol: number, flagBackwards: boolean) => {
-      const pieces: { row: number; name: string; startDepth: number; endDepth: number }[] = [];
-      let from = 0, pending: { row: number; name: string } | null = null;
+      const pieces: { row: number; name: string; note: string; startDepth: number; endDepth: number }[] = [];
+      let from = 0, pending: { row: number; name: string; note: string } | null = null;
       for (let i = dataStartIdx; i < dataEndIdx; i++) {
         const row = rows[i] || [];
-        const label = nameCols.map(c => row[c]).find(isLabel);
-        if (label) pending = { row: i, name: String(label).trim() };
+        // "Sand | Good": the second word says how good the layer is; it is a note, not a soil.
+        const labels = nameCols.map(c => row[c]).filter(isLabel).map(v => String(v).trim());
+        const name = labels.find(l => !QUALITY.test(l)), note = labels.find(l => QUALITY.test(l));
+        if (name) pending = { row: i, name, note: note ?? '' };
+        else if (note && pending) pending.note = note;
         const raw = num(row[markCol]);
         if (!(raw > 0)) continue;
         const depth = detectedUnit === 'm' ? round1(raw * METRES_TO_FEET) : raw;
@@ -296,7 +319,7 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
       if (unknown) {
         addAnomaly(anomalies, 'MATERIAL_UNKNOWN', 'warning', `Row ${piece.row + 1}: Material "${piece.name}" not in dictionary. Kept as-is.`, piece.row);
       }
-      strata.push({ startDepth: piece.startDepth, endDepth: piece.endDepth, material: normalised, materialId, color, pattern });
+      strata.push({ startDepth: piece.startDepth, endDepth: piece.endDepth, material: normalised, materialId, color, pattern, ...(piece.note ? { remarks: piece.note } : {}) });
     }
 
     // The pipe has its own depths (the assembly column); a log without them shares the soil's.
@@ -366,8 +389,12 @@ function mergeRuns<T extends { startDepth: number; endDepth: number }>(items: T[
   const out: T[] = [];
   for (const item of items) {
     const last = out[out.length - 1];
-    if (last && last.endDepth === item.startDepth && same(last, item)) last.endDepth = item.endDepth;
-    else out.push({ ...item });
+    if (last && last.endDepth === item.startDepth && same(last, item)) {
+      last.endDepth = item.endDepth;
+      // A note written on any row of the run belongs to the whole layer.
+      const note = (item as { remarks?: string }).remarks;
+      if (note && !(last as { remarks?: string }).remarks) (last as { remarks?: string }).remarks = note;
+    } else out.push({ ...item });
   }
   return out;
 }

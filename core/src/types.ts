@@ -207,7 +207,8 @@ export interface Material {
 // ─── Smart Parser Types ─────────────────────────────────────────────────────
 
 export type AnomalyCode =
-  | 'MULTI_BOREWELL_SHEET'   // warning — only first parsed
+  | 'MULTI_BOREWELL_SHEET'   // warning — the sheet holds further logs below this one
+  | 'SAME_AS_FIRST_LOG'      // warning — a further log with the first one's layers: the same borewell drawn again
   | 'UNIT_AMBIGUOUS'         // warning — inferred from intervals
   | 'UNIT_MIXED'             // warning — metadata vs intervals disagree
   | 'MATERIAL_UNKNOWN'       // warning — kept as-is, needs mapping
@@ -253,6 +254,8 @@ export interface ParsedStrataLayer {
   materialId: string | null;
   color: string;
   pattern: string;
+  /** What the log says about the layer beside its name, e.g. "Good". */
+  remarks?: string;
 }
 
 export interface ParsedPipeSegment {

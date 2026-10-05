@@ -11,7 +11,7 @@ import * as xlsx from 'xlsx';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { guessMapping, parsePump, parseStrataRows, parseStrataWorkbook } from './strataFieldParser';
+import { guessMapping, parsePump, parseStrataLogs, parseStrataRows, parseStrataWorkbook } from './strataFieldParser';
 
 const smartParseExcel = (filePath: string) => parseStrataWorkbook(fs.readFileSync(filePath));
 
@@ -409,6 +409,36 @@ describe('a field log as it is really written', () => {
       waterLevel: 85, boreDia: 12, totalDepth: 140, pipeDia: 8, date: '2019-03-14', detectedUnit: 'ft',
     });
     expect(r.anomalies.map(a => a.code)).toEqual([]);
+  });
+});
+
+describe('a sheet with more than one log', () => {
+  const block = (site: string, rows: (string | number | null)[][]) => [
+    [null, null, 'Streta Chart', null, null, 'Lowering Assambly'],
+    [`Site: ${site}`, 'G. L.', '10"', 'G. L.', null, '6"'],
+    ...rows,
+    [], [],
+  ];
+  const a = [['Lucknow', 50, 'Clay', null, null, 'Plain pipe', null, 50], ['Water Level = 60 ft', 200, 'Sand', 'Good', null, 'Slotted pipe', null, 200]];
+  const b = [['Kanpur', 80, 'Clay', null, null, 'Plain pipe', null, 80], ['Water Level = 90 ft', 300, 'Gravel', null, null, 'Slotted pipe', null, 300]];
+
+  it('reads each log as its own borewell, with its own details', () => {
+    const logs = parseStrataLogs([...block('First House', a), ...block('Second House', b)]);
+    expect(logs.map(l => [l.metadata.ownerName, l.metadata.waterLevel, l.strata.map(s => s.endDepth)])).toEqual([
+      ['First House', 60, [50, 200]], ['Second House', 90, [80, 300]],
+    ]);
+    expect(logs[1].anomalies.map(x => x.code)).not.toContain('SAME_AS_FIRST_LOG');
+  });
+
+  it('marks a second log with the same layers as the same borewell drawn again', () => {
+    const logs = parseStrataLogs([...block('First House', a), ...block('First House', a)]);
+    expect(logs).toHaveLength(2);
+    expect(logs[1].anomalies.map(x => x.code)).toContain('SAME_AS_FIRST_LOG');
+  });
+
+  it('keeps "Good" beside a soil as a note on that layer, never as a soil', () => {
+    const [log] = parseStrataLogs(block('First House', [...a, [null, null, null, 'Moderate'], [null, 260, 'Clay', null, null, 'Plain pipe', null, 260]]));
+    expect(log.strata.map(s => [s.material, s.remarks ?? ''])).toEqual([['Clay', ''], ['Sand', 'Good'], ['Clay', '']]);
   });
 });
 
