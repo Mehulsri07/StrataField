@@ -28,6 +28,8 @@ let parser: typeof import("@strata/core/parser") | null = null;
 
 interface ImportFile {
   path: string;
+  /** Which log on the sheet this is: 0 for the first, 1 for one written below it, and so on. */
+  log: number;
   name: string;
   /** The start of the sheet, shown when the user has to say where the layers are. */
   rows: unknown[][];
@@ -51,7 +53,8 @@ const n = (v: number | null | undefined) => (v == null ? "" : String(v));
 function describe(a: ParseAnomaly): string {
   const row = a.row != null ? ` (row ${a.row})` : "";
   switch (a.code) {
-    case "MULTI_BOREWELL_SHEET": return "This sheet seems to hold more than one borewell. Only the first one was read.";
+    case "MULTI_BOREWELL_SHEET": return "This sheet holds more than one log. Each is listed as its own row.";
+    case "SAME_AS_FIRST_LOG": return "This log has the same layers as the first one on the sheet, so it looks like the same borewell drawn again. Tick it only if it is a different borewell.";
     case "UNIT_AMBIGUOUS": return "The file does not say feet or metres, so StrataField worked it out from the depths. Check the depths look right.";
     case "UNIT_MIXED": return "The file mentions one unit, but the depths look like the other. Check the depths look right.";
     case "MATERIAL_UNKNOWN": return `A soil name was not recognised${row}. Choose what it means below.`;
@@ -125,18 +128,27 @@ export function ImportPage() {
       const paths = await files.choose({ title: "Choose Excel drilling logs", multiple: true, filters: files.excelFilters });
       if (!paths.length) return;
       setBusy(true);
-      const { readSheetRows, parseStrataRows, guessMapping } = (parser ??= await import("@strata/core/parser"));
-      const read = await Promise.all(paths.filter((p) => !list.some((f) => f.path === p)).map(async (path): Promise<ImportFile> => {
+      const { readSheetRows, parseStrataRows, parseStrataLogs, guessMapping } = (parser ??= await import("@strata/core/parser"));
+      const read = (await Promise.all(paths.filter((p) => !list.some((f) => f.path === p)).map(async (path): Promise<ImportFile[]> => {
+        const one = (patch: Partial<ImportFile>): ImportFile => ({ path, log: 0, name: baseName(path), rows: [], mapping: null, result: null, readError: null, include: false, details: initialDetails(path, null), resolutions: {}, ...patch });
         try {
           const rows = readSheetRows(new Uint8Array(await api.readSpreadsheet(path)));
-          let result = parseStrataRows(rows), mapping: ColumnMapping | null = null;
-          // A sheet laid out differently: start from a guess at the columns, which the user then checks.
-          if (!result.success && (mapping = guessMapping(rows))) result = parseStrataRows(rows, mapping);
-          return { path, name: baseName(path), rows, mapping, result, readError: null, include: result.success && result.strata.length > 0 && !mapping, details: initialDetails(path, result), resolutions: {} };
+          const logs = parseStrataLogs(rows);
+          if (!logs[0].success) {
+            // A sheet laid out differently: start from a guess at the columns, which the user then checks.
+            const mapping = guessMapping(rows), result = mapping ? parseStrataRows(rows, mapping) : logs[0];
+            return [one({ rows, mapping, result, details: initialDetails(path, result) })];
+          }
+          // A second log with the first one's layers is the same borewell drawn again: listed, not ticked.
+          return logs.map((result, n) => one({
+            log: n, name: n ? `${baseName(path)} (log ${n + 1})` : baseName(path), rows, result,
+            include: result.strata.length > 0 && !result.anomalies.some((a) => a.code === "SAME_AS_FIRST_LOG"),
+            details: { ...initialDetails(path, result), borewellId: n ? `${stem(path)} ${n + 1}` : stem(path) },
+          }));
         } catch (e) {
-          return { path, name: baseName(path), rows: [], mapping: null, result: null, readError: String(e), include: false, details: initialDetails(path, null), resolutions: {} };
+          return [one({ readError: String(e) })];
         }
-      }));
+      }))).flat();
       setList([...list, ...read]);
       setDone(null);
     } catch (e) {
@@ -147,6 +159,12 @@ export function ImportPage() {
   };
 
   const update = (i: number, patch: Partial<ImportFile>) => setList(list.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+  const detail = (i: number, patch: Partial<Details>) => update(i, { details: { ...list[i].details, ...patch } });
+  const [zoneForAll, setZoneForAll] = useState("");
+  /** The row whose location is being picked on the map. */
+  const [picking, setPicking] = useState<number | null>(null);
+  const zoneNames = (zones.data ?? []).map((z) => z.name);
+  const others = (existing.data ?? []).map((i) => i.borewell);
   const included = list.filter((f) => f.include && readable(f));
   const takenIds = new Set((existing.data ?? []).map((i) => i.borewell.borewellId.toLowerCase()));
 
@@ -202,7 +220,7 @@ export function ImportPage() {
           <span>Imported:</span>
           {done.map((d) => <Button key={d.id} variant="outline" size="sm" onClick={() => navigate(`/borewell/${d.id}`)}>{d.code}</Button>)}
           <span className="ml-auto flex gap-1">
-            {done.some((d) => !d.located) && <Button variant="ghost" size="sm" render={<Link to="/borewells?noLocation=1" />}>Add their locations</Button>}
+            {done.some((d) => !d.located) && <Button variant="ghost" size="sm" render={<Link to="/locate" />}>Add their locations</Button>}
             <Button variant="ghost" size="sm" render={<Link to="/borewells" />}>See all borewells</Button>
           </span>
         </div>
@@ -217,40 +235,83 @@ export function ImportPage() {
           {isPreview && <p className="text-xs text-muted-foreground">Choosing files works in the StrataField app, not in the browser preview.</p>}
         </div>
       ) : (
-        <div className="grid items-start gap-x-8 gap-y-7 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <Panel title={`Files (${list.length})`} framed>
-            <ul className="divide-y divide-border">
-              {list.map((file, i) => {
-                const ok = readable(file);
-                const notes = file.result?.anomalies.length ?? 0;
-                return (
-                  <li key={file.path} className={cn("flex items-center gap-2 px-3 py-2.5", i === current && "bg-accent")}>
-                    <Checkbox checked={file.include} disabled={!ok} onCheckedChange={(v) => update(i, { include: !!v })} aria-label={`Import ${file.name}`} />
-                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setCurrent(i)}>
-                      <span className="block truncate text-[13px] font-medium">{file.name}</span>
-                      <span className="block text-xs">
-                        {!ok ? <span className="text-destructive">{file.rows.length ? "Choose the columns" : "Cannot be read"}</span>
-                          : file.mapping ? (file.include ? <span className="text-ok">Columns checked</span> : <span className="text-warn">Check the columns</span>)
-                          : notes > 0 || unknownNames(file.result).length ? <span className="text-warn">Needs a look</span>
-                          : <span className="text-ok">Ready</span>}
-                      </span>
-                    </button>
-                    <Button variant="ghost" size="icon-sm" aria-label={`Remove ${file.name} from the list`} onClick={() => { setList(list.filter((_, j) => j !== i)); setCurrent(0); }}><X /></Button>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="grid gap-2 border-t border-border p-3">
+        <div className="grid gap-7">
+          <Panel
+            title={`Files (${list.length})`} framed
+            actions={<>
+              <Input className="h-8 w-52" list="i-zone-all-list" placeholder="A zone for every file" value={zoneForAll} onChange={(e) => setZoneForAll(e.target.value)} aria-label="A zone for every file" />
+              <datalist id="i-zone-all-list">{zoneNames.map((z) => <option key={z} value={z} />)}</datalist>
+              <Button variant="outline" size="sm" disabled={!zoneForAll.trim()} onClick={() => setList(list.map((file) => ({ ...file, details: { ...file.details, zone: zoneForAll.trim() } })))}>Use for all</Button>
+            </>}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="w-9" /><th className="py-2 pr-2 font-medium">File</th><th className="px-1 py-2 font-medium">Borewell ID</th><th className="px-1 py-2 font-medium">Owner</th>
+                    <th className="px-1 py-2 font-medium">Zone</th><th className="px-1 py-2 font-medium">Location (coordinates)</th><th className="w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((file, i) => {
+                    const ok = readable(file), d = file.details;
+                    const notes = file.result?.anomalies.length ?? 0;
+                    const same = file.result?.anomalies.some((a) => a.code === "SAME_AS_FIRST_LOG");
+                    const badPlace = d.location.trim() !== "" && !parseCoordinatePair(d.location);
+                    return (
+                      <tr key={`${file.path}#${file.log}`} className={cn("border-t border-border", i === current && "bg-accent")}>
+                        <td className="pl-3"><Checkbox checked={file.include} disabled={!ok} onCheckedChange={(v) => update(i, { include: !!v })} aria-label={`Import ${file.name}`} /></td>
+                        <td className="w-[24%] max-w-0 py-2 pr-2">
+                          <button type="button" className="block w-full min-w-0 text-left" onClick={() => setCurrent(i)} title="Show this file's details and drawing below">
+                            <span className="block truncate text-[13px] font-medium">{file.name}</span>
+                            <span className="block text-xs">
+                              {!ok ? <span className="text-destructive">{file.rows.length ? "Choose the columns" : "Cannot be read"}</span>
+                                : same ? <span className="text-warn">Same as the first log</span>
+                                : file.mapping ? (file.include ? <span className="text-ok">Columns checked</span> : <span className="text-warn">Check the columns</span>)
+                                : notes > 0 || unknownNames(file.result).length ? <span className="text-warn">Needs a look</span>
+                                : <span className="text-ok">Ready</span>}
+                            </span>
+                          </button>
+                        </td>
+                        {ok ? (<>
+                          <td className="px-1"><Input className="num h-8" value={d.borewellId} onChange={(e) => detail(i, { borewellId: e.target.value })} onFocus={() => setCurrent(i)} aria-label={`Borewell ID for ${file.name}`} aria-invalid={takenIds.has(d.borewellId.trim().toLowerCase()) || undefined} /></td>
+                          <td className="px-1"><Input className="h-8" value={d.ownerName} onChange={(e) => detail(i, { ownerName: e.target.value })} onFocus={() => setCurrent(i)} aria-label={`Owner for ${file.name}`} /></td>
+                          <td className="px-1"><Input className="h-8" list="i-zone-all-list" value={d.zone} onChange={(e) => detail(i, { zone: e.target.value })} onFocus={() => setCurrent(i)} aria-label={`Zone for ${file.name}`} /></td>
+                          <td className="px-1">
+                            <div className="flex gap-1">
+                              <Input className="num h-8" placeholder="Paste, or pick" value={d.location} onChange={(e) => detail(i, { location: e.target.value, locationSource: "typed" })} onFocus={() => setCurrent(i)} aria-label={`Location for ${file.name}`} aria-invalid={badPlace || undefined} />
+                              <Button variant="outline" size="icon-sm" className="size-8 shrink-0" aria-label={`Pick the location of ${file.name} on the map`} onClick={() => { setCurrent(i); setPicking(i); }}><MapPin /></Button>
+                            </div>
+                          </td>
+                        </>) : <td colSpan={4} className="px-1 text-xs text-muted-foreground">{file.rows.length ? "Choose its columns below to import it." : "Not an Excel drilling log StrataField can read."}</td>}
+                        <td className="pr-2 text-right"><Button variant="ghost" size="icon-sm" aria-label={`Remove ${file.name} from the list`} onClick={() => { setList(list.filter((_, j) => j !== i)); setCurrent(0); }}><X /></Button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 border-t border-border p-3">
               {list.some(readable) ? (<>
                 <Button disabled={busy || included.length === 0} onClick={runImport}>
                   {busy ? "Importing…" : included.length === 1 ? "Import 1 borewell" : `Import ${included.length} borewells`}
                 </Button>
-                <p className="text-xs text-muted-foreground">Each file is imported as one borewell. Only ticked files are imported.</p>
+                <p className="text-xs text-muted-foreground">Each row is imported as one borewell; only ticked rows are imported. Click a file's name to check its depths, pump and drawing below.</p>
               </>) : <p className="text-xs text-muted-foreground">None of these files can be imported. Remove them with ✕, or add them by hand with New borewell.</p>}
             </div>
           </Panel>
 
-          {f && <FileReview key={f.path} file={f} materials={mats} takenIds={takenIds} zones={(zones.data ?? []).map((z) => z.name)} others={(existing.data ?? []).map((i) => i.borewell)} onChange={(patch) => update(current, patch)} />}
+          {f && <FileReview key={`${f.path}#${f.log}`} file={f} materials={mats} takenIds={takenIds} zones={zoneNames} others={others} onChange={(patch) => update(current, patch)} />}
+          {picking != null && list[picking] && (
+            <MapPicker
+              open
+              initial={parseCoordinatePair(list[picking].details.location)}
+              search={parseCoordinatePair(list[picking].details.location) ? "" : [list[picking].details.area || list[picking].details.ownerName, list[picking].details.city].filter(Boolean).join(", ")}
+              others={others}
+              onClose={() => setPicking(null)}
+              onPick={(at) => { detail(picking, { location: `${at.latitude.toFixed(6)}, ${at.longitude.toFixed(6)}`, locationSource: at.found ? "address" : "map" }); setPicking(null); }}
+            />
+          )}
         </div>
       )}
     </Page>
@@ -260,8 +321,8 @@ export function ImportPage() {
 function resolveLayer(l: ExcelParseResult["strata"][number], resolutions: Record<string, string>, mats: Material[]) {
   const chosen = !l.materialId ? mats.find((m) => m.id === resolutions[l.material.trim()]) : undefined;
   return chosen
-    ? { startDepth: l.startDepth, endDepth: l.endDepth, material: chosen.name, materialId: chosen.id, color: chosen.color, pattern: chosen.pattern }
-    : { startDepth: l.startDepth, endDepth: l.endDepth, material: l.material, materialId: l.materialId, color: l.color, pattern: l.pattern };
+    ? { startDepth: l.startDepth, endDepth: l.endDepth, material: chosen.name, materialId: chosen.id, color: chosen.color, pattern: chosen.pattern, remarks: l.remarks ?? "" }
+    : { startDepth: l.startDepth, endDepth: l.endDepth, material: l.material, materialId: l.materialId, color: l.color, pattern: l.pattern, remarks: l.remarks ?? "" };
 }
 
 function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
@@ -299,7 +360,7 @@ function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
   const notes = (f.result?.anomalies ?? []).filter((a) => a.code !== "MATERIAL_UNKNOWN");
   const idTaken = takenIds.has(d.borewellId.trim().toLowerCase());
   const at = parseCoordinatePair(d.location);
-  const strata: StrataLayer[] = (f.result?.strata ?? []).map((l, i) => ({ id: `${i}`, borewellId: "import", remarks: "", waterBearing: false, ...resolveLayer(l, f.resolutions, materials) }));
+  const strata: StrataLayer[] = (f.result?.strata ?? []).map((l, i) => ({ id: `${i}`, borewellId: "import", waterBearing: false, ...resolveLayer(l, f.resolutions, materials) }));
   const pipes = (f.result?.pipes ?? []).map((p, i) => ({ id: `p${i}`, borewellId: "import", startDepth: p.startDepth, endDepth: p.endDepth, pipeType: p.pipeType, pipeSubtype: p.pipeSubtype, diameter: null }));
   const preview = {
     id: "import", borewellId: d.borewellId, totalDepth: parseNumber(d.totalDepth) ?? null, waterLevel: parseNumber(d.waterLevel) ?? null,

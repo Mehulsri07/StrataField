@@ -88,6 +88,15 @@ export function buildFixtures(work) {
   const wb = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet([["Borewell at Chinhat"], ["From (ft)", "To (ft)", "Soil type"], [0, 30, "Clay"], [30, 90, "Fine Sand"], [90, 150, "Coarse Sand"]]), "Sheet1");
   fs.writeFileSync(otherLog, xlsx.write(wb, { type: "buffer", bookType: "xlsx" }));
+  // One sheet with two borewells, one under the other, the first with a note beside a soil.
+  const twoLogs = path.join(files, "Two wells.xlsx");
+  const block = (site, area, rows) => [[null, null, "Streta Chart", null, null, "Lowering Assambly"], [`Site: ${site}`, "G. L.", '10"', "G. L.", null, '6"'], [area, ...rows[0]], ["Lucknow.", ...rows[1]], [null, ...rows[2]], [], []];
+  const both = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(both, xlsx.utils.aoa_to_sheet([
+    ...block("North Gate", "Station Road", [[40, "Clay", null, null, "Plain pipe", null, 40], [120, "Sand", "Good", "Ribbed Screen", null, null, 120], [150, "Clay", null, null, "Plain pipe", null, 150]]),
+    ...block("South Gate", "Station Road", [[60, "Clay", null, null, "Plain pipe", null, 60], [180, "Gravel", null, "Ribbed Screen", null, null, 180], [220, "Clay", null, null, "Plain pipe", null, 220]]),
+  ]), "Sheet1");
+  fs.writeFileSync(twoLogs, xlsx.write(both, { type: "buffer", bookType: "xlsx" }));
   // A photo taken at 26.8947 N, 80.9450 E (the GPS position is saved inside the picture).
   const photo = path.join(files, "site-photo.jpg");
   fs.copyFileSync(path.join(repo, "e2e", "fixtures", "site-photo.jpg"), photo);
@@ -99,6 +108,7 @@ export function buildFixtures(work) {
     legacyRoot,
     log: fwd(log),
     otherLog: fwd(otherLog),
+    twoLogs: fwd(twoLogs),
     photo: fwd(photo),
     pdf: fwd(pdf),
     saved: path.join(work, "saved"),
