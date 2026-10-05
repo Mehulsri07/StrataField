@@ -17,8 +17,10 @@ for a version is copied into its GitHub release notes, so write it for the peopl
     report was made.
   - The details take less room, two to a row, and long names run onto a second line instead of
     being cut off.
-  - **Your letterhead.** Enter your company's name, address, phone and email once under
-    **Settings & backup → Report letterhead**; they are printed across the top of each report.
+  - **The DWO letterhead.** Each report carries the Drinking Water Organisation logo, address,
+    phone numbers and GSTIN across the top and "Sustaining Life Through Water." at the foot, as on
+    the printed letterhead. Change the wording, or switch the logo off, under
+    **Settings & backup → Report letterhead**.
   - **Nearby borewells.** A report of up to 20 borewells lists the closest ones within 1 km, with
     how far away they are, their depth and their water level.
   - **Lines to sign**, for the client and the driller, at the end.

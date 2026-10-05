@@ -5,7 +5,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Borewell, BorewellRecord } from "@strata/core";
 import { kmBetween } from "@strata/core";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
+import logoUrl from "@/assets/letterhead-logo.jpg";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { PatternDefs } from "@/components/geology/patterns";
 import { api, isPreview } from "./api";
@@ -28,7 +29,7 @@ export function printableSvg(markup: string): string {
 
 /** The borewell drawing as a standalone SVG with fixed colours and fonts. */
 export function drawingSvg(r: BorewellRecord): string {
-  return printableSvg(renderToStaticMarkup(<BorewellProfile borewell={r.borewell} strata={r.strata} pipes={r.pipes} height={470} forPrint />));
+  return printableSvg(renderToStaticMarkup(<BorewellProfile borewell={r.borewell} strata={r.strata} pipes={r.pipes} height={450} forPrint />));
 }
 
 /** Renders standalone SVG to a PNG. `scale` 2 gives a sharp image for printing. */
@@ -113,9 +114,24 @@ async function mapPng(lat: number, lon: number, width: number, height: number, c
   }
 }
 
-/** What Settings keeps for the top of a report: who made it. All three may be empty. */
-export interface Letterhead { name: string; address: string; contact: string }
+/** What is printed across the top of a report: who made it. Any part may be empty. */
+export interface Letterhead {
+  name: string; address: string; contact: string;
+  /** A registration number such as the GSTIN, and the line printed at the foot of each page. */
+  taxId: string; tagline: string;
+  /** Print the company's logo, which carries its name, in place of the name in words. */
+  logo: boolean;
+}
 export const LETTERHEAD_KEY = "report-letterhead";
+/** Used until something else is saved in Settings: the letterhead of Drinking Water Organisation. */
+export const DEFAULT_LETTERHEAD: Letterhead = {
+  name: "Drinking Water Organisation", address: "509, Laxmanpuri Extension, Indira Nagar, Lucknow", contact: "9335249074, 9532888668",
+  taxId: "GSTIN 09AMYPS9135J1ZX", tagline: "Sustaining Life Through Water.", logo: true,
+};
+/** A letterhead saved before a part existed has that part empty, not the default's. */
+export const letterheadFrom = (saved: Partial<Letterhead> | null | undefined): Letterhead =>
+  saved ? { name: "", address: "", contact: "", taxId: "", tagline: "", logo: false, ...saved } : DEFAULT_LETTERHEAD;
+const LOGO_SHAPE = 867 / 296, TEAL = rgb(0.145, 0.486, 0.639), BLUE = rgb(0, 0.439, 0.753);
 const NEARBY_KM = 1, NEARBY_MOST = 5;
 
 class Writer {
@@ -124,7 +140,7 @@ class Writer {
   pages: PDFPage[] = [];
   /** `header` is the small line at the top left of every page, after "StrataField". */
   constructor(private doc: PDFDocument, private font: PDFFont, private bold: PDFFont, private title: string,
-    readonly size: [number, number] = A4, private header = "Borewell report", private letterhead: Letterhead | null = null) {}
+    readonly size: [number, number] = A4, private header = "Borewell report", private letterhead: Letterhead | null = null, private logo: PDFImage | null = null) {}
 
   newPage() {
     this.page = this.doc.addPage(this.size);
@@ -132,15 +148,18 @@ class Writer {
     this.y = this.size[1] - M;
     const lh = this.letterhead;
     // The first page of a report carries the maker's letterhead when one is set in Settings.
-    if (lh && this.pages.length === 1 && (lh.name || lh.address || lh.contact)) {
-      const right = this.size[0] - M;
-      if (lh.name) { this.text(this.fit(lh.name, right - M - 150, 15, true), M, this.y - 4, 15, INK, true); this.y -= 20; }
-      for (const line of [lh.address, lh.contact].filter(Boolean)) { this.text(this.fit(line, right - M - 150, 8.5), M, this.y, 8.5, QUIET); this.y -= 11; }
-      const top = this.size[1] - M;
-      this.text(this.header, right - this.font.widthOfTextAtSize(safe(this.header), 8), top, 8, QUIET);
-      this.text(this.title, right - this.font.widthOfTextAtSize(safe(this.title), 8), top - 11, 8, QUIET);
-      this.y -= 2;
-      this.page.drawLine({ start: { x: M, y: this.y }, end: { x: right, y: this.y }, thickness: 1.2, color: ACCENT });
+    const lines = lh ? [lh.address, lh.contact, lh.taxId].filter(Boolean) : [];
+    if (lh && this.pages.length === 1 && (lh.name || this.logo || lines.length)) {
+      // As on the printed letterhead: the logo (or the name) on the left, the address lines on the right.
+      const right = this.size[0] - M, top = this.size[1] - M + 8, H = 52;
+      if (this.logo) this.page.drawImage(this.logo, { x: M, y: top - H, width: H * LOGO_SHAPE, height: H });
+      else if (lh.name) this.text(this.fit(lh.name, 280, 17, true), M, top - 34, 17, INK, true);
+      lines.forEach((line, i) => {
+        const t = this.fit(line, 250, 10);
+        this.text(t, right - this.font.widthOfTextAtSize(t, 10), top - 14 - i * 14 - (3 - lines.length) * 7, 10, TEAL);
+      });
+      this.y = top - H - 8;
+      this.page.drawLine({ start: { x: M, y: this.y }, end: { x: right, y: this.y }, thickness: 1.2, color: TEAL });
       this.y -= 24;
       return;
     }
@@ -227,14 +246,15 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
   // more than the map server allows.
   const tiles: TileCache = new Map();
   const withMaps = records.length <= MAX_MAPS;
-  const letterhead = await api.settings.get<Letterhead>(LETTERHEAD_KEY).catch(() => null);
+  const letterhead = letterheadFrom(await api.settings.get<Partial<Letterhead>>(LETTERHEAD_KEY).catch(() => null));
+  const logo = letterhead.logo ? await fetch(logoUrl).then((got) => got.arrayBuffer()).then((bytes) => doc.embedJpg(bytes)).catch(() => null) : null;
   // For "Nearby borewells": every other borewell with a location. Left out of a long report.
   const others = withMaps ? (await api.borewells.search({}).catch(() => [])).map((i) => i.borewell).filter((o) => o.latitude != null && o.longitude != null) : [];
 
   for (const r of records) {
     const b = r.borewell;
     const lowered = b.date ? formatDate(b.date) : "";
-    const w = new Writer(doc, font, bold, b.borewellId, A4, lowered ? `Borewell report · tubewell lowered ${lowered}` : "Borewell report", letterhead);
+    const w = new Writer(doc, font, bold, b.borewellId, A4, lowered ? `Borewell report · tubewell lowered ${lowered}` : "Borewell report", letterhead, logo);
     w.newPage();
     w.text(w.fit(`${b.borewellId}${b.ownerName ? ` · ${b.ownerName}` : ""}`, A4[0] - 2 * M, 18, true), M, w.y, 18, INK, true);
     w.y -= 16;
@@ -289,7 +309,7 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
     }
     // A small map of where the borewell is, in the room left beside the drawing.
     const mapH = Math.min(190, w.y - (top - drawH) - 14);
-    const map = withMaps && located && mapH >= 90 ? await mapPng(b.latitude!, b.longitude!, LEFT - 10, mapH, tiles) : null;
+    const map = withMaps && located && mapH >= 80 ? await mapPng(b.latitude!, b.longitude!, LEFT - 10, mapH, tiles) : null;
     if (map) {
       const mapY = w.y - mapH + 6;
       w.page.drawImage(await doc.embedPng(map), { x: M, y: mapY, width: LEFT - 10, height: mapH });
@@ -360,6 +380,10 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
       const n = `Page ${i + 1} of ${w.pages.length}`;
       p.drawText(n, { x: A4[0] - M - font.widthOfTextAtSize(n, 7.5), y: M - 8, size: 7.5, font, color: QUIET });
       p.drawLine({ start: { x: M, y: M + 4 }, end: { x: A4[0] - M, y: M + 4 }, thickness: 0.6, color: ACCENT, opacity: 0.4 });
+      if (letterhead.tagline) {
+        const line = safe(`\u201C${letterhead.tagline.replace(/^["\u201C]|["\u201D]$/g, "")}\u201D`);
+        p.drawText(line, { x: (A4[0] - bold.widthOfTextAtSize(line, 8.5)) / 2, y: M + 10, size: 8.5, font: bold, color: BLUE });
+      }
     });
   }
   return doc.save();
