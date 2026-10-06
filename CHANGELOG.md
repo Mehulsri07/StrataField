@@ -3,7 +3,7 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
-## [Unreleased]
+## [1.0.13] - 2026-10-06
 
 ### Fixed
 - **New borewell opened as a blank white screen** when an unfinished borewell had been left in the
