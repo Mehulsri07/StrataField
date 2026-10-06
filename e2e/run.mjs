@@ -190,8 +190,19 @@ try {
   check("A location is corrected from a photo's GPS, and its source recorded",
     Math.abs(fixed.lat - 26.8947) < 0.0005 && Math.abs(fixed.lon - 80.945) < 0.0005 && fixed.source === "photo" && fixed.water === 58, JSON.stringify(fixed));
 
+  // An unfinished borewell kept by an older version, from before the pump boxes existed, still opens.
+  const oldDraft = await page(`
+    localStorage.setItem('strata-new-borewell-draft', JSON.stringify({ form: { borewellId: 'BW-OLD-DRAFT', ownerName: 'Kept From Before', project: '', date: '2026-01-05', houseNo: '', address: '', area: '', city: 'Lucknow', latitude: '', longitude: '', locationSource: 'unknown', totalDepth: '150', waterLevel: '', dynamicWaterLevel: '', boreDia: '', pipeDia: '', drillingMethod: '', remarks: '' }, layers: [], pipes: [], photos: [], files: [] }));
+    location.hash = '#/'; await __t.wait(300); location.hash = '#/new';
+    const shown = await __t.until(() => document.querySelector('#f-owner') || /could not be shown/.test(__t.text()), 8000);
+    const owner = document.querySelector('#f-owner')?.value ?? 'screen failed';
+    [...document.querySelectorAll('main ol button')].find(b => b.innerText.includes('Drilling'))?.click(); await __t.wait(400);
+    return { owner, depth: document.querySelector('#f-depth')?.value, pump: !!document.querySelector('#f-pump-make') };`);
+  check("An unfinished borewell kept by an older version opens, with the newer boxes empty", oldDraft.owner === "Kept From Before" && oldDraft.depth === "150" && oldDraft.pump, JSON.stringify(oldDraft));
+
   // ── New borewell, step by step, with a gap marked "Not recorded" ───────
   const manual = await page(`
+    location.hash = '#/'; await __t.wait(300);
     localStorage.removeItem('strata-new-borewell-draft');
     location.hash = '#/new'; await __t.until(() => document.querySelector('#f-id'));
     const id = document.querySelector('#f-id').value;

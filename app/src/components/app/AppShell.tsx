@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PatternDefs } from "@/components/geology/patterns";
 import { Chip } from "./Chip";
+import { ScreenError } from "./ScreenError";
 import { StartupNotice } from "./StartupNotice";
 import { UpdateNotice } from "./UpdateNotice";
 import { NAV } from "./nav";
@@ -25,7 +26,8 @@ export function AppShell() {
   const ready = !!startup && !startup.error;
   const summary = useSummary(ready);
   // The one-time message about the older app's data is shown on Home only, not on every screen.
-  const onHome = useLocation().pathname === "/";
+  const { pathname } = useLocation();
+  const onHome = pathname === "/";
   const navigate = useNavigate();
 
   // Ctrl+K opens the borewell search from anywhere.
@@ -51,7 +53,8 @@ export function AppShell() {
           <>
             {startup && onHome && <StartupNotice status={startup} />}
             <UpdateNotice />
-            <Outlet />
+            {/* A fresh one for each screen, so leaving a screen that failed clears its message. */}
+            <ScreenError key={pathname}><Outlet /></ScreenError>
           </>
         )}
       </main>

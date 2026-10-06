@@ -79,7 +79,9 @@ function readDraft(): { draft: Draft; restored: boolean } {
   const saved = safeGet(DRAFT_KEY);
   if (saved) {
     try {
-      return { draft: JSON.parse(saved) as Draft, restored: true };
+      // A draft kept by an older version has none of the boxes added since: they start empty.
+      const kept = JSON.parse(saved) as Partial<Draft>;
+      return { draft: { form: { ...emptyForm(), ...kept.form }, layers: kept.layers ?? [], pipes: kept.pipes ?? [], photos: kept.photos ?? [], files: kept.files ?? [] }, restored: true };
     } catch { /* ignore a damaged draft */ }
   }
   return { draft: { form: emptyForm(), layers: [], pipes: [], photos: [], files: [] }, restored: false };
