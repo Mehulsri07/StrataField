@@ -593,6 +593,17 @@ try {
     return __t.text();`);
   check("Home shows the numbers, recently added borewells and the backup panel", /3 borewells across/.test(home) && /Back up now/.test(home) && /Needs attention/.test(home),
     home.split("\n").slice(0, 10).join(" | "));
+
+  // ── The drawing: a pump lowered to the middle of a layer does not cover the layer's name ──
+  const labels = await page(`
+    const b = await __t.invoke('borewell_create', { input: { borewellId: 'LABELS-1', ownerName: 'Label test', city: 'Lucknow', date: '2026-09-01', totalDepth: 200, waterLevel: 108, pumpLowering: 158 } });
+    await __t.invoke('strata_save', { borewellId: b.id, layers: [{ startDepth: 0, endDepth: 135, material: 'Clay' }, { startDepth: 135, endDepth: 175, material: 'Sand' }, { startDepth: 175, endDepth: 200, material: 'Clay' }] });
+    location.hash = '#/borewell/' + b.id;
+    const pump = await __t.until(() => [...document.querySelectorAll('main svg text')].find(t => t.textContent === 'Pump 158 ft'), 10000);
+    const beside = [...pump.closest('svg').querySelectorAll('text')].filter(t => /^(Pump|Water|Sand|Clay) /.test(t.textContent))
+      .map(t => ({ name: t.textContent, y: Number(t.getAttribute('y')) }));   // 11 px text: baselines closer than that touch
+    return { names: beside.map(t => t.name), covered: beside.flatMap((a, i) => beside.slice(i + 1).filter(o => Math.abs(a.y - o.y) < 11).map(o => a.name + ' / ' + o.name)) };`);
+  check("The drawing keeps a layer's name clear of the pump and water labels", labels.names.includes("Sand 135–175") && labels.covered.length === 0, JSON.stringify(labels));
 } catch (e) {
   check("Test run finished", false, String(e));
 } finally {
