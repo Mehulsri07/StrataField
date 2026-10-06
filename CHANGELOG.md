@@ -3,6 +3,15 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Fixed
+- **New borewell opened as a blank white screen** when an unfinished borewell had been left in the
+  form by an older version, from before the pump boxes were added. The unfinished borewell now
+  opens as it was, with the newer boxes empty.
+- **A screen that fails no longer blanks the window.** It says so, offers to try again and to open
+  the error log, and the menu keeps working.
+
 ## [1.0.12] - 2026-10-05
 
 ### New
