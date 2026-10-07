@@ -236,7 +236,8 @@ function safe(s: string) {
 }
 
 /** One or more borewells as a PDF: details, the drawing, layers, pipes and water readings. */
-export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array> {
+/** `onProgress` is told which borewell (counting from 1) is being drawn, for a long report. */
+export async function buildReport(records: BorewellRecord[], onProgress?: (n: number) => void): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(records.length === 1 ? `${records[0].borewell.borewellId} borewell report` : "Borewell reports");
   doc.setCreator("StrataField");
@@ -251,7 +252,8 @@ export async function buildReport(records: BorewellRecord[]): Promise<Uint8Array
   // For "Nearby borewells": every other borewell with a location. Left out of a long report.
   const others = withMaps ? (await api.borewells.search({}).catch(() => [])).map((i) => i.borewell).filter((o) => o.latitude != null && o.longitude != null) : [];
 
-  for (const r of records) {
+  for (const [n, r] of records.entries()) {
+    onProgress?.(n + 1);
     const b = r.borewell;
     const lowered = b.date ? formatDate(b.date) : "";
     const w = new Writer(doc, font, bold, b.borewellId, A4, lowered ? `Borewell report · tubewell lowered ${lowered}` : "Borewell report", letterhead, logo);

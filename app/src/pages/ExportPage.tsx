@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Page, PageHeader, Panel } from "@/components/app/Page";
+import { LoadError, Page, PageHeader, Panel } from "@/components/app/Page";
 import { api, files, isPreview } from "@/lib/api";
 import { useLoad } from "@/lib/data";
 import { buildReport, fileName, saveFile } from "@/lib/exporting";
@@ -16,6 +16,8 @@ import { cn } from "cn";
 
 type Which = "all" | "zone" | "pick";
 type Format = "pdf" | "excel";
+/** How many borewells are fetched together while collecting them for a file. */
+const FETCH_AT_ONCE = 20;
 
 export function ExportPage() {
   const items = useLoad("export-borewells", () => api.borewells.search({}));
@@ -33,17 +35,19 @@ export function ExportPage() {
   const shown = all.filter((b) => !query.trim() || `${b.borewellId} ${b.ownerName} ${b.area}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   const run = async () => {
-    setBusy("Collecting the borewells…");
     setSaved(null);
     try {
+      // Several at a time rather than one after another, with a count so a long export is seen to be moving.
       const records: BorewellRecord[] = [];
-      for (const b of chosen) records.push(await api.borewells.get(b.id));
+      for (let i = 0; i < chosen.length; i += FETCH_AT_ONCE) {
+        setBusy(`Collecting the borewells: ${Math.min(i + FETCH_AT_ONCE, chosen.length)} of ${chosen.length}…`);
+        records.push(...(await Promise.all(chosen.slice(i, i + FETCH_AT_ONCE).map((b) => api.borewells.get(b.id)))));
+      }
       const stamp = new Date().toISOString().slice(0, 10);
       const base = chosen.length === 1 ? fileName(chosen[0].borewellId) : which === "zone" && zone ? fileName(`${zone} borewells ${stamp}`) : `StrataField borewells ${stamp}`;
       let bytes: Uint8Array;
       if (format === "pdf") {
-        setBusy(`Making the report (${records.length} page${records.length === 1 ? "" : "s"} or more)…`);
-        bytes = await buildReport(records);
+        bytes = await buildReport(records, (n) => setBusy(`Making the report: borewell ${n} of ${records.length}…`));
       } else {
         setBusy("Making the Excel workbook…");
         const { buildWorkbook } = await import("@strata/core/export");
@@ -66,6 +70,7 @@ export function ExportPage() {
   return (
     <Page className="max-w-[1000px]">
       <PageHeader title={text.pages.export.title} sub="Make a PDF report to print or share, or an Excel workbook with every detail." />
+      <LoadError error={items.error} />
 
       <Panel title="1. Which borewells?">
         <div className="grid gap-3">

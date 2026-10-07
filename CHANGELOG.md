@@ -3,6 +3,18 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **Export shows how far it has got.** A long export counts the borewells as it collects them and
+  as it draws each page of the report, and collecting them is quicker.
+
+### Fixed
+- **A screen that cannot read the borewells now says so.** The Map, Home, Cross-section, Export
+  and Add locations screens used to look as if there were no borewells at all.
+- **A fault while leaving a screen no longer blanks the window.** It shows the same message as a
+  screen that fails, with a button to try again.
+
 ## [1.0.13] - 2026-10-06
 
 ### Fixed

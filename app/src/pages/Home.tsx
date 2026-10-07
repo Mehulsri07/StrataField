@@ -5,7 +5,7 @@ import { isRecentWater, median, missingDetails, recentCutoff, waterByYear } from
 import { ChevronRight, FolderOpen, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Page, PageHeader, Panel } from "@/components/app/Page";
+import { LoadError, Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WaterPeriod } from "@/components/map/WaterLayer";
@@ -93,7 +93,7 @@ export function Home() {
         </header>
       )}
 
-      {loaded && all.length === 0 ? (
+      {items.error && !items.data ? <LoadError error={items.error} /> : loaded && all.length === 0 ? (
         <Panel>
           <div className="grid justify-items-center gap-3 py-16 text-center">
             <p className="font-medium">No borewells yet</p>
@@ -253,7 +253,10 @@ function RecentColumns({ items }: { items: BorewellListItem[] }) {
 /** Each zone's borewells in one row: how many, how deep they go, and the water level in the chosen period. */
 function byZone(borewells: Borewell[], cutoff: string) {
   const zones = new Map<string, Borewell[]>();
-  for (const b of borewells) zones.set(b.project, [...(zones.get(b.project) ?? []), b]);
+  for (const b of borewells) {
+    const list = zones.get(b.project);
+    if (list) list.push(b); else zones.set(b.project, [b]);
+  }
   return [...zones].map(([zone, list]) => {
     const waters = list.filter((b) => isRecentWater(b, cutoff)).map((b) => b.waterLevel!);
     return {
