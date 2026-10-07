@@ -15,6 +15,11 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   problem part-way can no longer leave a borewell without its layers, or add it a second time when
   you press Save again. A photo or file that cannot be copied is named, and the borewell is saved
   without it.
+- **The last change to a borewell's layers could be lost** when you pressed Done, or went to
+  another screen, within a second of making it, while the screen still said "Saving shortly…".
+  It is now saved as you leave.
+- **The map jumped back to the first borewell.** After "Show on map", choosing any other borewell
+  moved the map back to the one you came from. It now stays where you put it until "Show all".
 
 ## [1.0.13] - 2026-10-06
 
