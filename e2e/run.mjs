@@ -230,8 +230,9 @@ try {
     if (first) {
       const name = first.textContent; first.click(); await __t.wait(300);
       __t.btn('Use this location').click(); await __t.wait(300);
-      const r = (await __t.invoke('place_search', { query: searched }))[0];
-      place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
+      // This second lookup can lose the internet too, after the screen's own search got through.
+      const r = (await __t.invoke('place_search', { query: searched }).catch((e) => { place = 'offline: ' + e; return []; }))[0];
+      if (r) place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
     } else { __t.btn('Cancel').click(); await __t.wait(300); }
     __t.type(document.querySelector('#f-paste'), '26.8930, 80.9420'); await __t.wait(200);
     __t.btn('Next: Drilling').click(); await __t.wait(300);
