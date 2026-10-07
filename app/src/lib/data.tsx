@@ -29,6 +29,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(id);
   }, []);
 
+  // The end-to-end test saves some things without going through a screen; this is how it says so
+  // (only in builds made for it).
+  useEffect(() => {
+    if (import.meta.env.VITE_E2E === "1") (window as { __STRATA_TEST_CHANGED__?: () => void }).__STRATA_TEST_CHANGED__ = bump;
+  }, [bump]);
+
   return <Ctx.Provider value={{ version, bump }}>{children}</Ctx.Provider>;
 }
 
