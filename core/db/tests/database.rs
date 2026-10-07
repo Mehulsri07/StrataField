@@ -613,6 +613,49 @@ fn an_excel_import_is_saved_as_one_batch_or_not_at_all() {
 }
 
 #[test]
+fn a_new_borewell_is_saved_with_its_layers_and_pipes_or_not_at_all() {
+    let (_dir, db) = open_temp();
+    let pipe = PipeSegment {
+        start_depth: 0.0,
+        end_depth: 20.0,
+        pipe_type: "plain".into(),
+        ..Default::default()
+    };
+    // The second layer ends above where it starts, so it is refused.
+    let layers_with_a_bad_one = [layer(0.0, 20.0, "clay"), layer(40.0, 30.0, "clay")];
+    let err = db
+        .with_tx(|tx| {
+            repo::create_with_layers(
+                tx,
+                &input("BW-N1"),
+                &layers_with_a_bad_one,
+                std::slice::from_ref(&pipe),
+            )
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("Layer 2"), "{err}");
+    assert_eq!(
+        db.with(borewells::count_active).unwrap(),
+        0,
+        "no borewell is left behind when one of its layers is refused"
+    );
+
+    let b = db
+        .with_tx(|tx| {
+            repo::create_with_layers(
+                tx,
+                &input("BW-N1"),
+                &[layer(0.0, 20.0, "clay")],
+                std::slice::from_ref(&pipe),
+            )
+        })
+        .unwrap();
+    assert_eq!(db.with(borewells::count_active).unwrap(), 1);
+    assert_eq!(db.with(|c| layers::strata_for(c, &b.id)).unwrap().len(), 1);
+    assert_eq!(db.with(|c| layers::pipes_for(c, &b.id)).unwrap().len(), 1);
+}
+
+#[test]
 fn sections_round_trip() {
     let (_dir, db) = open_temp();
     let s = db
