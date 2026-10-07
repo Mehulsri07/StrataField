@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import type { Map as LeafletMap } from "leaflet";
 import type { Borewell } from "@strata/core";
 import { isRecentWater, recentCutoff, waterColour, waterPoints } from "@strata/core";
 import { Droplets, Layers, Maximize, X } from "lucide-react";
@@ -30,7 +31,10 @@ export function MapPage() {
 
   const all = useMemo(() => items.data ?? [], [items.data]);
   const borewells = useMemo(() => all.map((i) => i.borewell), [all]);
-  const located = borewells.filter((b) => b.latitude != null && b.longitude != null);
+  const located = useMemo(() => borewells.filter((b) => b.latitude != null && b.longitude != null), [borewells]);
+  // The side list in ID order: sorted when the borewells change, not on every click.
+  const listed = useMemo(() => [...located].sort((a, b) => a.borewellId.localeCompare(b.borewellId, undefined, { numeric: true })), [located]);
+  const [map, setMap] = useState<LeafletMap | null>(null);
   const missing = borewells.length - located.length;
   const [years] = useWaterYears();
   const points = useMemo(() => waterPoints(borewells, years), [borewells, years]);
@@ -58,7 +62,7 @@ export function MapPage() {
 
       <div className="grid h-[calc(100dvh-210px)] min-h-[520px] grid-cols-[minmax(0,1fr)_320px] gap-4">
         <section className="relative min-h-0 overflow-hidden rounded-md border border-border">
-          <BaseMap>
+          <BaseMap onReady={setMap}>
             {showWater && <WaterLayer points={points} />}
             <BorewellPins borewells={borewells} selectedId={selectedId} onSelect={(b) => setSelectedId(b.id)} />
             <FitBorewells borewells={fit === 0 && focus ? [focus] : borewells} trigger={fit} />
@@ -91,11 +95,12 @@ export function MapPage() {
             <Chip className="ml-auto">{located.length}</Chip>
           </div>
           <ul className="min-h-0 flex-1 overflow-auto">
-            {[...located].sort((a, b) => a.borewellId.localeCompare(b.borewellId, undefined, { numeric: true })).map((b) => (
+            {listed.map((b) => (
               <li key={b.id}>
                 <button
                   type="button"
-                  onClick={() => setSelectedId(b.id)}
+                  // Chosen from the list, the borewell may be off the map or inside a group, so the map goes to it.
+                  onClick={() => { setSelectedId(b.id); map?.flyTo([b.latitude!, b.longitude!], Math.max(map.getZoom(), 16)); }}
                   className={cn("grid w-full grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-border px-4 py-2.5 text-left hover:bg-muted", b.id === selectedId && "bg-accent")}
                 >
                   <WaterDot b={b} cutoff={cutoff} />

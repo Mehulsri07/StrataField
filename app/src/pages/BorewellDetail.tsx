@@ -13,6 +13,7 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BorewellStatus, locationSourceText } from "@/components/app/BorewellStatus";
 import { useConfirm } from "@/components/app/Confirm";
+import { LIST_SEARCH_KEY } from "@/components/app/nav";
 import { BorewellProfile, activateOnKey } from "@/components/geology/BorewellProfile";
 import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
@@ -60,6 +61,13 @@ export function BorewellDetail() {
   };
 
   const open = (layer: StrataLayer) => showLayer(layer, r);
+
+  /** Back to the list with the search and filters it had. */
+  const backToList = () => {
+    let kept = "";
+    try { kept = sessionStorage.getItem(LIST_SEARCH_KEY) ?? ""; } catch { /* a plain list is fine */ }
+    navigate(kept ? `/borewells?${kept}` : "/borewells");
+  };
 
   const makeReport = async () => {
     try {
@@ -235,7 +243,7 @@ export function BorewellDetail() {
       </Tabs>
 
       <div>
-        <Button variant="ghost" onClick={() => navigate("/borewells")}><Undo2 />Back to Borewells</Button>
+        <Button variant="ghost" onClick={backToList}><Undo2 />Back to Borewells</Button>
       </div>
       {popup}
       {dialog}
@@ -360,7 +368,10 @@ function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; 
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
           {r.photos.map((p) => (
             <figure key={p.id} className="group relative grid gap-1">
-              <img src={files.src(p.filePath)} alt={p.caption || "Field photo"} className="aspect-[4/3] w-full rounded-md border border-border bg-muted object-cover" loading="lazy" />
+              <button type="button" title="Open this photo" className="cursor-pointer rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                onClick={() => files.open(p.filePath).catch((e) => toast.error(String(e)))}>
+                <img src={files.src(p.filePath)} alt={p.caption || "Field photo"} className="aspect-[4/3] w-full rounded-md border border-border bg-muted object-cover" loading="lazy" />
+              </button>
               <figcaption className="text-xs text-muted-foreground">{p.caption || (p.captureDate ? formatDate(p.captureDate) : "Date not known")}</figcaption>
               <Button variant="secondary" size="icon-sm" className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" aria-label="Remove photo"
                 onClick={async () => { if (await ask({ title: "Remove this photo?", body: "The copy stored in StrataField is deleted. Your original file is not touched.", confirmLabel: "Remove photo", danger: true })) await run(() => api.attachments.remove("photo", p.id), "Photo removed"); }}>

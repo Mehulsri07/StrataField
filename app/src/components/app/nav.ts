@@ -10,6 +10,9 @@ export interface NavItem {
   showCount?: boolean;
 }
 
+/** Where the Borewells list keeps its search, filters and sorting for this run of the app, so "Back to Borewells" finds them. */
+export const LIST_SEARCH_KEY = "strata-borewells-search";
+
 export const NAV: NavItem[] = [
   { to: "/", label: text.nav.home, icon: House, group: "records" },
   { to: "/borewells", label: text.nav.borewells, icon: List, group: "records", showCount: true },

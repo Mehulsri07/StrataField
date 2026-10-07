@@ -3,6 +3,15 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### New
+- **The Borewells list stays as you left it.** Open a borewell from a search and come back, with
+  **Back to Borewells** or the back key, and the search, filters and sorting are still there.
+- **Choosing a borewell in the Map's list takes the map to it**, also when it was off the map or
+  inside a group of pins.
+- **Click a photo to open it full size** in your photo viewer.
+
 ## [1.0.13] - 2026-10-06
 
 ### Fixed
