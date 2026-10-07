@@ -349,6 +349,60 @@ fn layer(start: f64, end: f64, material_id: &str) -> StrataLayer {
 }
 
 #[test]
+fn a_list_carries_each_borewells_own_layers_in_depth_order() {
+    let (_dir, db) = open_temp();
+    let [a, b, bare] = ["BW-A", "BW-B", "BW-BARE"].map(|code| {
+        db.with_tx(|tx| borewells::create(tx, &input(code)))
+            .unwrap()
+    });
+    // Saved deepest first, and the two borewells' layers overlap in depth.
+    db.with_tx(|tx| {
+        layers::replace_strata(
+            tx,
+            &a.id,
+            &[
+                layer(60.0, 90.0, "coarse_sand"),
+                layer(0.0, 40.0, "clay_kankar"),
+                layer(40.0, 60.0, "kankar"),
+            ],
+        )?;
+        layers::replace_strata(
+            tx,
+            &b.id,
+            &[layer(20.0, 50.0, "kankar"), layer(0.0, 20.0, "clay_kankar")],
+        )
+    })
+    .unwrap();
+
+    let depths = |f: SearchFilters| {
+        db.with(|c| borewells::search(c, &f))
+            .unwrap()
+            .into_iter()
+            .map(|i| {
+                assert!(i.strata.iter().all(|l| l.borewell_id == i.borewell.id));
+                assert_eq!(
+                    i.strata,
+                    db.with(|c| layers::strata_for(c, &i.borewell.id)).unwrap()
+                );
+                let starts = i.strata.iter().map(|l| l.start_depth).collect::<Vec<_>>();
+                (i.borewell.id, starts)
+            })
+            .collect::<std::collections::HashMap<_, _>>()
+    };
+    let all = depths(SearchFilters::default());
+    assert_eq!(all[&a.id], [0.0, 40.0, 60.0]);
+    assert_eq!(all[&b.id], [0.0, 20.0]);
+    assert!(all[&bare.id].is_empty());
+    // A filter picks borewells; the ones it picks still come with every layer.
+    let sandy = depths(SearchFilters {
+        material_id: Some("coarse_sand".into()),
+        ..Default::default()
+    });
+    assert_eq!(sandy.len(), 1);
+    assert_eq!(sandy[&a.id], [0.0, 40.0, 60.0]);
+}
+
+#[test]
 fn saving_layers_fills_details_from_the_material_library_and_allows_not_recorded_gaps() {
     let (_dir, db) = open_temp();
     let b = db

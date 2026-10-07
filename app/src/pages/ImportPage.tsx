@@ -15,7 +15,7 @@ import { Chip } from "@/components/app/Chip";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { MapPicker } from "@/components/map/MapPicker";
 import { api, files, isPreview } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
 import { cn } from "cn";
 
@@ -115,7 +115,7 @@ export function ImportPage() {
   const navigate = useNavigate();
   const { bump } = useDataVersion();
   const materials = useLoad("materials", () => api.materials.list());
-  const existing = useLoad("all-borewells", () => api.borewells.search({}));
+  const existing = useBorewells();
   const zones = useLoad("projects", () => api.projects.list());
   const [list, setList] = useState<ImportFile[]>([]);
   const [current, setCurrent] = useState(0);
