@@ -44,6 +44,12 @@ export function Panel({ title, actions, children, className, bodyClassName, fram
   );
 }
 
+/** Says that the borewells could not be read, so a failed load is never mistaken for having none. */
+export function LoadError({ error }: { error: string | null }) {
+  if (!error) return null;
+  return <p role="alert" className="rounded-md border border-destructive/40 bg-danger-soft px-4 py-3 text-sm text-destructive">The borewells could not be loaded. {error}</p>;
+}
+
 /** Shown for an address that does not exist, with a way back. */
 export function NotFound() {
   return (

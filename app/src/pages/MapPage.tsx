@@ -5,7 +5,7 @@ import type { Borewell } from "@strata/core";
 import { isRecentWater, recentCutoff, waterColour, waterPoints } from "@strata/core";
 import { Droplets, Layers, Maximize, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Page, PageHeader } from "@/components/app/Page";
+import { LoadError, Page, PageHeader } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BaseMap } from "@/components/map/BaseMap";
 import { BorewellPins, FitBorewells } from "@/components/map/BorewellPins";
@@ -60,6 +60,7 @@ export function MapPage() {
           </>
         }
       />
+      <LoadError error={items.error} />
 
       <div className="grid h-[calc(100dvh-210px)] min-h-[520px] grid-cols-[minmax(0,1fr)_320px] gap-4">
         <section className="relative min-h-0 overflow-hidden rounded-md border border-border">
@@ -80,7 +81,7 @@ export function MapPage() {
 
           {selected && <SelectedCard item={selected} onClose={() => setSelectedId(null)} onOpen={() => navigate(`/borewell/${selected.borewell.id}`)} onLayer={(l) => showLayer(l)} />}
 
-          {!items.loading && located.length === 0 && (
+          {!items.loading && !items.error && located.length === 0 && (
             <div className="absolute inset-0 z-[500] grid place-items-center bg-card/70 p-6 text-center">
               <div className="grid max-w-sm gap-2">
                 <p className="font-medium">No borewells have a location yet</p>

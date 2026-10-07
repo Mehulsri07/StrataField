@@ -4,7 +4,7 @@ import type { Borewell } from "@strata/core";
 import { toast } from "sonner";
 import { CircleCheck, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Page, PageHeader, Panel } from "@/components/app/Page";
+import { LoadError, Page, PageHeader, Panel } from "@/components/app/Page";
 import { MapPicker } from "@/components/map/MapPicker";
 import { api } from "@/lib/api";
 import { useBorewells, useDataVersion } from "@/lib/data";
@@ -51,7 +51,7 @@ export function LocatePage() {
         sub="Borewells without a location are missing from the map, cross-sections and report maps. Go through them one after another."
         actions={b && !open && <Button onClick={() => setOpen(true)}><MapPin />Continue with {b.borewellId}</Button>}
       />
-      {!all.data ? <p className="text-sm text-muted-foreground">Loading…</p> : waiting.length === 0 ? (
+      {!all.data ? (all.error ? <LoadError error={all.error} /> : <p className="text-sm text-muted-foreground">Loading…</p>) : waiting.length === 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-ok/30 bg-ok-soft px-4 py-3 text-sm">
           <CircleCheck className="size-4 text-ok" />
           <span>Every borewell has a location{done.length ? `. ${done.length} added just now.` : "."}</span>
