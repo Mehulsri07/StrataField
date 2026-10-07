@@ -1,3 +1,4 @@
+import { cloneElement, isValidElement, type ReactElement } from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -43,12 +44,20 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const classes = cn(buttonVariants({ variant, size, className }))
+  // A link that looks like a button (render={<Link … />}) stays a plain link. Base UI's button is
+  // for actions: handed a link it logs an error each time, and would have it announced as a button.
+  if (isValidElement(render) && render.type !== "button") {
+    return cloneElement(render as ReactElement<Record<string, unknown>>, { "data-slot": "button", className: classes, ...props })
+  }
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={classes}
+      render={render}
       {...props}
     />
   )

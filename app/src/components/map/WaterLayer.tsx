@@ -53,9 +53,18 @@ export function WaterLayer({ points, opacity = 0.75 }: { points: WaterPoint[]; o
     o.imageSmoothingEnabled = true;
     o.drawImage(grid, 0, 0, out.width, out.height);
 
-    const layer = L.imageOverlay(out.toDataURL(), [[south, west], [north, east]], { opacity, interactive: false, className: "strata-water" });
-    layer.addTo(map);
-    return () => { layer.remove(); };
+    // Packed into a picture in the background, so a large grid does not hold up the screen.
+    let layer: L.ImageOverlay | null = null, url = "", left = false;
+    out.toBlob((picture) => {
+      if (!picture || left) return;
+      url = URL.createObjectURL(picture);
+      layer = L.imageOverlay(url, [[south, west], [north, east]], { opacity, interactive: false, className: "strata-water" }).addTo(map);
+    });
+    return () => {
+      left = true;
+      layer?.remove();
+      if (url) URL.revokeObjectURL(url);
+    };
   }, [map, points, opacity]);
 
   return null;
