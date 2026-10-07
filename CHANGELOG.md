@@ -12,6 +12,13 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   inside a group of pins.
 - **Click a photo to open it full size** in your photo viewer.
 
+### Fixed
+- **The last change to a borewell's layers could be lost** when you pressed Done, or went to
+  another screen, within a second of making it, while the screen still said "Saving shortly…".
+  It is now saved as you leave.
+- **The map jumped back to the first borewell.** After "Show on map", choosing any other borewell
+  moved the map back to the one you came from. It now stays where you put it until "Show all".
+
 ## [1.0.13] - 2026-10-06
 
 ### Fixed
