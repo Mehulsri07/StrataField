@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { MapPicker } from "@/components/map/MapPicker";
 import { api } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion } from "@/lib/data";
 import { zoneName } from "@/lib/format";
 
 const where = (b: Borewell) => [b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ");
@@ -18,7 +18,7 @@ const where = (b: Borewell) => [b.houseNo, b.address, b.area, b.city].filter(Boo
  */
 export function LocatePage() {
   const { bump } = useDataVersion();
-  const all = useLoad("all-borewells", () => api.borewells.search({}));
+  const all = useBorewells();
   // Borewells dealt with in this visit, so the next one comes up without waiting for the list to reload.
   const [done, setDone] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<string[]>([]);

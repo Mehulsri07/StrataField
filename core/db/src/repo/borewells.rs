@@ -128,23 +128,21 @@ pub fn search(conn: &Connection, f: &SearchFilters) -> Result<Vec<BorewellListIt
         clauses.push("(b.latitude IS NULL OR b.longitude IS NULL)".into());
     }
 
-    let sql = format!(
-        "SELECT {COLUMNS} {FROM} WHERE {} ORDER BY b.date DESC, b.created_at DESC",
-        clauses.join(" AND ")
-    );
+    let matching = format!("{FROM} WHERE {}", clauses.join(" AND "));
+    let sql = format!("SELECT {COLUMNS} {matching} ORDER BY b.date DESC, b.created_at DESC");
     let mut stmt = conn.prepare(&sql)?;
     let borewells = stmt
-        .query_map(params_from_iter(args), map_row)?
+        .query_map(params_from_iter(&args), map_row)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    borewells
+    // All their layers in one more query, not one query for each borewell.
+    let mut strata = layers::strata_by_borewell(conn, &format!("SELECT b.id {matching}"), &args)?;
+    Ok(borewells
         .into_iter()
-        .map(|b| {
-            Ok(BorewellListItem {
-                strata: layers::strata_for(conn, &b.id)?,
-                borewell: b,
-            })
+        .map(|b| BorewellListItem {
+            strata: strata.remove(&b.id).unwrap_or_default(),
+            borewell: b,
         })
-        .collect()
+        .collect())
 }
 
 pub fn create(conn: &Connection, input: &BorewellInput) -> Result<Borewell> {

@@ -70,6 +70,7 @@ export function EditLayers() {
       } catch (e) {
         setState("failed");
         toast.error(String(e));
+        bump(); // the layers may have been saved before the pipes failed
       }
     }, AUTOSAVE_MS);
     return () => window.clearTimeout(timer);

@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { useDataVersion } from "./data";
+import { loadBorewells, useDataVersion } from "./data";
 import type { BackupInfo, BorewellListItem, StartupStatus } from "@strata/core";
 import { RECENT_YEARS } from "@strata/core";
 import { api } from "./api";
@@ -27,7 +27,7 @@ export function useSummary(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     let current = true; // ignore a slow answer once a newer load has started
-    Promise.all([api.borewells.search(), api.backups.list()])
+    Promise.all([loadBorewells(version), api.backups.list()])
       .then(([items, backups]) => current && setSummary(summarise(items, backups)))
       .catch(() => current && setSummary(null));
     return () => {

@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { api, files, isPreview } from "@/lib/api";
-import { useLoad } from "@/lib/data";
+import { useBorewells } from "@/lib/data";
 import { buildReport, fileName, saveFile } from "@/lib/exporting";
 import { zoneName } from "@/lib/format";
 import { text } from "@/text";
@@ -18,7 +18,7 @@ type Which = "all" | "zone" | "pick";
 type Format = "pdf" | "excel";
 
 export function ExportPage() {
-  const items = useLoad("export-borewells", () => api.borewells.search({}));
+  const items = useBorewells();
   const [which, setWhich] = useState<Which>("all");
   const [zone, setZone] = useState<string | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());

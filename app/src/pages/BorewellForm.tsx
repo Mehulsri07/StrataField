@@ -16,7 +16,7 @@ import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, pumpText, zoneName } from "@/lib/format";
 import { PickOrAdd } from "@/components/app/PickOrAdd";
 import { numberText, parseCoordinatePair, parseNumber, PUMP_MAKES, splitPump } from "@strata/core";
@@ -165,7 +165,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   const editing = mode === "edit";
   const steps = STEPS.filter((s) => !(editing && s.newOnly));
 
-  const all = useLoad("all-borewells", () => api.borewells.search({ showDeleted: false }));
+  const all = useBorewells();
   const zones = useLoad("projects", () => api.projects.list());
   const materials = useLoad("materials", () => api.materials.list());
 
@@ -258,6 +258,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
       toast.success(`${b.borewellId} saved`);
       navigate(`/borewell/${b.id}`);
     } catch (e) {
+      bump(); // the borewell itself may have been saved before the step that failed
       toast.error(String(e));
     } finally {
       setSaving(false);

@@ -21,7 +21,7 @@ import { SectionDrawing, type SectionGround, type SectionWell } from "@/componen
 import { FAMILY_COLOURS } from "@/components/geology/LayerDialog";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, isPreview } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { formatWhen } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
@@ -50,7 +50,7 @@ function TapToPlace({ onTap }: { onTap: (p: LatLon) => void }) {
 export function SectionPage() {
   const navigate = useNavigate();
   const { bump } = useDataVersion();
-  const items = useLoad("section-borewells", () => api.borewells.search({}));
+  const items = useBorewells();
   const saved = useLoad("sections", () => api.sections.list());
   // The line: A, any bends, then A′.
   const [path, setPath] = useState<LatLon[]>([]);
