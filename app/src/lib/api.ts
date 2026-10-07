@@ -68,7 +68,9 @@ export const api = {
   borewells: {
     search: (filters: SearchFilters = {}) => invoke<BorewellListItem[]>("borewells_search", { filters }),
     get: (id: string) => invoke<BorewellRecord>("borewell_get", { id }),
-    create: (input: BorewellInput) => invoke<Borewell>("borewell_create", { input }),
+    /** Saves the borewell with its layers and pipes in one go: all of it, or nothing. */
+    create: (input: BorewellInput, strata: Partial<StrataLayer>[] = [], pipes: Partial<PipeSegment>[] = []) =>
+      invoke<Borewell>("borewell_create", { input, strata, pipes }),
     update: (id: string, input: BorewellInput) => invoke<Borewell>("borewell_update", { id, input }),
     /** Moves to the Recycle bin. */
     remove: (id: string) => invoke<void>("borewell_delete", { id }),

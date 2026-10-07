@@ -5,7 +5,16 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 
 ## [Unreleased]
 
+### New
+- **Edit details keeps what you typed.** Leaving the screen before saving no longer loses your
+  changes. They are there when you open Edit details for that borewell again, with a button to
+  discard them.
+
 ### Fixed
+- **A new borewell is saved in one go.** Its details, layers and pipes are saved together, so a
+  problem part-way can no longer leave a borewell without its layers, or add it a second time when
+  you press Save again. A photo or file that cannot be copied is named, and the borewell is saved
+  without it.
 - **The last change to a borewell's layers could be lost** when you pressed Done, or went to
   another screen, within a second of making it, while the screen still said "Saving shortly…".
   It is now saved as you leave.
