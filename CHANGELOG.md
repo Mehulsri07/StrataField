@@ -6,6 +6,11 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 ## [Unreleased]
 
 ### New
+- **The Borewells list stays as you left it.** Open a borewell from a search and come back, with
+  **Back to Borewells** or the back key, and the search, filters and sorting are still there.
+- **Choosing a borewell in the Map's list takes the map to it**, also when it was off the map or
+  inside a group of pins.
+- **Click a photo to open it full size** in your photo viewer.
 - **Export shows how far it has got.** A long export counts the borewells as it collects them and
   as it draws each page of the report, and collecting them is quicker.
 - **Edit details keeps what you typed.** Leaving the screen before saving no longer loses your

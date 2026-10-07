@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Page, PageHeader } from "@/components/app/Page";
 import { BorewellStatus } from "@/components/app/BorewellStatus";
+import { LIST_SEARCH_KEY } from "@/components/app/nav";
 import { StrataStrip } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api } from "@/lib/api";
@@ -19,26 +20,32 @@ import { parseNumber } from "@strata/core";
 import { text } from "@/text";
 import { cn } from "cn";
 
-type SortKey = "borewellId" | "date" | "totalDepth" | "waterLevel";
+const SORT_KEYS = ["borewellId", "date", "totalDepth", "waterLevel"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
 const ALL = "all";
 /** Rows shown at first, and added by "Show more": thousands of rows at once make the screen slow. */
 const PAGE = 200;
 
 export function Borewells() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const searchRef = useRef<HTMLInputElement>(null);
   const { showLayer, popup } = useLayerPopup();
 
-  const [query, setQuery] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [zone, setZone] = useState(() => params.get("zone") ?? ALL);
-  const [soil, setSoil] = useState(ALL);
-  const [noLocation, setNoLocation] = useState(() => params.get("noLocation") === "1");
-  const [incomplete, setIncomplete] = useState(() => params.get("missing") === "1");
-  const [more, setMore] = useState(false);
-  const [range, setRange] = useState({ minDepth: "", maxDepth: "", minWater: "", maxWater: "", from: "", to: "" });
-  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "date", desc: true });
+  // The search, filters and sorting start from the address (see below), so the list opens as it was left.
+  const at = (k: string) => params.get(k) ?? "";
+  const [query, setQuery] = useState(() => at("q"));
+  const [debounced, setDebounced] = useState(query);
+  const [zone, setZone] = useState(() => at("zone") || ALL);
+  const [soil, setSoil] = useState(() => at("soil") || ALL);
+  const [noLocation, setNoLocation] = useState(() => at("noLocation") === "1");
+  const [incomplete, setIncomplete] = useState(() => at("missing") === "1");
+  const [range, setRange] = useState(() => ({ minDepth: at("minDepth"), maxDepth: at("maxDepth"), minWater: at("minWater"), maxWater: at("maxWater"), from: at("from"), to: at("to") }));
+  const [more, setMore] = useState(() => Object.values(range).some(Boolean));
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>(() => {
+    const key = SORT_KEYS.find((k) => k === at("sort"));
+    return key ? { key, desc: at("desc") === "1" } : { key: "date", desc: true };
+  });
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(query), 250);
@@ -49,6 +56,17 @@ export function Borewells() {
   useEffect(() => {
     if (params.get("focus") === "search") searchRef.current?.focus();
   }, [params]);
+
+  // Kept in the address, so going back from a borewell (or "Back to Borewells") finds the list as it was left.
+  const newestFirst = sort.key === "date" && sort.desc;
+  const address = new URLSearchParams(Object.entries({
+    q: debounced.trim(), zone: zone === ALL ? "" : zone, soil: soil === ALL ? "" : soil, noLocation: noLocation ? "1" : "", missing: incomplete ? "1" : "",
+    ...range, sort: newestFirst ? "" : sort.key, desc: newestFirst || !sort.desc ? "" : "1",
+  }).filter(([, v]) => v)).toString();
+  useEffect(() => {
+    if (address !== params.toString()) setParams(address, { replace: true });
+    try { sessionStorage.setItem(LIST_SEARCH_KEY, address); } catch { /* the list still works without it */ }
+  }, [address, params, setParams]);
 
   const filters: SearchFilters = {
     query: debounced,

@@ -230,8 +230,9 @@ try {
     if (first) {
       const name = first.textContent; first.click(); await __t.wait(300);
       __t.btn('Use this location').click(); await __t.wait(300);
-      const r = (await __t.invoke('place_search', { query: searched }))[0];
-      place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
+      // This second lookup can lose the internet too, after the screen's own search got through.
+      const r = (await __t.invoke('place_search', { query: searched }).catch((e) => { place = 'offline: ' + e; return []; }))[0];
+      if (r) place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
     } else { __t.btn('Cancel').click(); await __t.wait(300); }
     __t.type(document.querySelector('#f-paste'), '26.8930, 80.9420'); await __t.wait(200);
     __t.btn('Next: Drilling').click(); await __t.wait(300);
@@ -338,12 +339,14 @@ try {
     __t.press(__t.btn('Photos (')); await __t.wait(400);
     __t.btn('Add photos').click();
     const img = await __t.until(() => { const i = document.querySelector('main img'); return i && i.complete && i.naturalWidth > 0 ? i : null; }, 10000);
+    const opens = !!img.closest('button[title="Open this photo"]');
     __t.press(__t.btn('Files (')); await __t.wait(400);
     __t.btn('Add file').click(); await __t.wait(1500);
     delete window.__STRATA_TEST_CHOOSE__;
     const r = await __t.invoke('borewell_get', { id: '${manual.bwid}' });
-    return { photos: r.photos.length, shown: img.naturalWidth, gps: [r.photos[0]?.latitude, r.photos[0]?.longitude], files: r.files.map(x => x.originalName) };`);
+    return { photos: r.photos.length, shown: img.naturalWidth, opens, gps: [r.photos[0]?.latitude, r.photos[0]?.longitude], files: r.files.map(x => x.originalName) };`);
   check("Photos attach and show, with their GPS position read", attached.photos === 1 && attached.shown === 640 && Math.abs(attached.gps[0] - 26.8947) < 0.001, JSON.stringify(attached));
+  check("A photo can be clicked to open it full size", attached.opens, JSON.stringify(attached));
   check("Files attach", attached.files.includes("site-notes.pdf"), attached.files.join(", "));
 
   const water = await page(`
@@ -362,6 +365,18 @@ try {
     return { one, noLocation: [...document.querySelectorAll('main tbody tr')].map(r => r.innerText.split('\\t')[0]) };`);
   check("Search finds a borewell by owner", /E2E Owner/.test(search.one), search.one.split("\t").slice(0, 2).join(" "));
   check("The No location filter lists only borewells without a location", search.noLocation.length === 1 && search.noLocation[0].includes(LEGACY.borewellId), search.noLocation.join(", "));
+
+  // Opening a borewell from the list and coming back finds the list as it was left.
+  const listKept = await page(`
+    location.hash = '#/'; await __t.until(() => !document.querySelector('input[type="search"]'));
+    location.hash = '#/borewells'; await __t.until(() => document.querySelector('input[type="search"]'));
+    __t.type(document.querySelector('input[type="search"]'), 'E2E Owner');
+    await __t.until(() => document.querySelectorAll('main tbody tr').length === 1, 5000); await __t.wait(500);
+    document.querySelector('main tbody tr').click(); await __t.until(() => __t.btn('Back to Borewells'), 8000);
+    __t.btn('Back to Borewells').click(); await __t.until(() => document.querySelector('input[type="search"]'));
+    await __t.until(() => document.querySelectorAll('main tbody tr').length === 1, 5000).catch(() => {});
+    return { box: document.querySelector('input[type="search"]').value, rows: document.querySelectorAll('main tbody tr').length };`);
+  check("The list keeps its search after a borewell is opened and Back to Borewells is pressed", listKept.box === "E2E Owner" && listKept.rows === 1, JSON.stringify(listKept));
 
   // ── Map and cross-section ──────────────────────────────────────────────
   const map = await page(`
