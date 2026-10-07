@@ -16,7 +16,7 @@ import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { formatDate, pumpText, zoneName } from "@/lib/format";
 import { PickOrAdd } from "@/components/app/PickOrAdd";
 import { numberText, parseCoordinatePair, parseNumber, PUMP_MAKES, splitPump } from "@strata/core";
@@ -64,6 +64,8 @@ interface StagedPhoto { path: string; captureDate: string | null; latitude: numb
 interface Draft { form: FormState; layers: LayerRow[]; pipes: PipeRow[]; photos: StagedPhoto[]; files: string[] }
 
 const DRAFT_KEY = "strata-new-borewell-draft";
+/** Changes typed into Edit details and not saved yet, kept so that leaving the screen does not lose them. */
+const editDraftKey = (id: string) => `strata-edit-draft:${id}`;
 const LAST_ZONE_KEY = "strata-last-zone";
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -85,6 +87,14 @@ function readDraft(): { draft: Draft; restored: boolean } {
     } catch { /* ignore a damaged draft */ }
   }
   return { draft: { form: emptyForm(), layers: [], pipes: [], photos: [], files: [] }, restored: false };
+}
+
+/** The unsaved changes kept for this borewell, unless it has been changed since: then they are out of date. */
+function readEditDraft(b: Borewell): FormState | null {
+  try {
+    const kept = JSON.parse(safeGet(editDraftKey(b.id)) ?? "null") as { updatedAt: string; form: Partial<FormState> } | null;
+    return kept && kept.updatedAt === b.updatedAt ? { ...fromBorewell(b), ...kept.form } : null;
+  } catch { return null; }
 }
 
 function safeGet(k: string): string | null {
@@ -165,7 +175,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   const editing = mode === "edit";
   const steps = STEPS.filter((s) => !(editing && s.newOnly));
 
-  const all = useLoad("all-borewells", () => api.borewells.search({ showDeleted: false }));
+  const all = useBorewells();
   const zones = useLoad("projects", () => api.projects.list());
   const materials = useLoad("materials", () => api.materials.list());
 
@@ -182,15 +192,22 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
   useEffect(() => {
     if (!editing) return;
     api.borewells.get(id).then((r) => {
+      const kept = readEditDraft(r.borewell);
       setOriginal(r.borewell);
-      setDraft({ form: fromBorewell(r.borewell), layers: [], pipes: [], photos: [], files: [] });
+      setDraft({ form: kept ?? fromBorewell(r.borewell), layers: [], pipes: [], photos: [], files: [] });
+      setRestored(!!kept);
     }).catch((e) => toast.error(String(e)));
   }, [editing, id]);
 
-  // Keep a new borewell's progress if the app is closed before saving.
+  // Keep a new borewell's progress, or unsaved changes to an existing one, if the screen is left before saving.
   useEffect(() => {
-    if (!editing && draft) safeSet(DRAFT_KEY, JSON.stringify(draft));
-  }, [editing, draft]);
+    if (!draft) return;
+    if (!editing) safeSet(DRAFT_KEY, JSON.stringify(draft));
+    else if (original) {
+      const changed = JSON.stringify(draft.form) !== JSON.stringify(fromBorewell(original));
+      safeSet(editDraftKey(original.id), changed ? JSON.stringify({ updatedAt: original.updatedAt, form: draft.form }) : null);
+    }
+  }, [editing, draft, original]);
 
   const mats = useMemo(() => materials.data ?? [], [materials.data]);
   if (!draft) return <Page><p className="text-muted-foreground">Loading…</p></Page>;
@@ -235,29 +252,39 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
     setVisited(new Set(["basics"]));
   };
 
+  /** Back to the borewell as it is saved; the kept changes go with it. */
+  const discardChanges = () => {
+    if (original) setDraft({ ...draft, form: fromBorewell(original) });
+    setRestored(false);
+  };
+
   const save = async () => {
     setSaving(true);
     try {
       if (editing) {
         await api.borewells.update(id, input);
+        safeSet(editDraftKey(id), null);
         bump();
         toast.success("Changes saved");
         navigate(`/borewell/${id}`);
         return;
       }
-      const b = await api.borewells.create(input);
-      if (layers.length) await api.strata.save(b.id, layers.map(({ id: _id, borewellId: _b, ...l }) => l));
-      if (pipes.length) await api.pipes.save(b.id, pipes.map(({ id: _id, borewellId: _b, ...p }) => p));
+      const b = await api.borewells.create(input, layers.map(({ id: _id, borewellId: _b, ...l }) => l), pipes.map(({ id: _id, borewellId: _b, ...p }) => p));
+      // The borewell is saved from here on. A photo or file that cannot be copied is named, but the
+      // form must not stay open for it: pressing Save again would add the borewell a second time.
+      const missed: string[] = [];
       for (const p of draft.photos) {
-        await api.attachments.addPhoto(b.id, p.path, { captureDate: p.captureDate ?? undefined, latitude: p.latitude ?? undefined, longitude: p.longitude ?? undefined });
+        await api.attachments.addPhoto(b.id, p.path, { captureDate: p.captureDate ?? undefined, latitude: p.latitude ?? undefined, longitude: p.longitude ?? undefined }).catch(() => missed.push(p.path));
       }
-      for (const path of draft.files) await api.attachments.addFile(b.id, path);
+      for (const path of draft.files) await api.attachments.addFile(b.id, path).catch(() => missed.push(path));
       safeSet(DRAFT_KEY, null);
       if (input.project) safeSet(LAST_ZONE_KEY, input.project);
       bump();
       toast.success(`${b.borewellId} saved`);
+      if (missed.length) toast.error(`${missed.map((p) => p.split(/[\\/]/).pop()).join(", ")} could not be added. The borewell is saved; add ${missed.length === 1 ? "it" : "them"} again from its Photos or Files.`);
       navigate(`/borewell/${b.id}`);
     } catch (e) {
+      bump(); // the borewell itself may have been saved before the step that failed
       toast.error(String(e));
     } finally {
       setSaving(false);
@@ -270,11 +297,14 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
         title={editing ? <>Edit details · <span className="num">{original?.borewellId}</span></> : text.pages.newBorewell.title}
         sub={editing ? "Change the borewell's details. Layers and pipes have their own screen." : text.pages.newBorewell.sub}
         actions={editing
-          ? <Button variant="outline" render={<Link to={`/borewell/${id}`} />}>{text.actions.cancel}</Button>
+          ? <>
+            {restored && <Button variant="ghost" onClick={discardChanges}><X />Discard changes</Button>}
+            <Button variant="outline" onClick={() => safeSet(editDraftKey(id), null)} render={<Link to={`/borewell/${id}`} />}>{text.actions.cancel}</Button>
+          </>
           : restored && <Button variant="ghost" onClick={startOver}><X />Start over</Button>}
       />
-      {restored && !editing && (
-        <p className="text-sm text-muted-foreground">Picking up where you left off. Nothing has been saved yet.</p>
+      {restored && (
+        <p className="text-sm text-muted-foreground">{editing ? "Picking up the changes you made earlier. They have not been saved yet." : "Picking up where you left off. Nothing has been saved yet."}</p>
       )}
 
       <ol className="flex flex-wrap gap-x-6 border-b border-border" aria-label="Steps">

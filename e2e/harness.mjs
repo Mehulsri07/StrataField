@@ -149,7 +149,13 @@ const HELPERS = `
       await this.until(() => this.shownOptions().length === 0, 3000).catch(() => {});
       await this.wait(150);
     },
-    invoke: (cmd, args) => window.__TAURI_INTERNALS__.invoke(cmd, args),
+    // A save made this way goes round the screens, so they are told the data changed, as a screen
+    // tells them after saving. Commands that only read (…_list, …_get and so on) change nothing.
+    async invoke(cmd, args) {
+      const out = await window.__TAURI_INTERNALS__.invoke(cmd, args);
+      if (!/_(list|get|search|status|recent|unlinked|info)$/.test(cmd)) window.__STRATA_TEST_CHANGED__?.();
+      return out;
+    },
     text: () => document.querySelector('main')?.innerText ?? '',
   };
   return true;`;

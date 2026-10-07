@@ -348,6 +348,7 @@ function WaterTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
 }
 
 function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; ask: Ask }) {
+  const { bump } = useDataVersion();
   const add = async () => {
     try {
       const paths = await files.choose({ title: "Choose photos", multiple: true, filters: files.photoFilters });
@@ -358,6 +359,7 @@ function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; 
       if (paths.length) await run(async () => {}, paths.length === 1 ? "Photo added" : `${paths.length} photos added`);
     } catch (e) {
       toast.error(String(e));
+      bump(); // some may have been added before the one that failed
     }
   };
   return (
@@ -386,6 +388,7 @@ function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; 
 }
 
 function FilesTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; ask: Ask }) {
+  const { bump } = useDataVersion();
   const add = async () => {
     try {
       const paths = await files.choose({ title: "Choose files", multiple: true, filters: files.documentFilters });
@@ -393,6 +396,7 @@ function FilesTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
       if (paths.length) await run(async () => {}, paths.length === 1 ? "File added" : `${paths.length} files added`);
     } catch (e) {
       toast.error(String(e));
+      bump(); // some may have been added before the one that failed
     }
   };
   const icon = (kind: string) => (kind === "excel" ? <FileSpreadsheet className="size-4" /> : kind === "pdf" ? <FileText className="size-4" /> : <FileIcon className="size-4" />);

@@ -14,7 +14,7 @@ import { LIST_SEARCH_KEY } from "@/components/app/nav";
 import { StrataStrip } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api } from "@/lib/api";
-import { useLoad } from "@/lib/data";
+import { ALL_BOREWELLS, useBorewells, useLoad } from "@/lib/data";
 import { formatDate, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
@@ -80,10 +80,12 @@ export function Borewells() {
     dateFrom: range.from || undefined,
     dateTo: range.to || undefined,
   };
-  const filtered = incomplete || Object.entries(filters).some(([k, v]) => v !== undefined && !(k === "query" && v === ""));
+  const narrowed = Object.entries(filters).some(([k, v]) => v !== undefined && !(k === "query" && v === ""));
+  const filtered = incomplete || narrowed;
 
-  const rows = useLoad(JSON.stringify(filters), () => api.borewells.search(filters));
-  const total = useLoad("all", () => api.borewells.search({}));
+  // With no filter the rows are the whole list, which the total needs anyway: one load serves both.
+  const rows = useLoad(narrowed ? JSON.stringify(filters) : ALL_BOREWELLS, () => api.borewells.search(narrowed ? filters : {}));
+  const total = useBorewells();
   const zones = useLoad("projects", () => api.projects.list());
   const materials = useLoad("materials", () => api.materials.list());
 
