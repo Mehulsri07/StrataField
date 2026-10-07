@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { WaterPeriod } from "@/components/map/WaterLayer";
 import { patternFill } from "@/components/geology/patterns";
 import { api, isPreview } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { useWaterYears } from "@/lib/hooks";
 import { formatDate, formatWhen, zoneName } from "@/lib/format";
 import { text } from "@/text";
@@ -25,7 +25,7 @@ const SECOND_COPY_OLD_DAYS = 14;
 
 export function Home() {
   const { bump } = useDataVersion();
-  const items = useLoad("home-borewells", () => api.borewells.search({}));
+  const items = useBorewells();
   const backups = useLoad("home-backups", () => api.backups.list());
   const unlinked = useLoad("home-unlinked", () => api.soilNames.unlinked());
   const secondCopy = useLoad("second-copy", () => api.backups.secondCopy.get());

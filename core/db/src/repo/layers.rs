@@ -4,28 +4,56 @@ use crate::db::{new_id, record_history};
 use crate::error::{DbError, Result};
 use crate::models::{PipeSegment, StrataLayer, WaterReading};
 use crate::repo::{borewells, materials};
-use rusqlite::{params, Connection};
+use rusqlite::{params, params_from_iter, types::Value, Connection, Row};
+use std::collections::HashMap;
+
+const STRATA_COLUMNS: &str =
+    "id, borewell_id, start_depth, end_depth, material, material_id, color, pattern, remarks, water_bearing";
+
+fn map_strata(r: &Row) -> rusqlite::Result<StrataLayer> {
+    Ok(StrataLayer {
+        id: r.get(0)?,
+        borewell_id: r.get(1)?,
+        start_depth: r.get(2)?,
+        end_depth: r.get(3)?,
+        material: r.get(4)?,
+        material_id: r.get(5)?,
+        color: r.get(6)?,
+        pattern: r.get(7)?,
+        remarks: r.get(8)?,
+        water_bearing: r.get(9)?,
+    })
+}
 
 pub fn strata_for(conn: &Connection, borewell_id: &str) -> Result<Vec<StrataLayer>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, borewell_id, start_depth, end_depth, material, material_id, color, pattern, remarks, water_bearing
-         FROM strata_layers WHERE borewell_id = ?1 ORDER BY start_depth, end_depth",
-    )?;
-    let rows = stmt.query_map([borewell_id], |r| {
-        Ok(StrataLayer {
-            id: r.get(0)?,
-            borewell_id: r.get(1)?,
-            start_depth: r.get(2)?,
-            end_depth: r.get(3)?,
-            material: r.get(4)?,
-            material_id: r.get(5)?,
-            color: r.get(6)?,
-            pattern: r.get(7)?,
-            remarks: r.get(8)?,
-            water_bearing: r.get(9)?,
-        })
-    })?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {STRATA_COLUMNS} FROM strata_layers WHERE borewell_id = ?1 ORDER BY start_depth, end_depth"
+    ))?;
+    let rows = stmt.query_map([borewell_id], map_strata)?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// The layers of every borewell that `borewell_ids` finds (a SELECT of borewell ids, taking `args`),
+/// by borewell, each in the same order as `strata_for`. One query however many borewells there are,
+/// for lists.
+pub(crate) fn strata_by_borewell(
+    conn: &Connection,
+    borewell_ids: &str,
+    args: &[Value],
+) -> Result<HashMap<String, Vec<StrataLayer>>> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {STRATA_COLUMNS} FROM strata_layers WHERE borewell_id IN ({borewell_ids})
+         ORDER BY borewell_id, start_depth, end_depth"
+    ))?;
+    let mut by_borewell: HashMap<String, Vec<StrataLayer>> = HashMap::new();
+    for layer in stmt.query_map(params_from_iter(args), map_strata)? {
+        let layer = layer?;
+        by_borewell
+            .entry(layer.borewell_id.clone())
+            .or_default()
+            .push(layer);
+    }
+    Ok(by_borewell)
 }
 
 /// Replaces all layers of a borewell. Gaps and overlaps are allowed here (the editor warns about

@@ -11,8 +11,7 @@ import { BorewellPins, FitBorewells } from "@/components/map/BorewellPins";
 import { WaterLayer, WaterLegend, WaterPeriod } from "@/components/map/WaterLayer";
 import { StrataStrip } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
-import { api } from "@/lib/api";
-import { useLoad } from "@/lib/data";
+import { useBorewells } from "@/lib/data";
 import { useWaterYears } from "@/lib/hooks";
 import { text } from "@/text";
 import { cn } from "cn";
@@ -20,7 +19,7 @@ import { cn } from "cn";
 export function MapPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const items = useLoad("map-borewells", () => api.borewells.search({}));
+  const items = useBorewells();
   const [showWater, setShowWater] = useState(true);
   // Opened from a borewell ("Show on map"): select it and zoom to it once, until "Show all".
   const [focusId] = useState(() => params.get("select"));
