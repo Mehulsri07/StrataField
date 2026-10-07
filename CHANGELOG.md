@@ -20,6 +20,10 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **The map jumped back to the first borewell.** After "Show on map", choosing any other borewell
   moved the map back to the one you came from. It now stays where you put it until "Show all".
 
+### Faster
+- **Screens open straight away.** The borewell list is loaded once and shared by every screen,
+  instead of being loaded again each time a screen opens.
+
 ## [1.0.13] - 2026-10-06
 
 ### Fixed
