@@ -37,6 +37,8 @@ export function MapPage() {
   const cutoff = useMemo(() => recentCutoff(borewells, years), [borewells, years]);
   const selected = all.find((i) => i.borewell.id === selectedId);
   const focus = useMemo(() => borewells.find((b) => b.id === focusId), [borewells, focusId]);
+  // The same list from one draw to the next, so the map only moves at the start and on "Show all".
+  const toFit = useMemo(() => (fit === 0 && focus ? [focus] : borewells), [fit, focus, borewells]);
 
   return (
     <Page className="max-w-none">
@@ -61,7 +63,7 @@ export function MapPage() {
           <BaseMap>
             {showWater && <WaterLayer points={points} />}
             <BorewellPins borewells={borewells} selectedId={selectedId} onSelect={(b) => setSelectedId(b.id)} />
-            <FitBorewells borewells={fit === 0 && focus ? [focus] : borewells} trigger={fit} />
+            <FitBorewells borewells={toFit} trigger={fit} />
           </BaseMap>
 
           <div className="pointer-events-none absolute top-3 left-14 z-[500] flex flex-wrap gap-2">

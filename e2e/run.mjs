@@ -303,6 +303,15 @@ try {
     return first;`);
   check("The layer editor saves changes by itself", layersEdited === "Silty Clay", layersEdited);
 
+  // Leaving before the automatic save has had its moment must still save the change.
+  const leftEarly = await page(`
+    __t.type(document.querySelector('[aria-label="Layer 1 notes"]'), 'left early'); await __t.wait(200);
+    __t.btn('Done').click();
+    let notes = ''; const end = Date.now() + 8000;
+    while (Date.now() < end) { await __t.wait(400); notes = (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).strata[0].remarks ?? ''; if (notes === 'left early') break; }
+    return notes;`);
+  check("The layer editor saves the last change when the screen is left straight away", leftEarly === "left early", leftEarly);
+
   // ── Photos, files, water readings ──────────────────────────────────────
   const attached = await page(`
     window.__STRATA_TEST_CHOOSE__ = (title) => /photo/i.test(title) ? ['${f.photo}'] : ['${f.pdf}'];
