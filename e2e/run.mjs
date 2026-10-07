@@ -295,6 +295,25 @@ try {
     return (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).borewell.ownerName;`);
   check("Edit details saves", edited === "E2E Owner (edited)", edited);
 
+  // Leaving Edit details with changes typed in keeps them for when the screen is opened again.
+  const keptEdit = await page(`
+    location.hash = '#/borewell/${manual.bwid}/edit'; await __t.until(() => document.querySelector('#f-owner')?.value === 'E2E Owner (edited)');
+    __t.type(document.querySelector('#f-owner'), 'Typed, not saved'); await __t.wait(200);
+    location.hash = '#/borewells'; await __t.until(() => !document.querySelector('#f-owner'));
+    location.hash = '#/borewell/${manual.bwid}/edit'; await __t.until(() => document.querySelector('#f-owner')); await __t.wait(300);
+    const back = document.querySelector('#f-owner').value;
+    __t.btn('Discard changes').click(); await __t.wait(200);
+    return { back, after: document.querySelector('#f-owner').value, saved: (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).borewell.ownerName };`);
+  check("Unsaved changes in Edit details are kept when the screen is left, and can be discarded",
+    keptEdit.back === "Typed, not saved" && keptEdit.after === "E2E Owner (edited)" && keptEdit.saved === "E2E Owner (edited)", JSON.stringify(keptEdit));
+
+  // A new borewell and its layers are saved together: a layer that is refused leaves nothing behind.
+  const allOrNothing = await page(`
+    const answer = await __t.invoke('borewell_create', { input: { borewellId: 'E2E-HALF', ownerName: 'Half saved', city: 'Lucknow', date: '2026-09-01' },
+      strata: [{ startDepth: 0, endDepth: 20, materialId: 'clay' }, { startDepth: 40, endDepth: 30, materialId: 'clay' }] }).then(() => 'saved', (e) => String(e));
+    return { answer, left: (await __t.invoke('borewells_search', { filters: { query: 'E2E-HALF' } })).length };`);
+  check("A new borewell whose layers are refused is not saved at all", /Layer 2/.test(allOrNothing.answer) && allOrNothing.left === 0, JSON.stringify(allOrNothing));
+
   const layersEdited = await page(`
     location.hash = '#/borewell/${manual.bwid}/layers'; await __t.until(() => document.querySelector('[aria-label="Layer 1 soil type"]'), 10000); await __t.wait(500);
     await __t.choose(document.querySelector('[aria-label="Layer 1 soil type"]'), 'Silty Clay');

@@ -8,12 +8,19 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 ### New
 - **Export shows how far it has got.** A long export counts the borewells as it collects them and
   as it draws each page of the report, and collecting them is quicker.
+- **Edit details keeps what you typed.** Leaving the screen before saving no longer loses your
+  changes. They are there when you open Edit details for that borewell again, with a button to
+  discard them.
 
 ### Fixed
 - **A screen that cannot read the borewells now says so.** The Map, Home, Cross-section, Export
   and Add locations screens used to look as if there were no borewells at all.
 - **A fault while leaving a screen no longer blanks the window.** It shows the same message as a
   screen that fails, with a button to try again.
+- **A new borewell is saved in one go.** Its details, layers and pipes are saved together, so a
+  problem part-way can no longer leave a borewell without its layers, or add it a second time when
+  you press Save again. A photo or file that cannot be copied is named, and the borewell is saved
+  without it.
 - **The last change to a borewell's layers could be lost** when you pressed Done, or went to
   another screen, within a second of making it, while the screen still said "Saving shortly…".
   It is now saved as you leave.

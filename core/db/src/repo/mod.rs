@@ -7,7 +7,7 @@ pub mod projects;
 
 use crate::db::{new_id, now, record_history};
 use crate::error::{DbError, Result};
-use crate::models::{BorewellInput, BorewellRecord, PipeSegment, StrataLayer};
+use crate::models::{Borewell, BorewellInput, BorewellRecord, PipeSegment, StrataLayer};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -23,6 +23,24 @@ pub fn record(conn: &Connection, data_dir: &Path, id: &str) -> Result<BorewellRe
         files: attachments::files_for(conn, data_dir, id)?,
         history: misc::history_for(conn, "borewell", id)?,
     })
+}
+
+/// A new borewell together with its layers and pipes. Run inside a transaction: all of it is saved,
+/// or none, so a layer that is refused never leaves a borewell behind without its layers.
+pub fn create_with_layers(
+    conn: &Connection,
+    input: &BorewellInput,
+    strata: &[StrataLayer],
+    pipes: &[PipeSegment],
+) -> Result<Borewell> {
+    let b = borewells::create(conn, input)?;
+    if !strata.is_empty() {
+        layers::replace_strata(conn, &b.id, strata)?;
+    }
+    if !pipes.is_empty() {
+        layers::replace_pipes(conn, &b.id, pipes)?;
+    }
+    Ok(b)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -90,18 +108,12 @@ pub fn import_batch(
         input.import_batch_id = Some(batch_id.clone());
         input.import_method = Some("excel".into());
         input.import_source = Some(req.file_name.clone());
-        let b = borewells::create(conn, &input).map_err(|e| {
+        let b = create_with_layers(conn, &input, &item.strata, &item.pipes).map_err(|e| {
             DbError::Invalid(format!(
                 "Borewell {} in the file could not be imported: {e}",
                 i + 1
             ))
         })?;
-        if !item.strata.is_empty() {
-            layers::replace_strata(conn, &b.id, &item.strata)?;
-        }
-        if !item.pipes.is_empty() {
-            layers::replace_pipes(conn, &b.id, &item.pipes)?;
-        }
         // The original workbook is listed under each borewell's Files (one shared copy).
         if let Some(stored) = &stored_path {
             conn.execute(
