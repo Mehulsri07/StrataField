@@ -50,18 +50,16 @@ export function BorewellProfile({
   const pumpAt = borewell.pumpLowering != null && borewell.pumpLowering > 0 && borewell.pumpLowering <= depth ? borewell.pumpLowering : null;
   const pumpLabelY = pumpAt == null ? null : wl != null && Math.abs(y(pumpAt) - 4 - (y(wl) - 2)) < 13 ? y(wl) + 12 : y(pumpAt) - 4;
 
-  // Layer names share a column with the "Water … ft" label. Move a name above or below that label
-  // when they would overlap, or leave it out if the layer is too thin (the popup still has it).
+  // Layer names share a column with the "Water … ft" and "Pump … ft" labels. Move a name above or
+  // below those labels when they would overlap, or leave it out if the layer is too thin (the popup still has it).
   const waterLabelY = wl != null ? y(wl) - 2 : null;
+  const fixedLabels = [waterLabelY, pumpLabelY].filter((v) => v != null).sort((a, b) => a - b);
   const labelY = (y1: number, h: number): number | null => {
     if (h < 13) return null;
+    const clear = (at: number) => fixedLabels.every((f) => Math.abs(at - f) >= 13);
     const centre = y1 + h / 2 + 4;
-    if (waterLabelY == null || Math.abs(centre - waterLabelY) >= 13) return centre;
-    const below = waterLabelY + 14;
-    if (below <= y1 + h - 2) return below;
-    const above = waterLabelY - 14;
-    if (above >= y1 + 11) return above;
-    return null;
+    if (clear(centre)) return centre;
+    return fixedLabels.flatMap((f) => [f + 14, f - 14]).find((at) => at >= y1 + 11 && at <= y1 + h - 2 && clear(at)) ?? null;
   };
 
   // In print, every name is written on its own layer, clear of the water line. A thin layer gets
