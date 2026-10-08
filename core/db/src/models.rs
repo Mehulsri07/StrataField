@@ -52,7 +52,7 @@ pub struct Borewell {
     pub pump_phase: String,
     /// How deep the pump hangs, in feet below ground.
     pub pump_lowering: Option<f64>,
-    /// The pipe the pump hangs on and the water comes up through: its size in inches.
+    /// The pipe the pump hangs on and the water comes up through: its size in millimetres.
     pub column_pipe_dia: Option<f64>,
     /// "PVC" or "MS" (mild steel). Empty when not recorded.
     pub column_pipe_material: String,

@@ -83,7 +83,7 @@ export interface Borewell {
   pumpHp: number | null;
   pumpLowering: number | null; // how deep the pump hangs, feet below ground
   pumpPhase: string;         // "Single phase" or "Three phase"; '' when not recorded
-  columnPipeDia: number | null; // the pipe the pump hangs on, inches
+  columnPipeDia: number | null; // the pipe the pump hangs on, millimetres
   columnPipeMaterial: string;   // "PVC" or "MS" (mild steel); '' when not recorded
 }
 

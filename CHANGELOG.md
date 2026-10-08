@@ -5,6 +5,13 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 
 ## [Unreleased]
 
+### Changed
+- **Column pipe size is in millimetres** (for example 32, 40 or 50), not inches. A size typed in
+  1.0.14 keeps its number, so open that borewell and correct it.
+- **In the PDF report, every layer's name is written on the layer itself**, also for thin layers,
+  which get smaller letters. Before, the names of thin layers were written to the right of the
+  drawing.
+
 ## [1.0.14] - 2026-10-08
 
 ### New
