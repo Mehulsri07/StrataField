@@ -6,6 +6,12 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 ## [Unreleased]
 
 ### New
+- **Column pipe and power supply.** With the pump you can now record the column pipe's size and
+  whether it is PVC or MS (mild steel), and whether the pump runs on single phase or three phase.
+  They are shown on the borewell's page, in the PDF report and in the Excel export.
+- **The borewell drawing marks the depth where each layer changes** (0, 50, 95, 135 …) on screen
+  as well, as the PDF report already did, so each layer's thickness can be read off. Before, the
+  screen showed even steps (0, 50, 100 …).
 - **The Borewells list stays as you left it.** Open a borewell from a search and come back, with
   **Back to Borewells** or the back key, and the search, filters and sorting are still there.
 - **Choosing a borewell in the Map's list takes the map to it**, also when it was off the map or

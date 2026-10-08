@@ -19,7 +19,7 @@ import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, formatWhen, pumpText, zoneName } from "@/lib/format";
+import { columnPipeText, formatDate, formatWhen, pumpText, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
 
@@ -137,6 +137,7 @@ export function BorewellDetail() {
                   {pumpText({ ...b, pumpType: "" }) && <FactText label="Pump">{pumpText({ ...b, pumpType: "" })}</FactText>}
                   {b.pumpType && <FactText label="Pump type">{b.pumpType}</FactText>}
                   {b.pumpLowering != null && <Fact label="Pump lowered to" value={b.pumpLowering} unit="ft" />}
+                  {columnPipeText(b) && <FactText label="Column pipe">{columnPipeText(b)}</FactText>}
                   <FactText label="Tubewell lowering date">{b.date ? formatDate(b.date) : "—"}</FactText>
                   <FactText label="Zone">{zoneName(b.project)}</FactText>
                   <FactText label="Added by">{b.importMethod === "excel" ? `Excel file${b.importSource ? ` (${b.importSource})` : ""}` : b.importMethod === "legacy" ? "The older StrataField" : "Typed in"}</FactText>

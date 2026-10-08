@@ -30,7 +30,14 @@ export function zoneName(project: string | null | undefined): string {
   return !project || project === DEFAULT_PROJECT ? "No zone" : project;
 }
 
-/** "KSB 12C/17 · 5 HP · Borewell submersible", from whatever is filled in. */
-export function pumpText(b: Pick<BorewellInput, "pumpType" | "pumpMake" | "pumpModel" | "pumpHp">): string {
-  return [[b.pumpMake, b.pumpModel].filter(Boolean).join(" "), b.pumpHp != null ? `${b.pumpHp} HP` : "", b.pumpType].filter(Boolean).join(" · ");
+/** "KSB 12C/17 · 5 HP, three phase · Borewell submersible", from whatever is filled in. */
+export function pumpText(b: Pick<BorewellInput, "pumpType" | "pumpMake" | "pumpModel" | "pumpHp" | "pumpPhase">): string {
+  const power = [b.pumpHp != null ? `${b.pumpHp} HP` : "", b.pumpPhase ? (b.pumpHp != null ? b.pumpPhase.toLowerCase() : b.pumpPhase) : ""].filter(Boolean).join(", ");
+  return [[b.pumpMake, b.pumpModel].filter(Boolean).join(" "), power, b.pumpType].filter(Boolean).join(" · ");
+}
+
+const PIPE_MATERIAL: Record<string, string> = { PVC: "PVC", MS: "MS (mild steel)" };
+/** "2 inch · MS (mild steel)": the pipe the pump hangs on, from whatever is filled in. */
+export function columnPipeText(b: Pick<BorewellInput, "columnPipeDia" | "columnPipeMaterial">): string {
+  return [b.columnPipeDia != null ? `${b.columnPipeDia} inch` : "", b.columnPipeMaterial ? PIPE_MATERIAL[b.columnPipeMaterial] ?? b.columnPipeMaterial : ""].filter(Boolean).join(" · ");
 }
