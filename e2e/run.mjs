@@ -253,7 +253,7 @@ try {
     const dryWarning = document.querySelector('#f-pump-lowering-msg')?.textContent ?? '';
     __t.type(document.querySelector('#f-pump-lowering'), '80'); await __t.wait(200);
     await __t.choose(document.querySelector('#f-pump-phase'), 'Three phase');
-    __t.type(document.querySelector('#f-column-dia'), '2');
+    __t.type(document.querySelector('#f-column-dia'), '50');
     await __t.choose(document.querySelector('#f-column-material'), 'MS (mild steel)');
     __t.btn('Next: Layers').click(); await __t.wait(300);
     __t.btn('Add layer').click(); await __t.wait(150);
@@ -287,7 +287,7 @@ try {
   check("Searching for the address opens the map with the address searched", manual.searched === "Vipul Khand, Lucknow", manual.searched);
   check("Choosing a found place near Lucknow fills in its coordinates", /^offline: .*(internet|did not answer)/.test(manual.place) || / \| true \| true$/.test(manual.place), manual.place);
   check("The pump is saved with a new borewell and shown on its page", manual.pump === "Borewell submersible, 4 inch (100 mm) | KSB | 3C/20 | 2 | 80" && manual.added === "Texmo" && /KSB 3C.20 · 2 HP/.test(manual.shown) && /80/.test(manual.shown), manual.pump + " / " + manual.shown + " / added: " + manual.added);
-  check("The pump's power supply and the column pipe are saved and shown", manual.fitted === "Three phase | 2 | MS" && /2 HP, three phase/.test(manual.shown) && /2 inch · MS \(mild steel\)/.test(manual.column), manual.fitted + " / " + manual.shown + " / " + manual.column);
+  check("The pump's power supply and the column pipe are saved and shown", manual.fitted === "Three phase | 50 | MS" && /2 HP, three phase/.test(manual.shown) && /50 mm · MS \(mild steel\)/.test(manual.column), manual.fitted + " / " + manual.shown + " / " + manual.column);
   check("The borewell drawing marks the depth where each layer changes", manual.marks === "0,40,50,100", manual.marks);
   check("A pump lowered above the water level gets a warning", /run dry/.test(manual.dryWarning), manual.dryWarning);
   check("A problem on the check step names its field and leads to it; steps open in any order", manual.named === "Hole size: type a number here." && manual.led && !manual.nagging, JSON.stringify([manual.named, manual.led, manual.nagging]));

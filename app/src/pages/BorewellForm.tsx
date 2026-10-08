@@ -405,7 +405,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
               </Select>
             </Field>
             <NumberField id="f-pump-lowering" label="Pump lowered to (ft)" hint="How deep the pump hangs, from the ground." value={f.pumpLowering} onChange={(v) => set({ pumpLowering: v })} error={err("pumpLowering")} warning={warn("pumpLowering")} />
-            <NumberField id="f-column-dia" label="Column pipe size (inch)" hint="The pipe the pump hangs on." value={f.columnPipeDia} onChange={(v) => set({ columnPipeDia: v })} error={err("columnPipeDia")} />
+            <NumberField id="f-column-dia" label="Column pipe size (mm)" hint="The pipe the pump hangs on, for example 32, 40 or 50." value={f.columnPipeDia} onChange={(v) => set({ columnPipeDia: v })} error={err("columnPipeDia")} />
             <Field id="f-column-material" label="Column pipe material">
               <Select value={f.columnPipeMaterial || null} onValueChange={(v) => set({ columnPipeMaterial: v ?? "" })} items={PIPE_MATERIALS}>
                 <SelectTrigger id="f-column-material" className="w-full"><SelectValue placeholder="PVC or MS" /></SelectTrigger>

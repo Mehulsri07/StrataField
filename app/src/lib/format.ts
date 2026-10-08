@@ -37,7 +37,7 @@ export function pumpText(b: Pick<BorewellInput, "pumpType" | "pumpMake" | "pumpM
 }
 
 const PIPE_MATERIAL: Record<string, string> = { PVC: "PVC", MS: "MS (mild steel)" };
-/** "2 inch · MS (mild steel)": the pipe the pump hangs on, from whatever is filled in. */
+/** "50 mm · MS (mild steel)": the pipe the pump hangs on, from whatever is filled in. */
 export function columnPipeText(b: Pick<BorewellInput, "columnPipeDia" | "columnPipeMaterial">): string {
-  return [b.columnPipeDia != null ? `${b.columnPipeDia} inch` : "", b.columnPipeMaterial ? PIPE_MATERIAL[b.columnPipeMaterial] ?? b.columnPipeMaterial : ""].filter(Boolean).join(" · ");
+  return [b.columnPipeDia != null ? `${b.columnPipeDia} mm` : "", b.columnPipeMaterial ? PIPE_MATERIAL[b.columnPipeMaterial] ?? b.columnPipeMaterial : ""].filter(Boolean).join(" · ");
 }
