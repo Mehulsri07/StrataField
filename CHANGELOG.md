@@ -5,6 +5,8 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-10-08
+
 ### New
 - **Column pipe and power supply.** With the pump you can now record the column pipe's size and
   whether it is PVC or MS (mild steel), and whether the pump runs on single phase or three phase.
