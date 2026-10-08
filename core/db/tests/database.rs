@@ -48,6 +48,9 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
                 "pump_hp",
                 "pump_lowering",
                 "pump_make",
+                "pump_phase",
+                "column_pipe_dia",
+                "column_pipe_material",
             ] {
                 c.execute_batch(&format!("ALTER TABLE borewells DROP COLUMN {col}"))?;
             }
@@ -77,6 +80,9 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
     with_pump.pump_model = " 12C/17 ".into();
     with_pump.pump_hp = Some(5.0);
     with_pump.pump_lowering = Some(220.0);
+    with_pump.pump_phase = "Three phase".into();
+    with_pump.column_pipe_dia = Some(2.0);
+    with_pump.column_pipe_material = "MS".into();
     let saved = db.with_tx(|tx| borewells::create(tx, &with_pump)).unwrap();
     assert_eq!(
         (saved.pump_make.as_str(), saved.pump_model.as_str()),
@@ -85,6 +91,14 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
     assert_eq!(
         (saved.pump_hp, saved.pump_lowering),
         (Some(5.0), Some(220.0))
+    );
+    assert_eq!(
+        (
+            saved.pump_phase.as_str(),
+            saved.column_pipe_dia,
+            saved.column_pipe_material.as_str()
+        ),
+        ("Three phase", Some(2.0), "MS")
     );
     with_pump.pump_hp = Some(-1.0);
     assert!(db
@@ -349,6 +363,60 @@ fn layer(start: f64, end: f64, material_id: &str) -> StrataLayer {
 }
 
 #[test]
+fn a_list_carries_each_borewells_own_layers_in_depth_order() {
+    let (_dir, db) = open_temp();
+    let [a, b, bare] = ["BW-A", "BW-B", "BW-BARE"].map(|code| {
+        db.with_tx(|tx| borewells::create(tx, &input(code)))
+            .unwrap()
+    });
+    // Saved deepest first, and the two borewells' layers overlap in depth.
+    db.with_tx(|tx| {
+        layers::replace_strata(
+            tx,
+            &a.id,
+            &[
+                layer(60.0, 90.0, "coarse_sand"),
+                layer(0.0, 40.0, "clay_kankar"),
+                layer(40.0, 60.0, "kankar"),
+            ],
+        )?;
+        layers::replace_strata(
+            tx,
+            &b.id,
+            &[layer(20.0, 50.0, "kankar"), layer(0.0, 20.0, "clay_kankar")],
+        )
+    })
+    .unwrap();
+
+    let depths = |f: SearchFilters| {
+        db.with(|c| borewells::search(c, &f))
+            .unwrap()
+            .into_iter()
+            .map(|i| {
+                assert!(i.strata.iter().all(|l| l.borewell_id == i.borewell.id));
+                assert_eq!(
+                    i.strata,
+                    db.with(|c| layers::strata_for(c, &i.borewell.id)).unwrap()
+                );
+                let starts = i.strata.iter().map(|l| l.start_depth).collect::<Vec<_>>();
+                (i.borewell.id, starts)
+            })
+            .collect::<std::collections::HashMap<_, _>>()
+    };
+    let all = depths(SearchFilters::default());
+    assert_eq!(all[&a.id], [0.0, 40.0, 60.0]);
+    assert_eq!(all[&b.id], [0.0, 20.0]);
+    assert!(all[&bare.id].is_empty());
+    // A filter picks borewells; the ones it picks still come with every layer.
+    let sandy = depths(SearchFilters {
+        material_id: Some("coarse_sand".into()),
+        ..Default::default()
+    });
+    assert_eq!(sandy.len(), 1);
+    assert_eq!(sandy[&a.id], [0.0, 40.0, 60.0]);
+}
+
+#[test]
 fn saving_layers_fills_details_from_the_material_library_and_allows_not_recorded_gaps() {
     let (_dir, db) = open_temp();
     let b = db
@@ -610,6 +678,49 @@ fn an_excel_import_is_saved_as_one_batch_or_not_at_all() {
     assert_eq!(b.import_method, "excel");
     assert_eq!(b.import_batch_id.as_deref(), Some(result.batch_id.as_str()));
     assert_eq!(db.with(|c| layers::strata_for(c, &b.id)).unwrap().len(), 1);
+}
+
+#[test]
+fn a_new_borewell_is_saved_with_its_layers_and_pipes_or_not_at_all() {
+    let (_dir, db) = open_temp();
+    let pipe = PipeSegment {
+        start_depth: 0.0,
+        end_depth: 20.0,
+        pipe_type: "plain".into(),
+        ..Default::default()
+    };
+    // The second layer ends above where it starts, so it is refused.
+    let layers_with_a_bad_one = [layer(0.0, 20.0, "clay"), layer(40.0, 30.0, "clay")];
+    let err = db
+        .with_tx(|tx| {
+            repo::create_with_layers(
+                tx,
+                &input("BW-N1"),
+                &layers_with_a_bad_one,
+                std::slice::from_ref(&pipe),
+            )
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("Layer 2"), "{err}");
+    assert_eq!(
+        db.with(borewells::count_active).unwrap(),
+        0,
+        "no borewell is left behind when one of its layers is refused"
+    );
+
+    let b = db
+        .with_tx(|tx| {
+            repo::create_with_layers(
+                tx,
+                &input("BW-N1"),
+                &[layer(0.0, 20.0, "clay")],
+                std::slice::from_ref(&pipe),
+            )
+        })
+        .unwrap();
+    assert_eq!(db.with(borewells::count_active).unwrap(), 1);
+    assert_eq!(db.with(|c| layers::strata_for(c, &b.id)).unwrap().len(), 1);
+    assert_eq!(db.with(|c| layers::pipes_for(c, &b.id)).unwrap().len(), 1);
 }
 
 #[test]

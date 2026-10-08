@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Page, PageHeader, Panel } from "@/components/app/Page";
+import { LoadError, Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { useConfirm } from "@/components/app/Confirm";
 import { BaseMap } from "@/components/map/BaseMap";
@@ -21,7 +21,7 @@ import { SectionDrawing, type SectionGround, type SectionWell } from "@/componen
 import { FAMILY_COLOURS } from "@/components/geology/LayerDialog";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, isPreview } from "@/lib/api";
-import { useDataVersion, useLoad } from "@/lib/data";
+import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { formatWhen } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
@@ -50,7 +50,7 @@ function TapToPlace({ onTap }: { onTap: (p: LatLon) => void }) {
 export function SectionPage() {
   const navigate = useNavigate();
   const { bump } = useDataVersion();
-  const items = useLoad("section-borewells", () => api.borewells.search({}));
+  const items = useBorewells();
   const saved = useLoad("sections", () => api.sections.list());
   // The line: A, any bends, then A′.
   const [path, setPath] = useState<LatLon[]>([]);
@@ -177,6 +177,7 @@ export function SectionPage() {
         sub={`See the soil layers underground along a line you draw across ${text.app.city}.`}
         actions={a && <Button variant="outline" onClick={clear}><Eraser />Draw a new line</Button>}
       />
+      <LoadError error={items.error} />
 
       <ol className="grid gap-3 rounded-md border border-border px-4 py-3.5 md:grid-cols-3" aria-label="Steps">
         {[

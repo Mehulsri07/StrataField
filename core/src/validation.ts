@@ -39,6 +39,7 @@ export function checkBorewell(b: BorewellInput): Issue[] {
   const nonNegative: [keyof BorewellInput, string][] = [
     ['totalDepth', 'Total depth'], ['waterLevel', 'Water level'], ['dynamicWaterLevel', 'Pumping water level'],
     ['boreDia', 'Hole size'], ['pipeDia', 'Pipe size'], ['pumpHp', 'Pump power'], ['pumpLowering', 'Pump lowering'],
+    ['columnPipeDia', 'Column pipe size'],
   ];
   for (const [field, label] of nonNegative) {
     const v = b[field];

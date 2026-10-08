@@ -28,7 +28,7 @@ export function BorewellProfile({
   onLayerClick?: (layer: StrataLayer) => void;
   /**
    * For saved pictures and PDFs, which are read without a mouse: each layer's name is written on the
-   * layer, the depth marks are where the layers change, and the hover and selection outlines are left
+   * layer, and the hover and selection outlines are left
    * out (stylesheets do not apply there).
    */
   forPrint?: boolean;
@@ -39,10 +39,8 @@ export function BorewellProfile({
   // In print the layer column is wider, since the names are written inside it.
   const colX = 44, colW = forPrint ? 150 : 96, boreX = colX + colW + 24, boreW = 44, pipeW = 26, labX = boreX + boreW + 20;
   const px = boreX + (boreW - pipeW) / 2;
-  const step = depth > 300 ? 50 : 20;
-  const ticks = forPrint
-    ? [...new Set([0, ...strata.flatMap((l) => [l.startDepth, l.endDepth]), depth])].filter((d) => d >= 0 && d <= depth).sort((a, b) => a - b)
-    : Array.from({ length: Math.floor(depth / step) + 1 }, (_, i) => i * step);
+  // A mark wherever one layer ends and the next begins, so each layer's thickness can be read off.
+  const ticks = [...new Set([0, ...strata.flatMap((l) => [l.startDepth, l.endDepth]), depth])].filter((d) => d >= 0 && d <= depth).sort((a, b) => a - b);
   // Marks closer than a line of text keep their tick but only one of them is numbered.
   const numbered = ticks.filter((d, i) => i === 0 || y(d) - y(ticks[i - 1]) >= 9 || i === ticks.length - 1)
     .filter((d, i, kept) => i === kept.length - 1 || y(kept[i + 1]) - y(d) >= 9);
@@ -64,22 +62,15 @@ export function BorewellProfile({
     return fixedLabels.flatMap((f) => [f + 14, f - 14]).find((at) => at >= y1 + 11 && at <= y1 + h - 2 && clear(at)) ?? null;
   };
 
-  // In print, where each name goes: on its layer, clear of the water line; or, for a layer too thin
-  // to write on, beside it, each one below the last so they never pile up.
-  const printLabel: { on: boolean; at: number; size: number }[] = [];
-  for (const l of strata) {
+  // In print, every name is written on its own layer, clear of the water line. A thin layer gets
+  // smaller letters, down to a size that still prints clearly, so the name never moves off the layer.
+  const printLabel = strata.map((l) => {
     const y1 = y(l.startDepth), h = Math.max(0, y(l.endDepth) - y1);
-    if (h >= 11) {
-      let at = y1 + h / 2 + 4;
-      if (wl != null && Math.abs(at - 4 - y(wl)) < 9) at = y(wl) + 15 <= y1 + h - 3 ? y(wl) + 15 : y(wl) - 6 >= y1 + 11 ? y(wl) - 6 : at;
-      printLabel.push({ on: true, at, size: h >= 14 ? 11.5 : 9.5 });
-    } else {
-      const lastBeside = Math.max(-Infinity, ...printLabel.filter((p) => !p.on).map((p) => p.at));
-      let at = Math.max(y1 + h / 2 + 3, lastBeside + 9.5);
-      for (const f of fixedLabels) if (Math.abs(at - f) < 11) at = f + 12;
-      printLabel.push({ on: false, at, size: 9.5 });
-    }
-  }
+    const size = Math.min(11.5, Math.max(5.5, h - 2));
+    let at = y1 + h / 2 + size * 0.35;
+    if (h >= 11 && wl != null && Math.abs(at - 4 - y(wl)) < 9) at = y(wl) + 15 <= y1 + h - 3 ? y(wl) + 15 : y(wl) - 6 >= y1 + 11 ? y(wl) - 6 : at;
+    return { at, size };
+  });
 
   return (
     <svg
@@ -98,7 +89,7 @@ export function BorewellProfile({
       ))}
       <text x="10" y={top - 12} fontSize="10" fill="var(--muted-foreground)">ft</text>
 
-      {strata.map((l, i) => {
+      {strata.map((l) => {
         const y1 = y(l.startDepth), h = Math.max(0, y(l.endDepth) - y1);
         const selected = l.id === selectedId;
         const label = `${l.material}, ${l.startDepth} to ${l.endDepth} ft`;
@@ -121,12 +112,7 @@ export function BorewellProfile({
               x={colX + 1} y={y1 + 1} width={colW - 2} height={Math.max(0, h - 2)} fill="none" stroke="var(--primary)" strokeWidth="2.5"
               className={selected ? "" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}
             />}
-            {forPrint ? (
-              // On the layer, with a light edge so it reads over any pattern; beside it when the layer is too thin.
-              printLabel[i].on
-                ? <text x={colX + colW / 2} y={printLabel[i].at} textAnchor="middle" fontSize={printLabel[i].size} fontWeight="600" fill="#16202a" stroke="#ffffff" strokeWidth="3" strokeOpacity="0.85" strokeLinejoin="round" paintOrder="stroke">{l.material}</text>
-                : <text x={labX} y={printLabel[i].at} fontSize={printLabel[i].size} fill="var(--foreground)">{l.material} <tspan fill="var(--muted-foreground)" fontSize="8.5">{l.startDepth}–{l.endDepth}</tspan></text>
-            ) : labelY(y1, h) != null && (
+            {!forPrint && labelY(y1, h) != null && (
               <text x={labX} y={labelY(y1, h)!} fontSize="11.5" fill="var(--foreground)">
                 {l.material} <tspan fill="var(--muted-foreground)" fontSize="10" className="num">{l.startDepth}–{l.endDepth}</tspan>
               </text>
@@ -160,6 +146,11 @@ export function BorewellProfile({
           <text x={boreX + boreW + 22} y={y(wl) - 2} fontSize="11" fontWeight="600" fill="var(--water)">Water {wl} ft</text>
         </g>
       )}
+      {/* In print each name is written on its layer, with a light edge so it reads over any pattern.
+          Drawn after the water line, so the line passes behind a name and not through it. */}
+      {forPrint && strata.map((l, i) => (
+        <text key={l.id} x={colX + colW / 2} y={printLabel[i].at} textAnchor="middle" fontSize={printLabel[i].size} fontWeight="600" fill="#16202a" stroke="#ffffff" strokeWidth={printLabel[i].size >= 9 ? 3 : 1.6} strokeOpacity="0.85" strokeLinejoin="round" paintOrder="stroke">{l.material}</text>
+      ))}
       {pumpAt != null && (
         <g pointerEvents="none">
           <title>Pump lowered to {pumpAt} ft</title>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { BorewellRecord, LithologyFamily, Material, StrataLayer } from "@strata/core";
 import { hasProblems } from "@strata/core";
@@ -51,13 +51,18 @@ export function EditLayers() {
   const issues = useMemo(() => (rows ? rowIssues(rows.layers, rows.pipes, materials, totalDepth) : null), [rows, materials, totalDepth]);
   const blocked = !!issues && hasProblems([...issues.layerIssues, ...issues.pipeIssues]);
 
+  // The save that is still waiting for its moment, if any.
+  const pending = useRef<(() => Promise<void>) | null>(null);
+
   // Save automatically a moment after the last change, as long as nothing is wrong.
   useEffect(() => {
+    pending.current = null;
     if (!rows || !record) return;
     const json = JSON.stringify(rows);
     if (json === savedJson) return;
     if (blocked) return;
-    const timer = window.setTimeout(async () => {
+    const save = async () => {
+      pending.current = null;
       setState("saving");
       try {
         const layers = toLayers(rows.layers, materials).map(({ id: _i, borewellId: _b, ...l }) => l);
@@ -70,10 +75,16 @@ export function EditLayers() {
       } catch (e) {
         setState("failed");
         toast.error(String(e));
+        bump(); // the layers may have been saved before the pipes failed
       }
-    }, AUTOSAVE_MS);
+    };
+    pending.current = save;
+    const timer = window.setTimeout(save, AUTOSAVE_MS);
     return () => window.clearTimeout(timer);
   }, [rows, record, materials, blocked, bump, savedJson]);
+
+  // Leaving the screen before that moment is up: save now, so the last change is not lost.
+  useEffect(() => () => void pending.current?.(), []);
 
   if (error) return <Page><PageHeader title="Borewell not found" sub={error} actions={<Button variant="outline" render={<Link to="/borewells" />}>Back to Borewells</Button>} /></Page>;
   if (!record || !rows) return <Page><p className="text-muted-foreground">Loading…</p></Page>;

@@ -13,12 +13,13 @@ import { Page, PageHeader, Panel } from "@/components/app/Page";
 import { Chip } from "@/components/app/Chip";
 import { BorewellStatus, locationSourceText } from "@/components/app/BorewellStatus";
 import { useConfirm } from "@/components/app/Confirm";
+import { LIST_SEARCH_KEY } from "@/components/app/nav";
 import { BorewellProfile, activateOnKey } from "@/components/geology/BorewellProfile";
 import { MaterialSwatch, PipeSwatch } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { api, files, isPreview } from "@/lib/api";
 import { useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, formatWhen, pumpText, zoneName } from "@/lib/format";
+import { columnPipeText, formatDate, formatWhen, pumpText, zoneName } from "@/lib/format";
 import { parseNumber } from "@strata/core";
 import { text } from "@/text";
 
@@ -60,6 +61,13 @@ export function BorewellDetail() {
   };
 
   const open = (layer: StrataLayer) => showLayer(layer, r);
+
+  /** Back to the list with the search and filters it had. */
+  const backToList = () => {
+    let kept = "";
+    try { kept = sessionStorage.getItem(LIST_SEARCH_KEY) ?? ""; } catch { /* a plain list is fine */ }
+    navigate(kept ? `/borewells?${kept}` : "/borewells");
+  };
 
   const makeReport = async () => {
     try {
@@ -129,6 +137,7 @@ export function BorewellDetail() {
                   {pumpText({ ...b, pumpType: "" }) && <FactText label="Pump">{pumpText({ ...b, pumpType: "" })}</FactText>}
                   {b.pumpType && <FactText label="Pump type">{b.pumpType}</FactText>}
                   {b.pumpLowering != null && <Fact label="Pump lowered to" value={b.pumpLowering} unit="ft" />}
+                  {columnPipeText(b) && <FactText label="Column pipe">{columnPipeText(b)}</FactText>}
                   <FactText label="Tubewell lowering date">{b.date ? formatDate(b.date) : "—"}</FactText>
                   <FactText label="Zone">{zoneName(b.project)}</FactText>
                   <FactText label="Added by">{b.importMethod === "excel" ? `Excel file${b.importSource ? ` (${b.importSource})` : ""}` : b.importMethod === "legacy" ? "The older StrataField" : "Typed in"}</FactText>
@@ -235,7 +244,7 @@ export function BorewellDetail() {
       </Tabs>
 
       <div>
-        <Button variant="ghost" onClick={() => navigate("/borewells")}><Undo2 />Back to Borewells</Button>
+        <Button variant="ghost" onClick={backToList}><Undo2 />Back to Borewells</Button>
       </div>
       {popup}
       {dialog}
@@ -340,6 +349,7 @@ function WaterTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
 }
 
 function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; ask: Ask }) {
+  const { bump } = useDataVersion();
   const add = async () => {
     try {
       const paths = await files.choose({ title: "Choose photos", multiple: true, filters: files.photoFilters });
@@ -350,6 +360,7 @@ function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; 
       if (paths.length) await run(async () => {}, paths.length === 1 ? "Photo added" : `${paths.length} photos added`);
     } catch (e) {
       toast.error(String(e));
+      bump(); // some may have been added before the one that failed
     }
   };
   return (
@@ -360,7 +371,10 @@ function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; 
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
           {r.photos.map((p) => (
             <figure key={p.id} className="group relative grid gap-1">
-              <img src={files.src(p.filePath)} alt={p.caption || "Field photo"} className="aspect-[4/3] w-full rounded-md border border-border bg-muted object-cover" loading="lazy" />
+              <button type="button" title="Open this photo" className="cursor-pointer rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                onClick={() => files.open(p.filePath).catch((e) => toast.error(String(e)))}>
+                <img src={files.src(p.filePath)} alt={p.caption || "Field photo"} className="aspect-[4/3] w-full rounded-md border border-border bg-muted object-cover" loading="lazy" />
+              </button>
               <figcaption className="text-xs text-muted-foreground">{p.caption || (p.captureDate ? formatDate(p.captureDate) : "Date not known")}</figcaption>
               <Button variant="secondary" size="icon-sm" className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" aria-label="Remove photo"
                 onClick={async () => { if (await ask({ title: "Remove this photo?", body: "The copy stored in StrataField is deleted. Your original file is not touched.", confirmLabel: "Remove photo", danger: true })) await run(() => api.attachments.remove("photo", p.id), "Photo removed"); }}>
@@ -375,6 +389,7 @@ function PhotosTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; 
 }
 
 function FilesTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; ask: Ask }) {
+  const { bump } = useDataVersion();
   const add = async () => {
     try {
       const paths = await files.choose({ title: "Choose files", multiple: true, filters: files.documentFilters });
@@ -382,6 +397,7 @@ function FilesTab({ record: r, run, ask }: { record: BorewellRecord; run: Run; a
       if (paths.length) await run(async () => {}, paths.length === 1 ? "File added" : `${paths.length} files added`);
     } catch (e) {
       toast.error(String(e));
+      bump(); // some may have been added before the one that failed
     }
   };
   const icon = (kind: string) => (kind === "excel" ? <FileSpreadsheet className="size-4" /> : kind === "pdf" ? <FileText className="size-4" /> : <FileIcon className="size-4" />);

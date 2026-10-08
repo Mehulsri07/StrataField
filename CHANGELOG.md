@@ -3,6 +3,54 @@
 What changed in each version of StrataField, in plain words. The newest is at the top. The section
 for a version is copied into its GitHub release notes, so write it for the people who use the app.
 
+## [Unreleased]
+
+### Changed
+- **Column pipe size is in millimetres** (for example 32, 40 or 50), not inches. A size typed in
+  1.0.14 keeps its number, so open that borewell and correct it.
+- **In the PDF report, every layer's name is written on the layer itself**, also for thin layers,
+  which get smaller letters. Before, the names of thin layers were written to the right of the
+  drawing.
+
+## [1.0.14] - 2026-10-08
+
+### New
+- **Column pipe and power supply.** With the pump you can now record the column pipe's size and
+  whether it is PVC or MS (mild steel), and whether the pump runs on single phase or three phase.
+  They are shown on the borewell's page, in the PDF report and in the Excel export.
+- **The borewell drawing marks the depth where each layer changes** (0, 50, 95, 135 …) on screen
+  as well, as the PDF report already did, so each layer's thickness can be read off. Before, the
+  screen showed even steps (0, 50, 100 …).
+- **The Borewells list stays as you left it.** Open a borewell from a search and come back, with
+  **Back to Borewells** or the back key, and the search, filters and sorting are still there.
+- **Choosing a borewell in the Map's list takes the map to it**, also when it was off the map or
+  inside a group of pins.
+- **Click a photo to open it full size** in your photo viewer.
+- **Export shows how far it has got.** A long export counts the borewells as it collects them and
+  as it draws each page of the report, and collecting them is quicker.
+- **Edit details keeps what you typed.** Leaving the screen before saving no longer loses your
+  changes. They are there when you open Edit details for that borewell again, with a button to
+  discard them.
+
+### Fixed
+- **A screen that cannot read the borewells now says so.** The Map, Home, Cross-section, Export
+  and Add locations screens used to look as if there were no borewells at all.
+- **A fault while leaving a screen no longer blanks the window.** It shows the same message as a
+  screen that fails, with a button to try again.
+- **A new borewell is saved in one go.** Its details, layers and pipes are saved together, so a
+  problem part-way can no longer leave a borewell without its layers, or add it a second time when
+  you press Save again. A photo or file that cannot be copied is named, and the borewell is saved
+  without it.
+- **The last change to a borewell's layers could be lost** when you pressed Done, or went to
+  another screen, within a second of making it, while the screen still said "Saving shortly…".
+  It is now saved as you leave.
+- **The map jumped back to the first borewell.** After "Show on map", choosing any other borewell
+  moved the map back to the one you came from. It now stays where you put it until "Show all".
+
+### Faster
+- **Screens open straight away.** The borewell list is loaded once and shared by every screen,
+  instead of being loaded again each time a screen opens.
+
 ## [1.0.13] - 2026-10-06
 
 ### Fixed

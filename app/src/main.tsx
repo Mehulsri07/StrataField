@@ -11,6 +11,7 @@ window.addEventListener("unhandledrejection", (e) => logError("screens", e.reaso
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { DataProvider } from "@/lib/data";
+import { ScreenError } from "@/components/app/ScreenError";
 import "./index.css";
 
 // Set light or dark before the first paint, so dark mode never flashes light at start-up.
@@ -23,7 +24,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <TooltipProvider delay={400}>
         <DataProvider>
           <HashRouter>
-            <App />
+            {/* Each screen has its own of these (see AppShell); this one catches what that one cannot,
+                such as a fault while a screen is being left, which would otherwise blank the window. */}
+            <ScreenError><App /></ScreenError>
           </HashRouter>
         </DataProvider>
         <Toaster position="bottom-right" richColors closeButton />

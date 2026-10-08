@@ -32,7 +32,10 @@ export function exportRows(records: BorewellRecord[]) {
     'Pump company': b.pumpMake,
     'Pump model': b.pumpModel,
     'Pump power (HP)': b.pumpHp,
+    'Pump phase': b.pumpPhase,
     'Pump lowered to (ft)': b.pumpLowering,
+    'Column pipe size (mm)': b.columnPipeDia,
+    'Column pipe material': b.columnPipeMaterial,
     'Ground height above sea level (m)': b.groundElevationM,
     Notes: b.remarks,
   }));

@@ -75,9 +75,22 @@ pub fn borewell_get(state: State<AppState>, id: String) -> Res<BorewellRecord> {
     read(&state, |db, c| repo::record(c, db.data_dir(), &id))
 }
 
+/// Saves a new borewell, with its layers and pipes when the screen sends them: all of it, or nothing.
 #[tauri::command]
-pub fn borewell_create(state: State<AppState>, input: BorewellInput) -> Res<Borewell> {
-    write(&state, |_, tx| borewells::create(tx, &input))
+pub fn borewell_create(
+    state: State<AppState>,
+    input: BorewellInput,
+    strata: Option<Vec<StrataLayer>>,
+    pipes: Option<Vec<PipeSegment>>,
+) -> Res<Borewell> {
+    write(&state, |_, tx| {
+        repo::create_with_layers(
+            tx,
+            &input,
+            &strata.unwrap_or_default(),
+            &pipes.unwrap_or_default(),
+        )
+    })
 }
 
 #[tauri::command]

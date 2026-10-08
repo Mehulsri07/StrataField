@@ -10,7 +10,7 @@ const record: BorewellRecord = {
     elevationSource: null, boreDia: 10, pipeDia: 6, totalDepth: 340, waterLevel: 124, dynamicWaterLevel: null, depthUnit: 'ft',
     drillingMethod: 'DTH', recordQuality: 'good', remarks: '', date: '2026-08-08', createdAt: '', updatedAt: '', importBatchId: null,
     importSource: null, importMethod: 'manual', deletedAt: null, waterLevelOn: '2026-08-08',
-    pumpType: '', pumpMake: 'KSB', pumpModel: '12C/17', pumpHp: 5, pumpLowering: 220,
+    pumpType: '', pumpMake: 'KSB', pumpModel: '12C/17', pumpHp: 5, pumpLowering: 220, pumpPhase: 'Three phase', columnPipeDia: 2, columnPipeMaterial: 'MS',
   },
   strata: [
     { id: 's1', borewellId: 'b1', startDepth: 0, endDepth: 15, material: 'Clay', materialId: 'clay', color: '#000', pattern: 'lines', remarks: 'Top soil', waterBearing: false },

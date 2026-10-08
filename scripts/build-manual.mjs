@@ -147,7 +147,8 @@ async function takeShots() {
     await page(`__t.btn('Next: Drilling').click(); await __t.wait(400); __t.type(document.querySelector('#f-depth'), '120'); __t.type(document.querySelector('#f-water'), '45');
       await __t.choose(document.querySelector('#f-pump-type'), 'Borewell submersible, 4 inch (100 mm)'); await __t.choose(document.querySelector('#f-pump-make'), 'KSB');
       await __t.choose(document.querySelector('#f-pump-model'), 'Add a new model…'); __t.type(document.querySelector('#f-pump-model'), '3C/20');
-      __t.type(document.querySelector('#f-pump-hp'), '2'); __t.type(document.querySelector('#f-pump-lowering'), '100'); return true;`);
+      __t.type(document.querySelector('#f-pump-hp'), '2'); __t.type(document.querySelector('#f-pump-lowering'), '100');
+      await __t.choose(document.querySelector('#f-pump-phase'), 'Single phase'); __t.type(document.querySelector('#f-column-dia'), '32'); await __t.choose(document.querySelector('#f-column-material'), 'PVC'); return true;`);
     await shot("new-3-drilling");
     await page(`__t.btn('Next: Layers').click(); await __t.wait(400);
       __t.btn('Add layer').click(); await __t.wait(150); __t.type(document.querySelector('input[aria-label="Layer 1 to"]'), '40'); await __t.choose(document.querySelector('[aria-label="Layer 1 soil type"]'), 'Clay');

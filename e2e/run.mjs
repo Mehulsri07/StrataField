@@ -230,8 +230,9 @@ try {
     if (first) {
       const name = first.textContent; first.click(); await __t.wait(300);
       __t.btn('Use this location').click(); await __t.wait(300);
-      const r = (await __t.invoke('place_search', { query: searched }))[0];
-      place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
+      // This second lookup can lose the internet too, after the screen's own search got through.
+      const r = (await __t.invoke('place_search', { query: searched }).catch((e) => { place = 'offline: ' + e; return []; }))[0];
+      if (r) place = [name, document.querySelector('#f-lat').value === r.latitude.toFixed(6) && document.querySelector('#f-lon').value === r.longitude.toFixed(6), Math.abs(r.latitude - 26.85) < 0.3 && Math.abs(r.longitude - 80.95) < 0.3].join(' | ');
     } else { __t.btn('Cancel').click(); await __t.wait(300); }
     __t.type(document.querySelector('#f-paste'), '26.8930, 80.9420'); await __t.wait(200);
     __t.btn('Next: Drilling').click(); await __t.wait(300);
@@ -251,6 +252,9 @@ try {
     __t.type(document.querySelector('#f-pump-lowering'), '30'); await __t.wait(200);
     const dryWarning = document.querySelector('#f-pump-lowering-msg')?.textContent ?? '';
     __t.type(document.querySelector('#f-pump-lowering'), '80'); await __t.wait(200);
+    await __t.choose(document.querySelector('#f-pump-phase'), 'Three phase');
+    __t.type(document.querySelector('#f-column-dia'), '50');
+    await __t.choose(document.querySelector('#f-column-material'), 'MS (mild steel)');
     __t.btn('Next: Layers').click(); await __t.wait(300);
     __t.btn('Add layer').click(); await __t.wait(150);
     __t.type(document.querySelector('input[aria-label="Layer 1 to"]'), '40');
@@ -272,7 +276,9 @@ try {
     const r = await __t.invoke('borewell_get', { id: bwid });
     await __t.until(() => /Pump lowered to/.test(__t.text()));
     const shown = [...document.querySelectorAll('main dl > div')].filter(d => /^Pump/.test(d.textContent)).map(d => d.textContent).join(' ; ');
-    return { id, bwid, gapText, searched, place, dryWarning, shown, nagging, named, led, added, pump: [r.borewell.pumpType, r.borewell.pumpMake, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
+    const column = [...document.querySelectorAll('main dl > div')].find(d => /^Column pipe/.test(d.textContent))?.textContent ?? '';
+    const marks = [...document.querySelectorAll('main svg text')].map(t => t.textContent.trim()).filter(t => /^[0-9]+$/.test(t)).join(',');
+    return { id, bwid, gapText, searched, place, dryWarning, shown, column, marks, nagging, named, led, added, fitted: [r.borewell.pumpPhase, r.borewell.columnPipeDia, r.borewell.columnPipeMaterial].join(' | '), pump: [r.borewell.pumpType, r.borewell.pumpMake, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
       meta: [r.borewell.ownerName, r.borewell.project, r.borewell.area, r.borewell.totalDepth, r.borewell.waterLevel, r.borewell.drillingMethod].join(' | '),
       strata: r.strata.map(l => (l.materialId ?? l.material) + ' ' + l.startDepth + '-' + l.endDepth).join('; '), pipes: r.pipes.map(p => p.pipeType + ' ' + p.startDepth + '-' + p.endDepth).join(', ') };`);
   check("The check step says the new borewell is ready to save", /Ready to save/.test(manual.ready), manual.ready);
@@ -281,6 +287,8 @@ try {
   check("Searching for the address opens the map with the address searched", manual.searched === "Vipul Khand, Lucknow", manual.searched);
   check("Choosing a found place near Lucknow fills in its coordinates", /^offline: .*(internet|did not answer)/.test(manual.place) || / \| true \| true$/.test(manual.place), manual.place);
   check("The pump is saved with a new borewell and shown on its page", manual.pump === "Borewell submersible, 4 inch (100 mm) | KSB | 3C/20 | 2 | 80" && manual.added === "Texmo" && /KSB 3C.20 · 2 HP/.test(manual.shown) && /80/.test(manual.shown), manual.pump + " / " + manual.shown + " / added: " + manual.added);
+  check("The pump's power supply and the column pipe are saved and shown", manual.fitted === "Three phase | 50 | MS" && /2 HP, three phase/.test(manual.shown) && /50 mm · MS \(mild steel\)/.test(manual.column), manual.fitted + " / " + manual.shown + " / " + manual.column);
+  check("The borewell drawing marks the depth where each layer changes", manual.marks === "0,40,50,100", manual.marks);
   check("A pump lowered above the water level gets a warning", /run dry/.test(manual.dryWarning), manual.dryWarning);
   check("A problem on the check step names its field and leads to it; steps open in any order", manual.named === "Hole size: type a number here." && manual.led && !manual.nagging, JSON.stringify([manual.named, manual.led, manual.nagging]));
   check("The location source is recorded for a new borewell", manual.source === "typed", manual.source);
@@ -295,6 +303,25 @@ try {
     return (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).borewell.ownerName;`);
   check("Edit details saves", edited === "E2E Owner (edited)", edited);
 
+  // Leaving Edit details with changes typed in keeps them for when the screen is opened again.
+  const keptEdit = await page(`
+    location.hash = '#/borewell/${manual.bwid}/edit'; await __t.until(() => document.querySelector('#f-owner')?.value === 'E2E Owner (edited)');
+    __t.type(document.querySelector('#f-owner'), 'Typed, not saved'); await __t.wait(200);
+    location.hash = '#/borewells'; await __t.until(() => !document.querySelector('#f-owner'));
+    location.hash = '#/borewell/${manual.bwid}/edit'; await __t.until(() => document.querySelector('#f-owner')); await __t.wait(300);
+    const back = document.querySelector('#f-owner').value;
+    __t.btn('Discard changes').click(); await __t.wait(200);
+    return { back, after: document.querySelector('#f-owner').value, saved: (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).borewell.ownerName };`);
+  check("Unsaved changes in Edit details are kept when the screen is left, and can be discarded",
+    keptEdit.back === "Typed, not saved" && keptEdit.after === "E2E Owner (edited)" && keptEdit.saved === "E2E Owner (edited)", JSON.stringify(keptEdit));
+
+  // A new borewell and its layers are saved together: a layer that is refused leaves nothing behind.
+  const allOrNothing = await page(`
+    const answer = await __t.invoke('borewell_create', { input: { borewellId: 'E2E-HALF', ownerName: 'Half saved', city: 'Lucknow', date: '2026-09-01' },
+      strata: [{ startDepth: 0, endDepth: 20, materialId: 'clay' }, { startDepth: 40, endDepth: 30, materialId: 'clay' }] }).then(() => 'saved', (e) => String(e));
+    return { answer, left: (await __t.invoke('borewells_search', { filters: { query: 'E2E-HALF' } })).length };`);
+  check("A new borewell whose layers are refused is not saved at all", /Layer 2/.test(allOrNothing.answer) && allOrNothing.left === 0, JSON.stringify(allOrNothing));
+
   const layersEdited = await page(`
     location.hash = '#/borewell/${manual.bwid}/layers'; await __t.until(() => document.querySelector('[aria-label="Layer 1 soil type"]'), 10000); await __t.wait(500);
     await __t.choose(document.querySelector('[aria-label="Layer 1 soil type"]'), 'Silty Clay');
@@ -303,6 +330,15 @@ try {
     return first;`);
   check("The layer editor saves changes by itself", layersEdited === "Silty Clay", layersEdited);
 
+  // Leaving before the automatic save has had its moment must still save the change.
+  const leftEarly = await page(`
+    __t.type(document.querySelector('[aria-label="Layer 1 notes"]'), 'left early'); await __t.wait(200);
+    __t.btn('Done').click();
+    let notes = ''; const end = Date.now() + 8000;
+    while (Date.now() < end) { await __t.wait(400); notes = (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).strata[0].remarks ?? ''; if (notes === 'left early') break; }
+    return notes;`);
+  check("The layer editor saves the last change when the screen is left straight away", leftEarly === "left early", leftEarly);
+
   // ── Photos, files, water readings ──────────────────────────────────────
   const attached = await page(`
     window.__STRATA_TEST_CHOOSE__ = (title) => /photo/i.test(title) ? ['${f.photo}'] : ['${f.pdf}'];
@@ -310,12 +346,14 @@ try {
     __t.press(__t.btn('Photos (')); await __t.wait(400);
     __t.btn('Add photos').click();
     const img = await __t.until(() => { const i = document.querySelector('main img'); return i && i.complete && i.naturalWidth > 0 ? i : null; }, 10000);
+    const opens = !!img.closest('button[title="Open this photo"]');
     __t.press(__t.btn('Files (')); await __t.wait(400);
     __t.btn('Add file').click(); await __t.wait(1500);
     delete window.__STRATA_TEST_CHOOSE__;
     const r = await __t.invoke('borewell_get', { id: '${manual.bwid}' });
-    return { photos: r.photos.length, shown: img.naturalWidth, gps: [r.photos[0]?.latitude, r.photos[0]?.longitude], files: r.files.map(x => x.originalName) };`);
+    return { photos: r.photos.length, shown: img.naturalWidth, opens, gps: [r.photos[0]?.latitude, r.photos[0]?.longitude], files: r.files.map(x => x.originalName) };`);
   check("Photos attach and show, with their GPS position read", attached.photos === 1 && attached.shown === 640 && Math.abs(attached.gps[0] - 26.8947) < 0.001, JSON.stringify(attached));
+  check("A photo can be clicked to open it full size", attached.opens, JSON.stringify(attached));
   check("Files attach", attached.files.includes("site-notes.pdf"), attached.files.join(", "));
 
   const water = await page(`
@@ -334,6 +372,18 @@ try {
     return { one, noLocation: [...document.querySelectorAll('main tbody tr')].map(r => r.innerText.split('\\t')[0]) };`);
   check("Search finds a borewell by owner", /E2E Owner/.test(search.one), search.one.split("\t").slice(0, 2).join(" "));
   check("The No location filter lists only borewells without a location", search.noLocation.length === 1 && search.noLocation[0].includes(LEGACY.borewellId), search.noLocation.join(", "));
+
+  // Opening a borewell from the list and coming back finds the list as it was left.
+  const listKept = await page(`
+    location.hash = '#/'; await __t.until(() => !document.querySelector('input[type="search"]'));
+    location.hash = '#/borewells'; await __t.until(() => document.querySelector('input[type="search"]'));
+    __t.type(document.querySelector('input[type="search"]'), 'E2E Owner');
+    await __t.until(() => document.querySelectorAll('main tbody tr').length === 1, 5000); await __t.wait(500);
+    document.querySelector('main tbody tr').click(); await __t.until(() => __t.btn('Back to Borewells'), 8000);
+    __t.btn('Back to Borewells').click(); await __t.until(() => document.querySelector('input[type="search"]'));
+    await __t.until(() => document.querySelectorAll('main tbody tr').length === 1, 5000).catch(() => {});
+    return { box: document.querySelector('input[type="search"]').value, rows: document.querySelectorAll('main tbody tr').length };`);
+  check("The list keeps its search after a borewell is opened and Back to Borewells is pressed", listKept.box === "E2E Owner" && listKept.rows === 1, JSON.stringify(listKept));
 
   // ── Map and cross-section ──────────────────────────────────────────────
   const map = await page(`

@@ -37,7 +37,7 @@ It is written for people in the field rather than for developers. Screens are st
 is plain, and everything except address look-up works without internet. All data stays on the
 computer it is installed on.
 
-**Current version: 1.0.13.** Pilot city: Lucknow.
+**Current version: 1.0.14.** Pilot city: Lucknow.
 
 ## Features
 
