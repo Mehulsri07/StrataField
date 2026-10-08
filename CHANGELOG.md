@@ -5,6 +5,8 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-10-08
+
 ### Changed
 - **Column pipe size is in millimetres** (for example 32, 40 or 50), not inches. A size typed in
   1.0.14 keeps its number, so open that borewell and correct it.
