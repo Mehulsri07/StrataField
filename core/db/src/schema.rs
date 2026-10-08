@@ -193,6 +193,12 @@ pub const MIGRATIONS: &[&str] = &[
     r#"
     ALTER TABLE borewells ADD COLUMN pump_make TEXT NOT NULL DEFAULT '';
     "#,
+    // 4: the pump's power supply, and the column pipe the pump hangs on.
+    r#"
+    ALTER TABLE borewells ADD COLUMN pump_phase           TEXT NOT NULL DEFAULT '';
+    ALTER TABLE borewells ADD COLUMN column_pipe_dia      REAL;
+    ALTER TABLE borewells ADD COLUMN column_pipe_material TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build understands.

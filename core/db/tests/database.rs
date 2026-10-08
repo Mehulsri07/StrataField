@@ -48,6 +48,9 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
                 "pump_hp",
                 "pump_lowering",
                 "pump_make",
+                "pump_phase",
+                "column_pipe_dia",
+                "column_pipe_material",
             ] {
                 c.execute_batch(&format!("ALTER TABLE borewells DROP COLUMN {col}"))?;
             }
@@ -77,6 +80,9 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
     with_pump.pump_model = " 12C/17 ".into();
     with_pump.pump_hp = Some(5.0);
     with_pump.pump_lowering = Some(220.0);
+    with_pump.pump_phase = "Three phase".into();
+    with_pump.column_pipe_dia = Some(2.0);
+    with_pump.column_pipe_material = "MS".into();
     let saved = db.with_tx(|tx| borewells::create(tx, &with_pump)).unwrap();
     assert_eq!(
         (saved.pump_make.as_str(), saved.pump_model.as_str()),
@@ -85,6 +91,14 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
     assert_eq!(
         (saved.pump_hp, saved.pump_lowering),
         (Some(5.0), Some(220.0))
+    );
+    assert_eq!(
+        (
+            saved.pump_phase.as_str(),
+            saved.column_pipe_dia,
+            saved.column_pipe_material.as_str()
+        ),
+        ("Three phase", Some(2.0), "MS")
     );
     with_pump.pump_hp = Some(-1.0);
     assert!(db

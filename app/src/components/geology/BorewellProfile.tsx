@@ -28,7 +28,7 @@ export function BorewellProfile({
   onLayerClick?: (layer: StrataLayer) => void;
   /**
    * For saved pictures and PDFs, which are read without a mouse: each layer's name is written on the
-   * layer, the depth marks are where the layers change, and the hover and selection outlines are left
+   * layer, and the hover and selection outlines are left
    * out (stylesheets do not apply there).
    */
   forPrint?: boolean;
@@ -39,10 +39,8 @@ export function BorewellProfile({
   // In print the layer column is wider, since the names are written inside it.
   const colX = 44, colW = forPrint ? 150 : 96, boreX = colX + colW + 24, boreW = 44, pipeW = 26, labX = boreX + boreW + 20;
   const px = boreX + (boreW - pipeW) / 2;
-  const step = depth > 300 ? 50 : 20;
-  const ticks = forPrint
-    ? [...new Set([0, ...strata.flatMap((l) => [l.startDepth, l.endDepth]), depth])].filter((d) => d >= 0 && d <= depth).sort((a, b) => a - b)
-    : Array.from({ length: Math.floor(depth / step) + 1 }, (_, i) => i * step);
+  // A mark wherever one layer ends and the next begins, so each layer's thickness can be read off.
+  const ticks = [...new Set([0, ...strata.flatMap((l) => [l.startDepth, l.endDepth]), depth])].filter((d) => d >= 0 && d <= depth).sort((a, b) => a - b);
   // Marks closer than a line of text keep their tick but only one of them is numbered.
   const numbered = ticks.filter((d, i) => i === 0 || y(d) - y(ticks[i - 1]) >= 9 || i === ticks.length - 1)
     .filter((d, i, kept) => i === kept.length - 1 || y(kept[i + 1]) - y(d) >= 9);

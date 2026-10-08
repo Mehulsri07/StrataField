@@ -17,7 +17,7 @@ import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
 import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
-import { formatDate, pumpText, zoneName } from "@/lib/format";
+import { columnPipeText, formatDate, pumpText, zoneName } from "@/lib/format";
 import { PickOrAdd } from "@/components/app/PickOrAdd";
 import { numberText, parseCoordinatePair, parseNumber, PUMP_MAKES, splitPump } from "@strata/core";
 import { text } from "@/text";
@@ -50,6 +50,9 @@ interface FormState {
   pumpModel: string;
   pumpHp: string;
   pumpLowering: string;
+  pumpPhase: string;
+  columnPipeDia: string;
+  columnPipeMaterial: string;
 }
 
 // Kinds, makes and motor ratings as the makers' selection charts list them.
@@ -57,6 +60,8 @@ const PUMP_TYPES = [
   "Borewell submersible, 3 inch (80 mm)", "Borewell submersible, 4 inch (100 mm)", "Borewell submersible, 6 inch (150 mm)",
   "Openwell submersible", "Monobloc", "Self-priming monobloc", "Jet pump", "Hand pump",
 ];
+const PUMP_PHASES = ["Single phase", "Three phase"].map((v) => ({ value: v, label: v }));
+const PIPE_MATERIALS = [{ value: "PVC", label: "PVC" }, { value: "MS", label: "MS (mild steel)" }];
 const PUMP_HP = ["0.5", "0.75", "1", "1.5", "2", "3", "4", "5", "6", "7.5", "10", "12.5", "15", "17.5", "20", "25"];
 
 interface StagedPhoto { path: string; captureDate: string | null; latitude: number | null; longitude: number | null }
@@ -74,7 +79,7 @@ const emptyForm = (): FormState => ({
   houseNo: "", address: "", area: "", city: text.app.city,
   latitude: "", longitude: "", locationSource: "unknown",
   totalDepth: "", waterLevel: "", dynamicWaterLevel: "", boreDia: "", pipeDia: "", drillingMethod: "", remarks: "",
-  pumpType: "", pumpMake: "", pumpModel: "", pumpHp: "", pumpLowering: "",
+  pumpType: "", pumpMake: "", pumpModel: "", pumpHp: "", pumpLowering: "", pumpPhase: "", columnPipeDia: "", columnPipeMaterial: "",
 });
 
 function readDraft(): { draft: Draft; restored: boolean } {
@@ -132,6 +137,7 @@ function toInput(f: FormState): BorewellInput {
     totalDepth: n(f.totalDepth), waterLevel: n(f.waterLevel), dynamicWaterLevel: n(f.dynamicWaterLevel),
     boreDia: n(f.boreDia), pipeDia: n(f.pipeDia), drillingMethod: f.drillingMethod || null, remarks: f.remarks,
     pumpType: f.pumpType.trim(), pumpMake: f.pumpMake.trim(), pumpModel: f.pumpModel.trim(), pumpHp: n(f.pumpHp), pumpLowering: n(f.pumpLowering),
+    pumpPhase: f.pumpPhase, columnPipeDia: n(f.columnPipeDia), columnPipeMaterial: f.columnPipeMaterial,
   };
 }
 
@@ -145,6 +151,7 @@ function fromBorewell(b: Borewell): FormState {
     totalDepth: numberText(b.totalDepth), waterLevel: numberText(b.waterLevel), dynamicWaterLevel: numberText(b.dynamicWaterLevel),
     boreDia: numberText(b.boreDia), pipeDia: numberText(b.pipeDia), drillingMethod: b.drillingMethod ?? "", remarks: b.remarks,
     pumpType: b.pumpType, pumpMake: pump.make, pumpModel: pump.model, pumpHp: numberText(b.pumpHp), pumpLowering: numberText(b.pumpLowering),
+    pumpPhase: b.pumpPhase, columnPipeDia: numberText(b.columnPipeDia), columnPipeMaterial: b.columnPipeMaterial,
   };
 }
 
@@ -391,7 +398,20 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
               <Input id="f-pump-hp" className="num" inputMode="decimal" list="f-pump-hps" value={f.pumpHp} onChange={(e) => set({ pumpHp: e.target.value })} aria-invalid={!!err("pumpHp") || undefined} />
               <datalist id="f-pump-hps">{PUMP_HP.map((h) => <option key={h} value={h} />)}</datalist>
             </Field>
+            <Field id="f-pump-phase" label="Power supply">
+              <Select value={f.pumpPhase || null} onValueChange={(v) => set({ pumpPhase: v ?? "" })} items={PUMP_PHASES}>
+                <SelectTrigger id="f-pump-phase" className="w-full"><SelectValue placeholder="Single or three phase" /></SelectTrigger>
+                <SelectContent>{PUMP_PHASES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
             <NumberField id="f-pump-lowering" label="Pump lowered to (ft)" hint="How deep the pump hangs, from the ground." value={f.pumpLowering} onChange={(v) => set({ pumpLowering: v })} error={err("pumpLowering")} warning={warn("pumpLowering")} />
+            <NumberField id="f-column-dia" label="Column pipe size (inch)" hint="The pipe the pump hangs on." value={f.columnPipeDia} onChange={(v) => set({ columnPipeDia: v })} error={err("columnPipeDia")} />
+            <Field id="f-column-material" label="Column pipe material">
+              <Select value={f.columnPipeMaterial || null} onValueChange={(v) => set({ columnPipeMaterial: v ?? "" })} items={PIPE_MATERIALS}>
+                <SelectTrigger id="f-column-material" className="w-full"><SelectValue placeholder="PVC or MS" /></SelectTrigger>
+                <SelectContent>{PIPE_MATERIALS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
           </div>
         </Panel>
       </div>
@@ -667,6 +687,7 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
           {row("Hole / pipe size", (input.boreDia != null || input.pipeDia != null) && <span className="num">{input.boreDia ?? "—"}" / {input.pipeDia ?? "—"}"</span>)}
           {row("Drilling method", METHODS.find((m) => m.value === f.drillingMethod)?.label)}
           {row("Pump", pumpText(input))}
+          {row("Column pipe", columnPipeText(input))}
           {row("Pump lowered to", ft(input.pumpLowering))}
           {row("Notes", f.remarks)}
         </>)}

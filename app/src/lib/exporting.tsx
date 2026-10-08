@@ -10,7 +10,7 @@ import logoUrl from "@/assets/letterhead-logo.jpg";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { PatternDefs } from "@/components/geology/patterns";
 import { api, isPreview } from "./api";
-import { formatDate, pumpText, zoneName } from "./format";
+import { columnPipeText, formatDate, pumpText, zoneName } from "./format";
 
 // Light-theme colours for anything printed or saved: files are read outside the app's theme.
 const PRINT_COLOURS: Record<string, string> = {
@@ -288,6 +288,7 @@ export async function buildReport(records: BorewellRecord[], onProgress?: (n: nu
       ["Zone", zoneName(b.project)],
       ["Pipe pieces (10 ft each)", tubewell > 0 ? `${Math.ceil(tubewell / PIPE_LENGTH_FT)}` : "—"],
       ...(b.pumpLowering != null ? [["Pump lowered to", ft(b.pumpLowering)] as [string, string]] : []),
+      ...(columnPipeText(b) ? [["Column pipe", columnPipeText(b)] as [string, string]] : []),
       ...(pumpText(b) ? [["Pump", pumpText(b), true] as [string, string, boolean]] : []),
       ["Owner", b.ownerName || "—", true],
       ["Address", [b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ") || "—", true],

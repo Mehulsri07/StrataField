@@ -82,6 +82,9 @@ export interface Borewell {
   pumpModel: string;         // e.g. "12C/17"; older records may have the company here too
   pumpHp: number | null;
   pumpLowering: number | null; // how deep the pump hangs, feet below ground
+  pumpPhase: string;         // "Single phase" or "Three phase"; '' when not recorded
+  columnPipeDia: number | null; // the pipe the pump hangs on, inches
+  columnPipeMaterial: string;   // "PVC" or "MS" (mild steel); '' when not recorded
 }
 
 /** What screens send to create or update a borewell. A new project name creates the project. */

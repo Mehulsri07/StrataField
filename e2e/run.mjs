@@ -252,6 +252,9 @@ try {
     __t.type(document.querySelector('#f-pump-lowering'), '30'); await __t.wait(200);
     const dryWarning = document.querySelector('#f-pump-lowering-msg')?.textContent ?? '';
     __t.type(document.querySelector('#f-pump-lowering'), '80'); await __t.wait(200);
+    await __t.choose(document.querySelector('#f-pump-phase'), 'Three phase');
+    __t.type(document.querySelector('#f-column-dia'), '2');
+    await __t.choose(document.querySelector('#f-column-material'), 'MS (mild steel)');
     __t.btn('Next: Layers').click(); await __t.wait(300);
     __t.btn('Add layer').click(); await __t.wait(150);
     __t.type(document.querySelector('input[aria-label="Layer 1 to"]'), '40');
@@ -273,7 +276,9 @@ try {
     const r = await __t.invoke('borewell_get', { id: bwid });
     await __t.until(() => /Pump lowered to/.test(__t.text()));
     const shown = [...document.querySelectorAll('main dl > div')].filter(d => /^Pump/.test(d.textContent)).map(d => d.textContent).join(' ; ');
-    return { id, bwid, gapText, searched, place, dryWarning, shown, nagging, named, led, added, pump: [r.borewell.pumpType, r.borewell.pumpMake, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
+    const column = [...document.querySelectorAll('main dl > div')].find(d => /^Column pipe/.test(d.textContent))?.textContent ?? '';
+    const marks = [...document.querySelectorAll('main svg text')].map(t => t.textContent.trim()).filter(t => /^[0-9]+$/.test(t)).join(',');
+    return { id, bwid, gapText, searched, place, dryWarning, shown, column, marks, nagging, named, led, added, fitted: [r.borewell.pumpPhase, r.borewell.columnPipeDia, r.borewell.columnPipeMaterial].join(' | '), pump: [r.borewell.pumpType, r.borewell.pumpMake, r.borewell.pumpModel, r.borewell.pumpHp, r.borewell.pumpLowering].join(' | '), ready: ready.split('\\n')[0], draftCleared: !localStorage.getItem('strata-new-borewell-draft'), source: r.borewell.locationSource,
       meta: [r.borewell.ownerName, r.borewell.project, r.borewell.area, r.borewell.totalDepth, r.borewell.waterLevel, r.borewell.drillingMethod].join(' | '),
       strata: r.strata.map(l => (l.materialId ?? l.material) + ' ' + l.startDepth + '-' + l.endDepth).join('; '), pipes: r.pipes.map(p => p.pipeType + ' ' + p.startDepth + '-' + p.endDepth).join(', ') };`);
   check("The check step says the new borewell is ready to save", /Ready to save/.test(manual.ready), manual.ready);
@@ -282,6 +287,8 @@ try {
   check("Searching for the address opens the map with the address searched", manual.searched === "Vipul Khand, Lucknow", manual.searched);
   check("Choosing a found place near Lucknow fills in its coordinates", /^offline: .*(internet|did not answer)/.test(manual.place) || / \| true \| true$/.test(manual.place), manual.place);
   check("The pump is saved with a new borewell and shown on its page", manual.pump === "Borewell submersible, 4 inch (100 mm) | KSB | 3C/20 | 2 | 80" && manual.added === "Texmo" && /KSB 3C.20 · 2 HP/.test(manual.shown) && /80/.test(manual.shown), manual.pump + " / " + manual.shown + " / added: " + manual.added);
+  check("The pump's power supply and the column pipe are saved and shown", manual.fitted === "Three phase | 2 | MS" && /2 HP, three phase/.test(manual.shown) && /2 inch · MS \(mild steel\)/.test(manual.column), manual.fitted + " / " + manual.shown + " / " + manual.column);
+  check("The borewell drawing marks the depth where each layer changes", manual.marks === "0,40,50,100", manual.marks);
   check("A pump lowered above the water level gets a warning", /run dry/.test(manual.dryWarning), manual.dryWarning);
   check("A problem on the check step names its field and leads to it; steps open in any order", manual.named === "Hole size: type a number here." && manual.led && !manual.nagging, JSON.stringify([manual.named, manual.led, manual.nagging]));
   check("The location source is recorded for a new borewell", manual.source === "typed", manual.source);

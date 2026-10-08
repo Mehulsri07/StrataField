@@ -48,8 +48,14 @@ pub struct Borewell {
     /// The company that made the pump, e.g. "KSB".
     pub pump_make: String,
     pub pump_hp: Option<f64>,
+    /// "Single phase" or "Three phase". Empty when not recorded.
+    pub pump_phase: String,
     /// How deep the pump hangs, in feet below ground.
     pub pump_lowering: Option<f64>,
+    /// The pipe the pump hangs on and the water comes up through: its size in inches.
+    pub column_pipe_dia: Option<f64>,
+    /// "PVC" or "MS" (mild steel). Empty when not recorded.
+    pub column_pipe_material: String,
 }
 
 /// What a screen sends to create or update a borewell. The project is given by name;
@@ -88,6 +94,9 @@ pub struct BorewellInput {
     pub pump_make: String,
     pub pump_hp: Option<f64>,
     pub pump_lowering: Option<f64>,
+    pub pump_phase: String,
+    pub column_pipe_dia: Option<f64>,
+    pub column_pipe_material: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
