@@ -360,9 +360,9 @@ only Electron-related code left in `main` is the one-time import of the old app'
 
 ## Roadmap
 
-- **StrataVision**, the analysis side, starting with confidence per depth. It will begin as screens
-  inside StrataField, share `core/` and the same database, and only become a separate app if 3D or
-  heavy map work calls for it.
+- **[StrataVision](https://github.com/Mehulsri07/StrataVision)**, the analysis side: a proposed
+  picture of the ground under the whole city, built from these records. It is a separate app that
+  reads the same database and shares `core/`.
 - Freezing and versioning the shared data format, possibly with GeoPackage exports that open in QGIS.
 - Later, and only on clear need: sync between computers, several users, mobile.
 
