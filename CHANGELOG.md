@@ -5,6 +5,27 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 
 ## [Unreleased]
 
+### New
+- **An Excel template for drilling logs.** On the Import screen, **Save an Excel template** gives a
+  blank log laid out exactly the way StrataField reads it, with a filled-in example, the soil and
+  pipe names to use, and instructions. Make one copy for each borewell; it imports with nothing to
+  correct.
+- **A position written on the log is imported with it.** A line such as
+  `Location = 26.8912, 80.9876` (or a Google Maps link) puts the borewell on the map straight away.
+  The template has this line.
+- **Placing borewells starts from where you have worked before.** When a borewell's name or address
+  shares a place with borewells already on the map (for example "Ekana"), the map opens there with
+  those borewells shown by name, so you only click the exact spot. Each borewell is still placed by
+  hand: borewells on one site are in different places.
+- **Finding an address works better.** The address is searched as written, then with other
+  spellings the map uses (Haiderabad / Hyderabad, Chinhut / Chinhat, Dewa / Deva), then by its
+  colony or road alone. Matches from somewhere else (another city, or a road with a similar name)
+  are no longer offered. What is stored is never changed.
+
+### Changed
+- **A title such as "STRETA CHART OF TUBE WELL" above the chart no longer stops a log from being
+  read.** Such logs needed their columns chosen by hand before.
+
 ## [1.0.15] - 2026-10-08
 
 ### Changed

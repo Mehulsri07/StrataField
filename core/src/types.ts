@@ -247,6 +247,8 @@ export interface ParsedBoreholeMetadata {
   pumpLowering: number | null; // always in feet
   pumpHp: number | null;
   pumpModel: string | null;
+  /** From a "Location = …" line: numbers or a Google Maps link. */
+  location: { latitude: number; longitude: number } | null;
   detectedUnit: DepthUnit;
 }
 

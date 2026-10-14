@@ -21,6 +21,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./parser": "./src/parser/strataFieldParser.ts",
-    "./export": "./src/export/excel.ts"
+    "./export": "./src/export/excel.ts",
+    "./log-template": "./src/export/logTemplate.ts"
   }
 }

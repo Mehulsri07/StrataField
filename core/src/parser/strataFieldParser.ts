@@ -20,6 +20,7 @@
 
 import * as xlsx from 'xlsx';
 import { MATERIAL_NORMALISATION_MAP, PIPE_SUBTYPE_MAP, DEFAULT_MATERIALS, METRES_TO_FEET } from '../constants';
+import { coordinatesIn } from '../places';
 import type {
   ExcelParseResult, ParsedBoreholeMetadata, ParsedStrataLayer,
   ParsedPipeSegment, ParseAnomaly, AnomalyCode, DepthUnit, PipeSubtype
@@ -66,7 +67,12 @@ export function readSheetRows(data: Uint8Array | ArrayBuffer): any[][] {
 
 const num = (cell: unknown) => parseFloat(String(cell ?? ''));
 const round1 = (n: number) => Math.round(n * 10) / 10;
-const cellAt = (row: any[] | undefined, re: RegExp) => (row || []).findIndex(c => typeof c === 'string' && re.test(c));
+/**
+ * A heading cell: a few words ("Streta Chart", "Lowering Assambly"). A longer line that mentions one,
+ * like the title "STRETA CHART OF TUBE WELL" above many logs, is not where the chart starts.
+ */
+const isHeading = (c: unknown, re: RegExp) => typeof c === 'string' && re.test(c) && c.trim().split(/\s+/).length <= 3;
+const cellAt = (row: any[] | undefined, re: RegExp) => (row || []).findIndex(c => isHeading(c, re));
 /** A size written like 15" (inches). */
 const inches = (cell: unknown) => { const m = /^\s*([0-9.]+)\s*"/.exec(String(cell ?? '')); return m ? parseFloat(m[1]) : null; };
 /** A soil or pipe name: a word, not a depth ("16 mt"), a size (15") or a ground-level mark ("G. L."). */
@@ -155,7 +161,7 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     // The user has said where the layers are; rows above them are read for details.
     headerRowIdx = mapping.firstRow;
   } else {
-    const headers = rows.map((r, i) => (STRETA_HEADER_PATTERNS.some(p => p.test((r || []).join(' '))) ? i : -1)).filter(i => i >= 0);
+    const headers = rows.map((r, i) => ((r || []).some(c => STRETA_HEADER_PATTERNS.some(p => isHeading(c, p))) ? i : -1)).filter(i => i >= 0);
     headerRowIdx = headers.find(i => cellAt(rows[i], SOIL_HEADING) >= 0) ?? headers[0] ?? -1;
     if (headerRowIdx === -1) {
       addAnomaly(anomalies, 'NON_STANDARD_FORMAT', 'critical',
@@ -415,6 +421,7 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
     pumpLowering: null,
     pumpHp: null,
     pumpModel: null,
+    location: null,
     detectedUnit: 'ft',
   };
 
@@ -476,6 +483,10 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
         meta.pumpModel = model || null;
       }
     }
+
+    // Where the borewell is: "Location = 26.8512, 80.9467" or a Google Maps link.
+    const where = /^(?:location|gps|google\s*maps?)\s*[:=]\s*(.*)$/i.exec(col0);
+    if (where && meta.location === null) meta.location = coordinatesIn(where[1]);
 
     // Date
     const dateMatch = col0.match(/date\s*[:=]\s*([0-9\-/.]+)/i);
@@ -651,7 +662,7 @@ function makeFailResult(message: string, anomalies: ParseAnomaly[]): ExcelParseR
     metadata: {
       siteName: null, ownerName: null, address: null, city: null, date: null,
       boreDia: null, pipeDia: null, totalDepth: null, waterLevel: null,
-      pumpLowering: null, pumpHp: null, pumpModel: null,
+      pumpLowering: null, pumpHp: null, pumpModel: null, location: null,
       detectedUnit: 'ft',
     },
     strata: [],

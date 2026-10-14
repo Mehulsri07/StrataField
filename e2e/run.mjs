@@ -518,7 +518,8 @@ try {
     // Choosing one from the list puts it next; a click on the map and "Use this location" saves it.
     [...document.querySelectorAll('main li')].find(li => /Two wells 2/.test(li.innerText)).querySelector('button').click();
     await __t.until(() => title() === 'Where is Two wells 2?', 8000);
-    const prefilled = document.querySelector('[role="combobox"][aria-label="Search for a place"]').value;
+    // The address is searched in a few ways first, so the box fills in once that is done.
+    const prefilled = await __t.until(() => document.querySelector('[role="combobox"][aria-label="Search for a place"]')?.value, 20000);
     const m = await __t.until(() => document.querySelector('[role="dialog"] .leaflet-container')); await __t.wait(800);
     const box = m.getBoundingClientRect();
     m.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: box.left + box.width / 2 + 40, clientY: box.top + box.height / 2 + 30 })); await __t.wait(300);

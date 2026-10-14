@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleMarker, useMapEvents } from "react-leaflet";
+import { CircleMarker, Tooltip, useMapEvents } from "react-leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import { Search } from "lucide-react";
-import type { Borewell, Place } from "@strata/core";
+import { placeFits, type Borewell, type Place, type PlaceHint } from "@strata/core";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,37 @@ function ClickToPlace({ onPick }: { onPick: (p: Point) => void }) {
   return null;
 }
 
-/** A search box over the map: type a place, colony or road and choose from the matches. */
-function PlaceSearch({ initial, onChoose }: { initial: string; onChoose: (p: Place) => void }) {
-  const [query, setQuery] = useState(initial);
+/**
+ * A search box over the map: type a place, colony or road and choose from the matches. With
+ * `tries`, it first searches each in turn (the address as written, other spellings, shorter parts)
+ * and lists the matches of the first one that finds the place itself, not a loose match.
+ */
+function PlaceSearch({ initial, tries, onChoose }: { initial: string; tries?: string[]; onChoose: (p: Place) => void }) {
+  const [query, setQuery] = useState(tries?.length ? "" : initial);
   const [places, setPlaces] = useState<Place[]>([]);
   const [active, setActive] = useState(0);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(tries?.length ? "Searching for the address…" : null);
   /** The text put in the box by choosing a match, which must not start another search. */
   const chosen = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!tries?.length) return;
+    let stale = false;
+    (async () => {
+      for (const t of tries) {
+        const found = await api.searchPlaces(t).then((all) => all.filter((p) => placeFits(t, p)), () => null);
+        if (stale) return;
+        if (found === null) { chosen.current = t; setQuery(t); setStatus("Searching for a place needs an internet connection. You can still click the spot on the map."); return; }
+        if (found.length) { chosen.current = t; setQuery(t); setPlaces(found); setActive(0); setStatus(null); return; }
+      }
+      chosen.current = tries[0];
+      setQuery(tries[0]);
+      setStatus("Nothing on the map matches this address. Try a colony or road name, or click the spot on the map.");
+    })();
+    return () => { stale = true; };
+    // Once per opening of the map: the picker is opened afresh for each borewell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const q = query.trim();
@@ -101,7 +124,7 @@ function PlaceSearch({ initial, onChoose }: { initial: string; onChoose: (p: Pla
  * Choose a borewell's position: search for a place to jump there, then click the exact spot.
  * Other borewells are shown faintly for reference.
  */
-export function MapPicker({ open, initial, search = "", others, heading, detail, onClose, onPick, onSkip }: {
+export function MapPicker({ open, initial, search = "", tries, hint, others, heading, detail, onClose, onPick, onSkip }: {
   open: boolean;
   initial: Point | null;
   /** When borewells are placed one after another: whose turn it is, and a way to leave it for later. */
@@ -110,24 +133,42 @@ export function MapPicker({ open, initial, search = "", others, heading, detail,
   onSkip?: () => void;
   /** What to search for as soon as the map opens, e.g. the address typed in the form. */
   search?: string;
+  /** Searches to try in turn when the map opens (see `searchTries`); used instead of `search`. */
+  tries?: string[];
+  /** Borewells already placed at the same site or colony: the map opens on them. Only a view. */
+  hint?: PlaceHint | null;
   others: Borewell[];
   onClose: () => void;
   onPick: (p: Point) => void;
 }) {
   const [point, setPoint] = useState<Point | null>(initial);
   const map = useRef<LeafletMap | null>(null);
+  // Opened on the remembered place: close enough to click a spot, or to see a whole site.
+  const [[south, west], [north, east]] = hint?.bounds ?? [[0, 0], [0, 0]];
+  const near = !initial && hint ? { center: [(south + north) / 2, (west + east) / 2] as [number, number], zoom: north - south < 0.004 && east - west < 0.004 ? 17 : 16 } : null;
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{heading ?? "Pick the borewell on the map"}</DialogTitle>
-          <DialogDescription>{detail && <span className="mb-1 block text-foreground">{detail}</span>}Search for a place to go there, then zoom in and click exactly where the borewell is. Click again to move it.</DialogDescription>
+          <DialogDescription>
+            {detail && <span className="mb-1 block text-foreground">{detail}</span>}
+            {near && hint
+              ? <>The map shows the {hint.borewells.length === 1 ? "borewell" : `${hint.borewells.length} borewells`} already placed that mention “{hint.word}”. Click exactly where this one is: each borewell on a site is in a different spot. </>
+              : "Search for a place to go there, then zoom in and click exactly where the borewell is. "}
+            Click again to move it.
+          </DialogDescription>
         </DialogHeader>
         <div className="relative h-[60vh] min-h-[360px] overflow-hidden rounded-md border border-border">
           {open && (
             <>
-              <BaseMap center={initial ? [initial.latitude, initial.longitude] : undefined} zoom={initial ? 16 : 12} onReady={(m) => { map.current = m; }}>
+              <BaseMap center={initial ? [initial.latitude, initial.longitude] : near?.center} zoom={initial ? 16 : near?.zoom ?? 12} onReady={(m) => { map.current = m; }}>
                 <BorewellPins borewells={others} faint />
+                {near && hint?.borewells.map((b) => (
+                  <CircleMarker key={b.id} center={[b.latitude!, b.longitude!]} radius={6} interactive={false} pathOptions={{ color: "#16202a", weight: 2, fill: false }}>
+                    <Tooltip permanent direction="top" offset={[0, -6]}>{b.borewellId}</Tooltip>
+                  </CircleMarker>
+                ))}
                 <ClickToPlace onPick={setPoint} />
                 {point && (
                   <CircleMarker
@@ -139,6 +180,7 @@ export function MapPicker({ open, initial, search = "", others, heading, detail,
               </BaseMap>
               <PlaceSearch
                 initial={search}
+                tries={initial ? undefined : tries}
                 onChoose={(p) => {
                   setPoint({ latitude: p.latitude, longitude: p.longitude, found: [p.name, p.detail].filter(Boolean).join(", ") });
                   map.current?.setView([p.latitude, p.longitude], 17);
