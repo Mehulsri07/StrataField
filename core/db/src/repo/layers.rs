@@ -231,6 +231,9 @@ pub fn water_for(conn: &Connection, borewell_id: &str) -> Result<Vec<WaterReadin
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Source of a reading made from the water level written on the borewell itself.
+const DRILLING_READING_SOURCE: &str = "Water level recorded with the borewell";
+
 /// Adds a dated water reading. The borewell's current water level follows its newest reading.
 pub fn add_water_reading(
     conn: &Connection,
@@ -253,6 +256,15 @@ pub fn add_water_reading(
     {
         return Err(DbError::Invalid("Water level cannot be negative.".into()));
     }
+    // The level written on the borewell itself is its first reading; keep it before a later
+    // reading takes its place as the current level. Migration 5 did this for older borewells.
+    conn.execute(
+        "INSERT INTO water_readings (id, borewell_id, measured_on, static_level, dynamic_level, source)
+         SELECT ?2, id, date, water_level, dynamic_water_level, ?3 FROM borewells
+         WHERE id = ?1 AND water_level IS NOT NULL AND trim(date) <> '' AND trim(date) <> ?4
+           AND NOT EXISTS (SELECT 1 FROM water_readings WHERE borewell_id = ?1)",
+        params![borewell_id, new_id(), DRILLING_READING_SOURCE, reading.measured_on.trim()],
+    )?;
     let id = new_id();
     conn.execute(
         "INSERT INTO water_readings (id, borewell_id, measured_on, static_level, dynamic_level, source, remarks)
