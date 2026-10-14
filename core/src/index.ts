@@ -13,3 +13,4 @@ export * from './pump';
 export * from './waterMap';
 export * from './section';
 export * from './elevation';
+export * from './places';

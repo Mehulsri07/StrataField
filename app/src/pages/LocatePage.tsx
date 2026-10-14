@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { Borewell } from "@strata/core";
+import { rememberedPlace, searchTries, type Borewell } from "@strata/core";
 import { toast } from "sonner";
 import { CircleCheck, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,10 @@ export function LocatePage() {
   const [first, setFirst] = useState<string | null>(null);
   const todo = waiting.filter((b) => !skipped.includes(b.id)).sort((x, y) => Number(y.id === first) - Number(x.id === first));
   const b = todo[0];
+  // Where to look for this one: borewells already placed at the same site, and what to search for.
+  // The address goes first; a site's name is often a landmark the map knows, so it is tried when there is no address.
+  const tries = b ? searchTries([b.houseNo, b.address, b.area].filter(Boolean).join(", ") || b.ownerName || b.borewellId, b.city) : [];
+  const hint = b ? rememberedPlace(b, borewells) : null;
 
   const place = async (target: Borewell, at: { latitude: number; longitude: number; found?: string }) => {
     setDone([...done, target.id]);
@@ -77,8 +81,10 @@ export function LocatePage() {
           key={b.id}
           open={open}
           initial={null}
-          // A site's name is often a landmark the map knows (a hospital, an apartment block), so it is searched when there is no area.
+          // When the address has nothing particular to search for ("Station Road"), it is searched as it is.
           search={[b.area || b.address || b.ownerName, b.city].filter(Boolean).join(", ")}
+          tries={tries}
+          hint={hint}
           others={located}
           heading={`Where is ${b.borewellId}?`}
           detail={`${[b.ownerName !== b.borewellId && b.ownerName, where(b)].filter(Boolean).join(" · ") || "No address recorded"}. ${todo.length} to go.`}

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Borewell, BorewellInput, ExcelParseResult, LocationSource, Material, ParseAnomaly, StrataLayer } from "@strata/core";
-import { parseCoordinatePair, parseNumber, splitPump } from "@strata/core";
+import { parseCoordinatePair, parseNumber, rememberedPlace, searchTries, splitPump } from "@strata/core";
 import type { ColumnMapping } from "@strata/core/parser";
 import { toast } from "sonner";
 import { CircleCheck, FileSpreadsheet, MapPin, TriangleAlert, Upload, X, XCircle } from "lucide-react";
@@ -14,6 +14,7 @@ import { Field } from "@/components/app/Field";
 import { Chip } from "@/components/app/Chip";
 import { BorewellProfile } from "@/components/geology/BorewellProfile";
 import { MapPicker } from "@/components/map/MapPicker";
+import { saveFile } from "@/lib/exporting";
 import { api, files, isPreview } from "@/lib/api";
 import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
 import { text } from "@/text";
@@ -90,7 +91,8 @@ function initialDetails(path: string, r: ExcelParseResult | null): Details {
     pumpModel: pump.model,
     pumpHp: n(m?.pumpHp),
     pumpLowering: n(m?.pumpLowering),
-    location: "", locationSource: "typed",
+    // A "Location = …" line on the log (the template has one): the position as written there.
+    location: m?.location ? `${m.location.latitude}, ${m.location.longitude}` : "", locationSource: "typed",
   };
 }
 
@@ -102,6 +104,12 @@ function fileNotes(f: ImportFile): string[] {
     // Without the "enter it below" endings, which only make sense on the Import screen.
     ...(f.result?.anomalies ?? []).filter((a) => a.code !== "MATERIAL_UNKNOWN").map((a) => describe(a).replace(/ (Enter it below|Check them after importing)[^.]*\.$/, "")),
   ];
+}
+
+/** Where to look on the map for a borewell not imported yet: what to search for, and borewells already placed at the same site. */
+function whereToLook(d: Details, placed: Borewell[]) {
+  const asBorewell = { id: "import", borewellId: d.borewellId, ownerName: d.ownerName, houseNo: "", address: "", area: d.area, city: d.city, latitude: null, longitude: null } as Borewell;
+  return { tries: searchTries(d.area || d.ownerName || d.borewellId, d.city), hint: rememberedPlace(asBorewell, placed) };
 }
 
 const unknownNames = (r: ExcelParseResult | null) =>
@@ -206,12 +214,27 @@ export function ImportPage() {
 
   const f = list[current];
 
+  /** A blank drilling log laid out the way StrataField reads it, with an example and instructions. */
+  const saveTemplate = async () => {
+    try {
+      const { logTemplateBytes } = await import("@strata/core/log-template");
+      const path = await saveFile("StrataField drilling log template.xlsx", "excel", logTemplateBytes());
+      if (path) toast.success("Template saved. Make one copy for each borewell and fill in the Log sheet.");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+  const lookList = picking != null && list[picking] ? whereToLook(list[picking].details, others) : null;
+
   return (
     <Page className="max-w-[1400px]">
       <PageHeader
         title={text.pages.import.title}
         sub="Add borewells from Excel drilling logs. Check each one before importing. The original file is kept with the borewell."
-        actions={<Button variant="outline" onClick={choose} disabled={busy || isPreview}><Upload />{list.length ? "Add more files" : "Choose Excel files"}</Button>}
+        actions={<>
+          <Button variant="ghost" onClick={saveTemplate} disabled={isPreview}><FileSpreadsheet />Save an Excel template</Button>
+          <Button variant="outline" onClick={choose} disabled={busy || isPreview}><Upload />{list.length ? "Add more files" : "Choose Excel files"}</Button>
+        </>}
       />
 
       {done && done.length > 0 && (
@@ -307,6 +330,8 @@ export function ImportPage() {
               open
               initial={parseCoordinatePair(list[picking].details.location)}
               search={parseCoordinatePair(list[picking].details.location) ? "" : [list[picking].details.area || list[picking].details.ownerName, list[picking].details.city].filter(Boolean).join(", ")}
+              tries={lookList?.tries}
+              hint={lookList?.hint}
               others={others}
               onClose={() => setPicking(null)}
               onPick={(at) => { detail(picking, { location: `${at.latitude.toFixed(6)}, ${at.longitude.toFixed(6)}`, locationSource: at.found ? "address" : "map" }); setPicking(null); }}
@@ -360,6 +385,7 @@ function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
   const notes = (f.result?.anomalies ?? []).filter((a) => a.code !== "MATERIAL_UNKNOWN");
   const idTaken = takenIds.has(d.borewellId.trim().toLowerCase());
   const at = parseCoordinatePair(d.location);
+  const look = whereToLook(d, others);
   const strata: StrataLayer[] = (f.result?.strata ?? []).map((l, i) => ({ id: `${i}`, borewellId: "import", waterBearing: false, ...resolveLayer(l, f.resolutions, materials) }));
   const pipes = (f.result?.pipes ?? []).map((p, i) => ({ id: `p${i}`, borewellId: "import", startDepth: p.startDepth, endDepth: p.endDepth, pipeType: p.pipeType, pipeSubtype: p.pipeSubtype, diameter: null }));
   const preview = {
@@ -434,6 +460,8 @@ function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
             open={picking}
             initial={at}
             search={at ? "" : [d.area, d.city].filter(Boolean).join(", ")}
+            tries={look.tries}
+            hint={look.hint}
             others={others}
             onClose={() => setPicking(false)}
             onPick={(p) => { set({ location: `${p.latitude.toFixed(6)}, ${p.longitude.toFixed(6)}`, locationSource: p.found ? "address" : "map" }); setPicking(false); }}
