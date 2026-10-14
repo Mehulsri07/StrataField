@@ -357,8 +357,8 @@ try {
   check("Files attach", attached.files.includes("site-notes.pdf"), attached.files.join(", "));
 
   const water = await page(`
-    // A year after the borewell's own date, so it is the newest reading.
-    const later = (Number(new Date().toISOString().slice(0, 4)) + 1) + '-01-15';
+    // The day after the borewell's own date (today), so it is the newest reading.
+    const later = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     await __t.invoke('water_reading_add', { borewellId: '${manual.bwid}', reading: { measuredOn: later, staticLevel: 47 } });
     const r = await __t.invoke('borewell_get', { id: '${manual.bwid}' });
     return { level: r.borewell.waterLevel, readings: r.waterReadings.map(w => w.staticLevel).sort((a, b) => a - b).join(',') };`);
@@ -408,7 +408,7 @@ try {
     __t.btn('SPOT-2016', popup).click();
     const card = await __t.until(() => document.querySelector('[role="dialog"][aria-label="SPOT-2016 details"]'), 5000).catch(() => null);
     // Which readings count: the last 3 years by default (the 2016 one is left out), or all of them.
-    const since = () => /going by readings since 2023/.test(__t.text());
+    const since = () => /going by readings since \\d{4}/.test(__t.text());
     const byDefault = since();
     await __t.choose(document.querySelector('[aria-label="Which water readings to use"]'), 'All readings');
     const all = !since();
