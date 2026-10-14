@@ -357,9 +357,12 @@ try {
   check("Files attach", attached.files.includes("site-notes.pdf"), attached.files.join(", "));
 
   const water = await page(`
-    await __t.invoke('water_reading_add', { borewellId: '${manual.bwid}', reading: { measuredOn: '2026-09-29', staticLevel: 47 } });
-    return (await __t.invoke('borewell_get', { id: '${manual.bwid}' })).borewell.waterLevel;`);
-  check("Water readings over time: the latest sets the water level", water === 47, String(water));
+    // A year after the borewell's own date, so it is the newest reading.
+    const later = (Number(new Date().toISOString().slice(0, 4)) + 1) + '-01-15';
+    await __t.invoke('water_reading_add', { borewellId: '${manual.bwid}', reading: { measuredOn: later, staticLevel: 47 } });
+    const r = await __t.invoke('borewell_get', { id: '${manual.bwid}' });
+    return { level: r.borewell.waterLevel, readings: r.waterReadings.map(w => w.staticLevel).sort((a, b) => a - b).join(',') };`);
+  check("Water readings over time: the latest sets the water level, the first level is kept", water.level === 47 && water.readings === "45,47", JSON.stringify(water));
 
   // ── Finding borewells ──────────────────────────────────────────────────
   const search = await page(`
