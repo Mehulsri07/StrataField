@@ -199,6 +199,15 @@ pub const MIGRATIONS: &[&str] = &[
     ALTER TABLE borewells ADD COLUMN column_pipe_dia      REAL;
     ALTER TABLE borewells ADD COLUMN column_pipe_material TEXT NOT NULL DEFAULT '';
     "#,
+    // 5: the water level written on a borewell becomes its first reading, so a later reading
+    // no longer replaces it. Only for borewells with no readings yet (see add_water_reading).
+    r#"
+    INSERT INTO water_readings (id, borewell_id, measured_on, static_level, dynamic_level, source)
+    SELECT lower(hex(randomblob(16))), id, date, water_level, dynamic_water_level, 'Water level recorded with the borewell'
+    FROM borewells b
+    WHERE water_level IS NOT NULL AND trim(date) <> ''
+      AND NOT EXISTS (SELECT 1 FROM water_readings w WHERE w.borewell_id = b.id);
+    "#,
 ];
 
 /// The schema version this build understands.

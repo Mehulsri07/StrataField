@@ -23,6 +23,10 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   are no longer offered. What is stored is never changed.
 
 ### Changed
+- **Adding a later water reading no longer loses the water level recorded with the borewell.**
+  That level is now kept as the borewell's first reading, dated with the borewell's date, so the
+  change in water level over time can be seen. Borewells already saved are updated the first time
+  this version opens the database.
 - **A title such as "STRETA CHART OF TUBE WELL" above the chart no longer stops a log from being
   read.** Such logs needed their columns chosen by hand before.
 

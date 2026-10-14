@@ -488,12 +488,12 @@ fn pipes_and_water_readings() {
         static_level: Some(s),
         ..Default::default()
     };
-    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &reading("2026-03-01", 104.0)))
+    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &reading("2026-09-01", 104.0)))
         .unwrap();
     let newest = db
-        .with_tx(|tx| layers::add_water_reading(tx, &b.id, &reading("2026-06-01", 118.0)))
+        .with_tx(|tx| layers::add_water_reading(tx, &b.id, &reading("2026-10-01", 118.0)))
         .unwrap();
-    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &reading("2025-11-01", 99.0)))
+    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &reading("2026-08-20", 99.0)))
         .unwrap();
     assert_eq!(
         db.with(|c| borewells::get(c, &b.id)).unwrap().water_level,
@@ -507,7 +507,115 @@ fn pipes_and_water_readings() {
         db.with(|c| borewells::get(c, &b.id)).unwrap().water_level,
         Some(104.0)
     );
-    assert_eq!(db.with(|c| layers::water_for(c, &b.id)).unwrap().len(), 2);
+    assert_eq!(
+        db.with(|c| layers::water_for(c, &b.id)).unwrap().len(),
+        3,
+        "the level recorded with the borewell is kept as a reading"
+    );
+}
+
+fn levels(db: &strata_db::Database, id: &str) -> Vec<(String, Option<f64>)> {
+    let mut v: Vec<_> = db
+        .with(|c| layers::water_for(c, id))
+        .unwrap()
+        .into_iter()
+        .map(|r| (r.measured_on, r.static_level))
+        .collect();
+    v.sort_by(|a, b| a.0.cmp(&b.0));
+    v
+}
+
+#[test]
+fn the_first_later_reading_keeps_the_level_recorded_with_the_borewell() {
+    let (_dir, db) = open_temp();
+    let b = db
+        .with_tx(|tx| borewells::create(tx, &input("BW-W1")))
+        .unwrap();
+    let later = WaterReading {
+        measured_on: "2027-08-01".into(),
+        static_level: Some(125.0),
+        ..Default::default()
+    };
+    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &later))
+        .unwrap();
+    assert_eq!(
+        levels(&db, &b.id),
+        vec![
+            ("2026-08-08".into(), Some(110.0)),
+            ("2027-08-01".into(), Some(125.0))
+        ]
+    );
+    assert_eq!(
+        db.with(|c| borewells::get(c, &b.id)).unwrap().water_level,
+        Some(125.0)
+    );
+
+    // A second reading does not copy the borewell's (now current) level again.
+    let next = WaterReading {
+        measured_on: "2028-08-01".into(),
+        ..later
+    };
+    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &next))
+        .unwrap();
+    assert_eq!(levels(&db, &b.id).len(), 3);
+}
+
+#[test]
+fn a_reading_on_the_borewells_own_date_is_not_doubled() {
+    let (_dir, db) = open_temp();
+    let b = db
+        .with_tx(|tx| borewells::create(tx, &input("BW-W2")))
+        .unwrap();
+    let same_day = WaterReading {
+        measured_on: "2026-08-08".into(),
+        static_level: Some(112.0),
+        ..Default::default()
+    };
+    db.with_tx(|tx| layers::add_water_reading(tx, &b.id, &same_day))
+        .unwrap();
+    assert_eq!(levels(&db, &b.id), vec![("2026-08-08".into(), Some(112.0))]);
+}
+
+#[test]
+fn upgrading_turns_a_borewells_own_water_level_into_its_first_reading() {
+    let dir = tempfile::tempdir().unwrap();
+    let (plain, with_reading, no_level) = {
+        let (db, _) = Database::open(dir.path()).unwrap();
+        let plain = db
+            .with_tx(|tx| borewells::create(tx, &input("BW-M1")))
+            .unwrap();
+        let with_reading = db
+            .with_tx(|tx| borewells::create(tx, &input("BW-M2")))
+            .unwrap();
+        let mut dry = input("BW-M3");
+        dry.water_level = None;
+        let no_level = db.with_tx(|tx| borewells::create(tx, &dry)).unwrap();
+        db.with(|c| {
+            c.execute(
+                "INSERT INTO water_readings (id, borewell_id, measured_on, static_level) VALUES ('w1', ?1, '2027-01-01', 120)",
+                [&with_reading.id],
+            )?;
+            Ok(c.execute_batch("PRAGMA user_version = 4")?)
+        })
+        .unwrap();
+        (plain.id, with_reading.id, no_level.id)
+    };
+    let (db, report) = Database::open(dir.path()).unwrap();
+    assert_eq!(report.previous_version, 4);
+    assert_eq!(
+        levels(&db, &plain),
+        vec![("2026-08-08".into(), Some(110.0))]
+    );
+    assert_eq!(
+        levels(&db, &with_reading),
+        vec![("2027-01-01".into(), Some(120.0))]
+    );
+    assert!(levels(&db, &no_level).is_empty());
+
+    // Running the same step again adds nothing.
+    db.with(|c| Ok(c.execute_batch(schema::MIGRATIONS[4])?))
+        .unwrap();
+    assert_eq!(levels(&db, &plain).len(), 1);
 }
 
 #[test]
