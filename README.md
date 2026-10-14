@@ -173,7 +173,7 @@ StrataField/
 │       ├── resources/          Installed with the app: getting-started guide, user manual
 │       ├── capabilities/       What the window is allowed to do (files, dialogs)
 │       └── tauri.conf.json     Window, security policy, installer settings
-├── core/                       Shared by every Strata app (StrataField now, StrataVision later)
+├── core/                       Shared by every Strata app (StrataField and StrataVision)
 │   ├── materials.json          The built-in soil types (read by both TypeScript and Rust)
 │   ├── src/                    TypeScript logic and its tests (*.test.ts)
 │   │   ├── types.ts            Data types: Borewell, StrataLayer, PipeSegment, WaterReading
@@ -216,8 +216,9 @@ Everything is in one folder, `%APPDATA%\Strata`. Settings & backup shows it and 
 | `logs/` | A small error log that never leaves the computer. |
 | `removed-files/` | Photos and files that were removed, kept until no backup could need them, so restoring a backup brings them back. |
 
-- **One database for all Strata apps.** StrataVision will open the same `strata.db`; anything added
-  in one app appears in the other.
+- **One database for all Strata apps.** [StrataVision](https://github.com/Mehulsri07/StrataVision)
+  opens the same `strata.db` read-only, so anything added here appears there; it never changes a
+  record.
 - **Upgrades are safe.** The schema carries a version number. On start, an older database is backed
   up and then upgraded step by step (`core/db/src/schema.rs`). A database from a *newer* version of
   the app is refused and left untouched.
@@ -360,9 +361,12 @@ only Electron-related code left in `main` is the one-time import of the old app'
 
 ## Roadmap
 
-- **StrataVision**, the analysis side, starting with confidence per depth. It will begin as screens
-  inside StrataField, share `core/` and the same database, and only become a separate app if 3D or
-  heavy map work calls for it.
+- **StrataVision**, the analysis side, is a separate app in
+  [its own repository](https://github.com/Mehulsri07/StrataVision): a proposed model of the ground
+  under the city built from these records, with a confidence for every depth, a drilling suggestion,
+  sections, a 3D slice and city maps. It includes StrataField as a git submodule pinned to a release
+  tag, uses `core/` from it, and reads the same database read-only. After a release that changes
+  the database schema, StrataVision asks to be updated until its pin is moved to that release.
 - Freezing and versioning the shared data format, possibly with GeoPackage exports that open in QGIS.
 - Later, and only on clear need: sync between computers, several users, mobile.
 
