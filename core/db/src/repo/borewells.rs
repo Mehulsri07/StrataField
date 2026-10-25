@@ -13,7 +13,7 @@ const COLUMNS: &str = "b.id, b.project_id, COALESCE(p.name, ''), b.borewell_id, 
         (SELECT MAX(w.measured_on) FROM water_readings w WHERE w.borewell_id = b.id AND w.static_level IS NOT NULL),
         NULLIF(b.date, '')) END,
     b.pump_type, b.pump_model, b.pump_hp, b.pump_lowering, b.pump_make,
-    b.pump_phase, b.column_pipe_dia, b.column_pipe_material";
+    b.pump_phase, b.column_pipe_dia, b.column_pipe_material, b.owner_phone";
 
 const FROM: &str = "FROM borewells b LEFT JOIN projects p ON p.id = b.project_id";
 
@@ -59,6 +59,7 @@ fn map_row(r: &Row) -> rusqlite::Result<Borewell> {
         pump_phase: r.get(37)?,
         column_pipe_dia: r.get(38)?,
         column_pipe_material: r.get(39)?,
+        owner_phone: r.get(40)?,
     })
 }
 
@@ -95,7 +96,9 @@ pub fn search(conn: &Connection, f: &SearchFilters) -> Result<Vec<BorewellListIt
                 .replace('_', "\\_")
         ));
         push(
-            "(b.borewell_id || ' ' || b.owner_name || ' ' || b.area || ' ' || b.city || ' ' || b.address || ' ' || COALESCE(p.name, '')) LIKE ? ESCAPE '\\'",
+            // The phone number as typed and as digits alone, so "9839012345" finds "98390 12345".
+            "(b.borewell_id || ' ' || b.owner_name || ' ' || b.area || ' ' || b.city || ' ' || b.address || ' ' || COALESCE(p.name, '')
+                || ' ' || b.owner_phone || ' ' || replace(replace(replace(b.owner_phone, ' ', ''), '-', ''), '+', '')) LIKE ? ESCAPE '\\'",
             like,
             &mut clauses,
         );
@@ -159,8 +162,8 @@ pub fn create(conn: &Connection, input: &BorewellInput) -> Result<Borewell> {
             location_source, location_accuracy_m, ground_elevation_m, elevation_source, bore_dia, pipe_dia, total_depth,
             water_level, dynamic_water_level, depth_unit, drilling_method, record_quality, remarks, date, created_at,
             updated_at, import_batch_id, import_source, import_method, pump_type, pump_model, pump_hp, pump_lowering, pump_make,
-            pump_phase, column_pipe_dia, column_pipe_material)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36)",
+            pump_phase, column_pipe_dia, column_pipe_material, owner_phone)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37)",
         params![
             id, project_id, input.borewell_id.trim(), input.owner_name.trim(), input.house_no, input.area, input.city,
             input.address, input.latitude, input.longitude, location_source(input), input.location_accuracy_m,
@@ -170,7 +173,7 @@ pub fn create(conn: &Connection, input: &BorewellInput) -> Result<Borewell> {
             input.import_batch_id, input.import_source, input.import_method.as_deref().unwrap_or("manual"),
             input.pump_type.trim(), input.pump_model.trim(), input.pump_hp, input.pump_lowering,
             input.pump_make.trim(), input.pump_phase.trim(), input.column_pipe_dia,
-            input.column_pipe_material.trim(),
+            input.column_pipe_material.trim(), input.owner_phone.trim(),
         ],
     )?;
     let created = get(conn, &id)?;
@@ -202,7 +205,7 @@ pub fn update(conn: &Connection, id: &str, input: &BorewellInput) -> Result<Bore
             water_level = ?18, dynamic_water_level = ?19, depth_unit = ?20, drilling_method = ?21, record_quality = ?22,
             remarks = ?23, date = ?24, updated_at = ?25, pump_type = ?26, pump_model = ?27, pump_hp = ?28,
             pump_lowering = ?29, pump_make = ?30, pump_phase = ?31, column_pipe_dia = ?32,
-            column_pipe_material = ?33
+            column_pipe_material = ?33, owner_phone = ?34
          WHERE id = ?1",
         params![
             id, project_id, input.borewell_id.trim(), input.owner_name.trim(), input.house_no, input.area, input.city,
@@ -212,7 +215,7 @@ pub fn update(conn: &Connection, id: &str, input: &BorewellInput) -> Result<Bore
             input.drilling_method, input.record_quality.as_deref().unwrap_or(&before.record_quality), input.remarks,
             input.date, now(), input.pump_type.trim(), input.pump_model.trim(), input.pump_hp, input.pump_lowering,
             input.pump_make.trim(), input.pump_phase.trim(), input.column_pipe_dia,
-            input.column_pipe_material.trim(),
+            input.column_pipe_material.trim(), input.owner_phone.trim(),
         ],
     )?;
     let after = get(conn, id)?;

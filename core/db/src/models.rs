@@ -11,6 +11,8 @@ pub struct Borewell {
     pub project: String,
     pub borewell_id: String,
     pub owner_name: String,
+    /// The owner's phone number as typed. Empty when not recorded.
+    pub owner_phone: String,
     pub house_no: String,
     pub area: String,
     pub city: String,
@@ -66,6 +68,7 @@ pub struct BorewellInput {
     pub project: String,
     pub borewell_id: String,
     pub owner_name: String,
+    pub owner_phone: String,
     pub house_no: String,
     pub area: String,
     pub city: String,

@@ -50,6 +50,7 @@ export interface Borewell {
   project: string;          // project name, e.g. "Zone 1 · Old City"
   borewellId: string;       // user-assigned identifier (e.g. "BW-2024-001")
   ownerName: string;
+  ownerPhone: string;       // as typed; '' when not recorded
   houseNo: string;
   area: string;
   city: string;

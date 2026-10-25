@@ -98,7 +98,7 @@ export const SAMPLE_BOREWELLS: BorewellListItem[] = RAW.map(([code, owner, area,
   const date = `${2026 - yearsAgo}${drilled.slice(4)}`, water = Math.round(level - yearsAgo * 3.5);
   const id = `sample-${code}`;
   const borewell: Borewell = {
-    id, projectId: zone, project: zone, borewellId: code, ownerName: owner, houseNo: "", area, city: "Lucknow", address: "",
+    id, projectId: zone, project: zone, borewellId: code, ownerName: owner, ownerPhone: "", houseNo: "", area, city: "Lucknow", address: "",
     latitude: lat, longitude: lon, locationSource: lat == null ? "unknown" : source === "excel" ? "imported" : "gps",
     locationAccuracyM: null, groundElevationM: null, elevationSource: null, boreDia: depth > 300 ? 10 : 8, pipeDia: depth > 300 ? 6 : 5,
     totalDepth: depth, waterLevel: water, dynamicWaterLevel: null, depthUnit: "ft", drillingMethod: depth > 290 ? "DTH" : "ROTARY",
