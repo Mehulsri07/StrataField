@@ -36,7 +36,7 @@ const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     const q = (f.query ?? "").trim().toLowerCase();
     const within = (v: number | null, min?: number, max?: number) => (min == null || (v != null && v >= min)) && (max == null || (v != null && v <= max));
     return SAMPLE_BOREWELLS.filter(({ borewell: b, strata }) =>
-      (!q || [b.borewellId, b.ownerName, b.area, b.project].join(" ").toLowerCase().includes(q)) &&
+      (!q || [b.borewellId, b.ownerName, b.ownerPhone, b.ownerPhone.replace(/[\s+-]/g, ""), b.area, b.project].join(" ").toLowerCase().includes(q)) &&
       (!f.project || b.project === f.project) &&
       (!f.materialId || strata.some((l) => l.materialId === f.materialId)) &&
       within(b.totalDepth, f.minDepth, f.maxDepth) &&

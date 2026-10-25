@@ -6,6 +6,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 ## [Unreleased]
 
 ### New
+- **The owner's phone number.** A borewell can now have its owner's phone number, under the
+  owner's name. Search finds the borewell by it, typed with or without spaces, so when an owner
+  calls you can find their borewell from the number. It is also in the Excel export.
 - **An Excel template for drilling logs.** On the Import screen, **Save an Excel template** gives a
   blank log laid out exactly the way StrataField reads it, with a filled-in example, the soil and
   pipe names to use, and instructions. Make one copy for each borewell; it imports with nothing to

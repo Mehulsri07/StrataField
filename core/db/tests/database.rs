@@ -51,6 +51,7 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
                 "pump_phase",
                 "column_pipe_dia",
                 "column_pipe_material",
+                "owner_phone",
             ] {
                 c.execute_batch(&format!("ALTER TABLE borewells DROP COLUMN {col}"))?;
             }
@@ -83,6 +84,7 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
     with_pump.pump_phase = "Three phase".into();
     with_pump.column_pipe_dia = Some(2.0);
     with_pump.column_pipe_material = "MS".into();
+    with_pump.owner_phone = " 98390 12345 ".into();
     let saved = db.with_tx(|tx| borewells::create(tx, &with_pump)).unwrap();
     assert_eq!(
         (saved.pump_make.as_str(), saved.pump_model.as_str()),
@@ -100,6 +102,23 @@ fn a_database_from_before_pumps_is_upgraded_and_keeps_its_borewells() {
         ),
         ("Three phase", Some(2.0), "MS")
     );
+    assert_eq!(saved.owner_phone, "98390 12345");
+    // Found by the number as typed, or as digits alone.
+    for query in ["98390 12345", "9839012345", "12345"] {
+        let found = db
+            .with(|c| {
+                borewells::search(
+                    c,
+                    &SearchFilters {
+                        query: query.into(),
+                        ..Default::default()
+                    },
+                )
+            })
+            .unwrap();
+        assert_eq!(found.len(), 1, "{query}");
+        assert_eq!(found[0].borewell.borewell_id, "BW-NEW");
+    }
     with_pump.pump_hp = Some(-1.0);
     assert!(db
         .with_tx(|tx| borewells::update(tx, &saved.id, &with_pump))
@@ -595,7 +614,10 @@ fn upgrading_turns_a_borewells_own_water_level_into_its_first_reading() {
                 "INSERT INTO water_readings (id, borewell_id, measured_on, static_level) VALUES ('w1', ?1, '2027-01-01', 120)",
                 [&with_reading.id],
             )?;
-            Ok(c.execute_batch("PRAGMA user_version = 4")?)
+            // Back to version 4: without the columns later versions add.
+            Ok(c.execute_batch(
+                "ALTER TABLE borewells DROP COLUMN owner_phone; PRAGMA user_version = 4",
+            )?)
         })
         .unwrap();
         (plain.id, with_reading.id, no_level.id)

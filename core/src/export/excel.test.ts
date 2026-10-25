@@ -5,7 +5,7 @@ import type { BorewellRecord } from '../types';
 
 const record: BorewellRecord = {
   borewell: {
-    id: 'b1', projectId: 'p', project: 'Zone 1 · Old City', borewellId: 'BW-2026-019', ownerName: 'Pradeep Mishra', houseNo: '', area: 'Aminabad',
+    id: 'b1', projectId: 'p', project: 'Zone 1 · Old City', borewellId: 'BW-2026-019', ownerName: 'Pradeep Mishra', ownerPhone: '98390 12345', houseNo: '', area: 'Aminabad',
     city: 'Lucknow', address: '', latitude: 26.846, longitude: 80.927, locationSource: 'gps', locationAccuracyM: null, groundElevationM: null,
     elevationSource: null, boreDia: 10, pipeDia: 6, totalDepth: 340, waterLevel: 124, dynamicWaterLevel: null, depthUnit: 'ft',
     drillingMethod: 'DTH', recordQuality: 'good', remarks: '', date: '2026-08-08', createdAt: '', updatedAt: '', importBatchId: null,

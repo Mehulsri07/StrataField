@@ -208,6 +208,10 @@ pub const MIGRATIONS: &[&str] = &[
     WHERE water_level IS NOT NULL AND trim(date) <> ''
       AND NOT EXISTS (SELECT 1 FROM water_readings w WHERE w.borewell_id = b.id);
     "#,
+    // 6: the owner's phone number, to find a borewell when its owner calls.
+    r#"
+    ALTER TABLE borewells ADD COLUMN owner_phone TEXT NOT NULL DEFAULT '';
+    "#,
 ];
 
 /// The schema version this build understands.

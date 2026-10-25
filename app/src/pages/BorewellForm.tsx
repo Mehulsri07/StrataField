@@ -29,6 +29,7 @@ import { cn } from "cn";
 interface FormState {
   borewellId: string;
   ownerName: string;
+  ownerPhone: string;
   project: string;
   date: string;
   houseNo: string;
@@ -75,7 +76,7 @@ const LAST_ZONE_KEY = "strata-last-zone";
 const today = () => new Date().toISOString().slice(0, 10);
 
 const emptyForm = (): FormState => ({
-  borewellId: "", ownerName: "", project: safeGet(LAST_ZONE_KEY) ?? "", date: today(),
+  borewellId: "", ownerName: "", ownerPhone: "", project: safeGet(LAST_ZONE_KEY) ?? "", date: today(),
   houseNo: "", address: "", area: "", city: text.app.city,
   latitude: "", longitude: "", locationSource: "unknown",
   totalDepth: "", waterLevel: "", dynamicWaterLevel: "", boreDia: "", pipeDia: "", drillingMethod: "", remarks: "",
@@ -130,7 +131,7 @@ function toInput(f: FormState): BorewellInput {
   const n = (s: string) => parseNumber(s) ?? null;
   const lat = n(f.latitude), lon = n(f.longitude);
   return {
-    borewellId: f.borewellId.trim(), ownerName: f.ownerName.trim(), project: f.project.trim(), date: f.date,
+    borewellId: f.borewellId.trim(), ownerName: f.ownerName.trim(), ownerPhone: f.ownerPhone.trim(), project: f.project.trim(), date: f.date,
     houseNo: f.houseNo, address: f.address, area: f.area, city: f.city,
     latitude: lat, longitude: lon,
     locationSource: lat != null && lon != null ? (f.locationSource === "unknown" ? "typed" : f.locationSource) : "unknown",
@@ -145,7 +146,7 @@ function fromBorewell(b: Borewell): FormState {
   // A record from before the company had its own box has it written inside the model.
   const pump = b.pumpMake ? { make: b.pumpMake, model: b.pumpModel } : splitPump(b.pumpModel);
   return {
-    borewellId: b.borewellId, ownerName: b.ownerName, project: b.project, date: b.date,
+    borewellId: b.borewellId, ownerName: b.ownerName, ownerPhone: b.ownerPhone, project: b.project, date: b.date,
     houseNo: b.houseNo, address: b.address, area: b.area, city: b.city,
     latitude: numberText(b.latitude), longitude: numberText(b.longitude), locationSource: b.locationSource,
     totalDepth: numberText(b.totalDepth), waterLevel: numberText(b.waterLevel), dynamicWaterLevel: numberText(b.dynamicWaterLevel),
@@ -344,6 +345,9 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
             </Field>
             <Field id="f-owner" label="Owner's name" warning={warn("ownerName")}>
               <Input id="f-owner" value={f.ownerName} onChange={(e) => set({ ownerName: e.target.value })} />
+            </Field>
+            <Field id="f-phone" label="Owner's phone" hint="Optional. Search finds the borewell by this number.">
+              <Input id="f-phone" className="num" type="tel" inputMode="tel" value={f.ownerPhone} onChange={(e) => set({ ownerPhone: e.target.value })} placeholder="e.g. 98390 12345" />
             </Field>
             <Field id="f-zone" label="Zone" warning={zoneWarning(f.project, (zones.data ?? []).map((z) => z.name))} hint={!editing && f.project && f.project === safeGet(LAST_ZONE_KEY) ? "Same as the last borewell you added. Change it if this one is elsewhere." : "A name for a group of borewells, such as a part of the city. Pick one you used before, or type a new one."}>
               <Input id="f-zone" list="f-zone-list" value={f.project} onChange={(e) => set({ project: e.target.value })} placeholder="e.g. Zone 3 · Trans-Gomti" />
@@ -673,6 +677,7 @@ function CheckStep({ form: f, input, layers, pipes, draft, editing, issues, onEd
         {section("Basics", "basics", <>
           {row("Borewell ID", <span className="num">{f.borewellId}</span>)}
           {row("Owner", f.ownerName)}
+          {row("Owner's phone", f.ownerPhone && <span className="num">{f.ownerPhone}</span>)}
           {row("Zone", zoneName(f.project))}
           {row("Tubewell lowering date", f.date && formatDate(f.date))}
         </>)}

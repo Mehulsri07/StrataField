@@ -13,6 +13,7 @@ export function exportRows(records: BorewellRecord[]) {
   const borewells = records.map(({ borewell: b }) => ({
     'Borewell ID': b.borewellId,
     Owner: b.ownerName,
+    'Owner phone': b.ownerPhone,
     Zone: b.project,
     'House / plot': b.houseNo,
     Address: b.address,

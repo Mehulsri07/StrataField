@@ -153,6 +153,7 @@ export function BorewellDetail() {
               >
                 <dl className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-x-5 gap-y-4">
                   <FactText label="Owner">{b.ownerName || "—"}</FactText>
+                  {b.ownerPhone && <FactText label="Owner's phone"><span className="num">{b.ownerPhone}</span></FactText>}
                   <FactText label="Address">{[b.houseNo, b.address, b.area, b.city].filter(Boolean).join(", ") || "—"}</FactText>
                   <FactText label="GPS location">
                     {b.latitude != null && b.longitude != null ? (
