@@ -14,6 +14,7 @@ import { StrataStrip } from "@/components/geology/patterns";
 import { useLayerPopup } from "@/components/geology/useLayerPopup";
 import { useBorewells } from "@/lib/data";
 import { useWaterYears } from "@/lib/hooks";
+import { formatDate, waterWithDate } from "@/lib/format";
 import { text } from "@/text";
 import { cn } from "cn";
 
@@ -110,7 +111,7 @@ export function MapPage() {
                     <span className="num block truncate text-[13px] font-medium">{b.borewellId}</span>
                     <span className="block truncate text-xs text-muted-foreground">{b.area || b.city}</span>
                   </span>
-                  <span className="num text-xs text-muted-foreground">{b.waterLevel != null ? `${b.waterLevel} ft` : "—"}</span>
+                  <span className="num text-xs text-muted-foreground">{b.waterLevel != null ? waterWithDate(b.waterLevel, b.waterLevelOn) : "—"}</span>
                 </button>
               </li>
             ))}
@@ -147,7 +148,7 @@ function SelectedCard({ item, onClose, onOpen, onLayer }: {
       {item.strata.length > 0 && <StrataStrip strata={item.strata} totalDepth={b.totalDepth} waterLevel={b.waterLevel} width={256} onLayerClick={onLayer} />}
       <dl className="grid grid-cols-2 gap-1">
         <dt className="text-muted-foreground">Total depth</dt><dd className="num text-right">{b.totalDepth != null ? `${b.totalDepth} ft` : "—"}</dd>
-        <dt className="text-muted-foreground">Water level</dt><dd className="num text-right">{b.waterLevel != null ? `${b.waterLevel} ft` : "—"}</dd>
+        <dt className="text-muted-foreground">Water level</dt><dd className="num text-right">{b.waterLevel != null ? <>{b.waterLevel} ft{b.waterLevelOn && <span className="block text-xs text-muted-foreground">on {formatDate(b.waterLevelOn)}</span>}</> : "—"}</dd>
       </dl>
       {b.locationSource === "address" && <p className="text-xs text-muted-foreground">Location is approximate (from the address).</p>}
       <Button onClick={onOpen}>{text.actions.openBorewell}</Button>
