@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Borewell, Place } from './types';
-import { coordinatesIn, placeFits, rememberedPlace, searchTries, tellingWords } from './places';
+import { coordinatesIn, placeFits, rememberedPlace, searchTries, similarZones, tellingWords } from './places';
 
 const bw = (id: string, over: Partial<Borewell> = {}) =>
   ({ id, borewellId: id, ownerName: '', houseNo: '', address: '', area: '', city: 'Lucknow', latitude: null, longitude: null, locationSource: 'unknown', ...over }) as Borewell;
@@ -106,5 +106,22 @@ describe('coordinatesIn', () => {
   it('reads nothing from text that is not a position', () => {
     expect(coordinatesIn('Near the water tank')).toBeNull();
     expect(coordinatesIn('')).toBeNull();
+  });
+});
+
+describe('similarZones', () => {
+  const zones = ['Zone 3 · Trans-Gomti', 'Zone 4 · Gomti Nagar', 'Zone 2 · Aliganj', 'Zone 5 · Chinhat'];
+
+  it('finds the zones a short or misspelt name means', () => {
+    expect(similarZones('gomti', zones)).toEqual(['Zone 3 · Trans-Gomti', 'Zone 4 · Gomti Nagar']);
+    expect(similarZones('Zone 2 Aligunj', zones)).toEqual(['Zone 2 · Aliganj']);
+    expect(similarZones('zone 4 - gomti nagar', zones)).toEqual(['Zone 4 · Gomti Nagar']);
+  });
+
+  it('says nothing for a zone that exists, or a new place', () => {
+    expect(similarZones('zone 4 · gomti nagar', zones)).toEqual([]);
+    expect(similarZones('Zone 6 · Indira Nagar', zones)).toEqual([]);
+    expect(similarZones('Zone 7', zones)).toEqual([]);
+    expect(similarZones('', zones)).toEqual([]);
   });
 });
