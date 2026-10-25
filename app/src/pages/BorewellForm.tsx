@@ -17,7 +17,7 @@ import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
 import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
-import { columnPipeText, formatDate, pumpText, zoneName } from "@/lib/format";
+import { columnPipeText, formatDate, pumpText, zoneName, zoneWarning } from "@/lib/format";
 import { PickOrAdd } from "@/components/app/PickOrAdd";
 import { numberText, parseCoordinatePair, parseNumber, PUMP_MAKES, splitPump } from "@strata/core";
 import { text } from "@/text";
@@ -349,7 +349,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
             <Field id="f-phone" label="Owner's phone" hint="Optional. Search finds the borewell by this number.">
               <Input id="f-phone" className="num" type="tel" inputMode="tel" value={f.ownerPhone} onChange={(e) => set({ ownerPhone: e.target.value })} placeholder="e.g. 98390 12345" />
             </Field>
-            <Field id="f-zone" label="Zone" hint={!editing && f.project && f.project === safeGet(LAST_ZONE_KEY) ? "Same as the last borewell you added. Change it if this one is elsewhere." : "A name for a group of borewells, such as a part of the city. Pick one you used before, or type a new one."}>
+            <Field id="f-zone" label="Zone" warning={zoneWarning(f.project, (zones.data ?? []).map((z) => z.name))} hint={!editing && f.project && f.project === safeGet(LAST_ZONE_KEY) ? "Same as the last borewell you added. Change it if this one is elsewhere." : "A name for a group of borewells, such as a part of the city. Pick one you used before, or type a new one."}>
               <Input id="f-zone" list="f-zone-list" value={f.project} onChange={(e) => set({ project: e.target.value })} placeholder="e.g. Zone 3 · Trans-Gomti" />
               <datalist id="f-zone-list">{(zones.data ?? []).map((z) => <option key={z.id} value={z.name} />)}</datalist>
             </Field>
@@ -577,8 +577,9 @@ function LayersStep({ draft, setDraft, materials, totalDepth, preview, layers, p
   draft: Draft; setDraft: (d: Draft) => void; materials: Material[]; totalDepth: number | null | undefined;
   preview: Borewell; layers: StrataLayer[]; pipes: PipeSegment[];
 }) {
+  // Side by side only from xl: below it the layer rows need the full width, or the drawing covers their Remove buttons.
   return (
-    <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid items-start gap-x-10 gap-y-7 xl:grid-cols-[minmax(0,1fr)_320px]">
       <LayersEditor
         layers={draft.layers} pipes={draft.pipes} materials={materials} totalDepth={totalDepth}
         onChange={(next) => setDraft({ ...draft, ...next })}

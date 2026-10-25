@@ -24,14 +24,28 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   spellings the map uses (Haiderabad / Hyderabad, Chinhut / Chinhat, Dewa / Deva), then by its
   colony or road alone. Matches from somewhere else (another city, or a road with a similar name)
   are no longer offered. What is stored is never changed.
+- **The Map says when each water level was measured.** The list beside the map shows the month
+  and year ("54 ft, Sep 2019"), and a borewell's card and the label over its pin show the date,
+  so an old reading is not taken for today's.
 
 ### Changed
+- **Home no longer says the water got "26 ft deeper".** The chart compares different borewells
+  each year, so it now gives each year's typical level with how many borewells it comes from, and
+  says plainly that a difference between years is not proof the water has gone up or down.
 - **Adding a later water reading no longer loses the water level recorded with the borewell.**
   That level is now kept as the borewell's first reading, dated with the borewell's date, so the
   change in water level over time can be seen. Borewells already saved are updated the first time
   this version opens the database.
+- **A zone name that looks like one you already have gets a warning.** Typing "gomti" for a new
+  borewell, or on Import, says it makes a new zone and names "Zone 4 · Gomti Nagar" (and any other
+  zone it could mean), so one place does not end up as two zones by mistake.
 - **A title such as "STRETA CHART OF TUBE WELL" above the chart no longer stops a log from being
   read.** Such logs needed their columns chosen by hand before.
+
+### Fixed
+- **A layer could not be removed in a small window.** On a new borewell's Layers & pipes step, in
+  a window narrower than about 1280 pixels, the drawing covered the layers' remove buttons. The
+  drawing now goes below the layers until there is room for both.
 
 ## [1.0.15] - 2026-10-08
 

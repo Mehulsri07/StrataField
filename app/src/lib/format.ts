@@ -1,4 +1,4 @@
-import { DEFAULT_PROJECT, type BorewellInput } from "@strata/core";
+import { DEFAULT_PROJECT, similarZones, type BorewellInput } from "@strata/core";
 /** Friendly dates for people, e.g. "today, 09:12", "yesterday, 18:40", "22 Sep 2026". */
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -12,6 +12,14 @@ function parse(value: string): Date | null {
 export function formatDate(value: string): string {
   const d = parse(value);
   return d ? dateFmt.format(d) : value;
+}
+
+const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" });
+
+/** A water level with when it was measured, e.g. "54 ft, Sep 2019": a level alone reads as today's. */
+export function waterWithDate(feet: number, on: string | null | undefined): string {
+  const d = on ? parse(on) : null;
+  return d ? `${feet} ft, ${monthFmt.format(d)}` : `${feet} ft`;
 }
 
 export function formatWhen(value: string, now = new Date()): string {
@@ -40,4 +48,10 @@ const PIPE_MATERIAL: Record<string, string> = { PVC: "PVC", MS: "MS (mild steel)
 /** "50 mm · MS (mild steel)": the pipe the pump hangs on, from whatever is filled in. */
 export function columnPipeText(b: Pick<BorewellInput, "columnPipeDia" | "columnPipeMaterial">): string {
   return [b.columnPipeDia != null ? `${b.columnPipeDia} mm` : "", b.columnPipeMaterial ? PIPE_MATERIAL[b.columnPipeMaterial] ?? b.columnPipeMaterial : ""].filter(Boolean).join(" · ");
+}
+
+/** Said under a zone name that is new but looks like one already used, before a second zone for one place is made. */
+export function zoneWarning(typed: string, zones: string[]): string | undefined {
+  const like = similarZones(typed, zones).map((z) => `“${z}”`);
+  return like.length ? `This makes a new zone. If you meant ${like.join(" or ")}, pick it from the list.` : undefined;
 }

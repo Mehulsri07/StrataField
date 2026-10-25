@@ -111,3 +111,32 @@ export function coordinatesIn(text: string): { latitude: number; longitude: numb
   const [latitude, longitude] = [Number(inLink[1]), Number(inLink[2])];
   return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null;
 }
+
+/** True when two words differ by at most one letter added, removed or changed ("nagr", "nagar"). */
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  const [ra, rb] = [a.slice(i + 1), b.slice(i + 1)];
+  return ra === rb || a.slice(i) === rb || ra === b.slice(i);
+}
+
+/**
+ * The existing zones a typed zone name probably means ("gomti" or "Zone 4 Gomti Nagr" for
+ * "Zone 4 · Gomti Nagar"), best first and at most three, so the person is told before a second zone
+ * for the same place is made. Empty when the name is already a zone, or shares no place word with one.
+ */
+export function similarZones(typed: string, zones: string[]): string[] {
+  const name = typed.trim().toLowerCase();
+  if (!name || zones.some((z) => z.toLowerCase() === name)) return [];
+  const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const same = zones.find((z) => squash(z) === squash(name));
+  if (same) return [same];
+  // "Zone" is in every zone's name, so it says nothing about which one.
+  const words = (s: string) => tellingWords(s).filter((w) => w !== 'zone');
+  const typedWords = words(name);
+  const close = (a: string, b: string) => a === b || (a.length >= 5 && b.length >= 5 && oneEditApart(a, b));
+  const scored = zones.map((z) => ({ z, shared: words(z).filter((w) => typedWords.some((t) => close(t, w))).length }));
+  const best = Math.max(0, ...scored.map((s) => s.shared));
+  return best ? scored.filter((s) => s.shared === best).map((s) => s.z).slice(0, 3) : [];
+}

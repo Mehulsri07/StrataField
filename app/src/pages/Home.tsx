@@ -104,7 +104,7 @@ export function Home() {
         <>
           <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div className="grid min-w-0 gap-7">
-              <Panel title="Water level over the years" actions={<WaterPeriod size="sm" />}>
+              <Panel title="Water levels found each year"actions={<WaterPeriod size="sm" />}>
                 <WaterOverYears years={byYear} since={cutoff ? Number(cutoff.slice(0, 4)) : null} />
               </Panel>
 
@@ -290,14 +290,16 @@ function WaterOverYears({ years, since }: { years: YearWater[]; since: number | 
   const line = years.map((p, i) => `${i ? "L" : "M"}${x(p.year).toFixed(1)} ${y(p.typical).toFixed(1)}`).join("");
   const band = years.map((p, i) => `${i ? "L" : "M"}${x(p.year).toFixed(1)} ${y(p.shallowest).toFixed(1)}`).join("") +
     [...years].reverse().map((p) => `L${x(p.year).toFixed(1)} ${y(p.deepest).toFixed(1)}`).join("") + "Z";
-  const change = Math.round((last.typical - first.typical) * 10) / 10;
   const describe = (p: YearWater) => `${p.year}: typically ${p.typical} ft (${p.shallowest} to ${p.deepest} ft), from ${plural(p.count, "borewell")}`;
 
   return (
     <figure className="grid gap-3">
       <figcaption className="text-sm">
-        The typical level went from <Num>{first.typical} ft</Num> in {first.year} to <Num>{last.typical} ft</Num> in {last.year}
-        {change === 0 ? ": no change." : <>: <Num>{Math.abs(change)} ft</Num> {change > 0 ? "deeper" : "shallower"}.</>}
+        Water was typically at <Num>{first.typical} ft</Num> in the {plural(first.count, "borewell")} measured in {first.year}, and
+        at <Num>{last.typical} ft</Num> in the {plural(last.count, "borewell")} measured in {last.year}.
+        <span className="block text-muted-foreground">
+          Each year is different borewells in different places, so a difference between years is not proof that the water is getting deeper or shallower.
+        </span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Typical water level by year, in feet below ground. ${years.map(describe).join(". ")}.`}>
         {since != null && since <= last.year && (
@@ -329,7 +331,6 @@ function WaterOverYears({ years, since }: { years: YearWater[]; since: number | 
       <p className="text-xs text-muted-foreground">
         Feet below ground; lower on the chart is deeper. The band runs from the shallowest to the deepest level that year.
         {since != null && since > first.year && ` The shaded years, from ${since}, are the readings the Map and the figures above use.`}
-        {" "}Each year shows the borewells measured that year, so it is not the same places every time.
       </p>
     </figure>
   );
