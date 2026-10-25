@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { Borewell, BorewellInput, ExcelParseResult, LocationSource, Material, ParseAnomaly, StrataLayer } from "@strata/core";
 import { parseCoordinatePair, parseNumber, rememberedPlace, searchTries, splitPump } from "@strata/core";
+import { zoneWarning } from "@/lib/format";
 import type { ColumnMapping } from "@strata/core/parser";
 import { toast } from "sonner";
 import { CircleCheck, FileSpreadsheet, MapPin, TriangleAlert, Upload, X, XCircle } from "lucide-react";
@@ -426,7 +427,7 @@ function FileReview({ file: f, materials, takenIds, zones, others, onChange }: {
             </Field>
             <Field id="i-owner" label="Owner's name"><Input id="i-owner" value={d.ownerName} onChange={(e) => set({ ownerName: e.target.value })} /></Field>
             <Field id="i-date" label="Tubewell lowering date"><Input id="i-date" type="date" value={d.date} onChange={(e) => set({ date: e.target.value })} /></Field>
-            <Field id="i-zone" label="Zone" hint="Pick one you used before, or type a new one.">
+            <Field id="i-zone" label="Zone" warning={zoneWarning(d.zone, zones)} hint="Pick one you used before, or type a new one.">
               <Input id="i-zone" list="i-zone-list" value={d.zone} onChange={(e) => set({ zone: e.target.value })} />
               <datalist id="i-zone-list">{zones.map((z) => <option key={z} value={z} />)}</datalist>
             </Field>

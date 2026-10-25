@@ -17,7 +17,7 @@ import { MapPicker } from "@/components/map/MapPicker";
 import { LayersEditor, rowIssues, toLayers, toPipes, type LayerRow, type PipeRow } from "@/components/geology/LayersEditor";
 import { api, files, isPreview } from "@/lib/api";
 import { useBorewells, useDataVersion, useLoad } from "@/lib/data";
-import { columnPipeText, formatDate, pumpText, zoneName } from "@/lib/format";
+import { columnPipeText, formatDate, pumpText, zoneName, zoneWarning } from "@/lib/format";
 import { PickOrAdd } from "@/components/app/PickOrAdd";
 import { numberText, parseCoordinatePair, parseNumber, PUMP_MAKES, splitPump } from "@strata/core";
 import { text } from "@/text";
@@ -345,7 +345,7 @@ export function BorewellForm({ mode }: { mode: "new" | "edit" }) {
             <Field id="f-owner" label="Owner's name" warning={warn("ownerName")}>
               <Input id="f-owner" value={f.ownerName} onChange={(e) => set({ ownerName: e.target.value })} />
             </Field>
-            <Field id="f-zone" label="Zone" hint={!editing && f.project && f.project === safeGet(LAST_ZONE_KEY) ? "Same as the last borewell you added. Change it if this one is elsewhere." : "A name for a group of borewells, such as a part of the city. Pick one you used before, or type a new one."}>
+            <Field id="f-zone" label="Zone" warning={zoneWarning(f.project, (zones.data ?? []).map((z) => z.name))} hint={!editing && f.project && f.project === safeGet(LAST_ZONE_KEY) ? "Same as the last borewell you added. Change it if this one is elsewhere." : "A name for a group of borewells, such as a part of the city. Pick one you used before, or type a new one."}>
               <Input id="f-zone" list="f-zone-list" value={f.project} onChange={(e) => set({ project: e.target.value })} placeholder="e.g. Zone 3 · Trans-Gomti" />
               <datalist id="f-zone-list">{(zones.data ?? []).map((z) => <option key={z.id} value={z.name} />)}</datalist>
             </Field>

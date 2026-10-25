@@ -33,6 +33,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   That level is now kept as the borewell's first reading, dated with the borewell's date, so the
   change in water level over time can be seen. Borewells already saved are updated the first time
   this version opens the database.
+- **A zone name that looks like one you already have gets a warning.** Typing "gomti" for a new
+  borewell, or on Import, says it makes a new zone and names "Zone 4 · Gomti Nagar" (and any other
+  zone it could mean), so one place does not end up as two zones by mistake.
 - **A title such as "STRETA CHART OF TUBE WELL" above the chart no longer stops a log from being
   read.** Such logs needed their columns chosen by hand before.
 
