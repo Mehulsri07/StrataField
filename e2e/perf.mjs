@@ -75,7 +75,7 @@ try {
     return 'detail with drawing';`);
   await timed("Home shows (numbers, water over the years, newest, zones)", 6000, `
     location.hash = '#/';
-    await __t.until(() => /Newest borewells/.test(__t.text()) && /Water level over the years/.test(__t.text()), 30000);
+    await __t.until(() => /Newest borewells/.test(__t.text()) && /Water levels found each year/.test(__t.text()), 30000);
     return 'ready';`);
   // The Map is now the first screen to load the map code and tiles (Home no longer has a map).
   await timed("Map shows pins and water colours", 8500, `
