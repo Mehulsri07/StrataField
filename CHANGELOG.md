@@ -23,6 +23,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   are no longer offered. What is stored is never changed.
 
 ### Changed
+- **Home no longer says the water got "26 ft deeper".** The chart compares different borewells
+  each year, so it now gives each year's typical level with how many borewells it comes from, and
+  says plainly that a difference between years is not proof the water has gone up or down.
 - **Adding a later water reading no longer loses the water level recorded with the borewell.**
   That level is now kept as the borewell's first reading, dated with the borewell's date, so the
   change in water level over time can be seen. Borewells already saved are updated the first time
