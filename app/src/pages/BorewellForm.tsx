@@ -573,8 +573,9 @@ function LayersStep({ draft, setDraft, materials, totalDepth, preview, layers, p
   draft: Draft; setDraft: (d: Draft) => void; materials: Material[]; totalDepth: number | null | undefined;
   preview: Borewell; layers: StrataLayer[]; pipes: PipeSegment[];
 }) {
+  // Side by side only from xl: below it the layer rows need the full width, or the drawing covers their Remove buttons.
   return (
-    <div className="grid items-start gap-x-10 gap-y-7 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid items-start gap-x-10 gap-y-7 xl:grid-cols-[minmax(0,1fr)_320px]">
       <LayersEditor
         layers={draft.layers} pipes={draft.pipes} materials={materials} totalDepth={totalDepth}
         onChange={(next) => setDraft({ ...draft, ...next })}
