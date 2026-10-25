@@ -5,6 +5,7 @@ import Supercluster from "supercluster";
 import type { Borewell } from "@strata/core";
 import { isRecentWater, recentCutoff, waterColour } from "@strata/core";
 import { useWaterYears } from "@/lib/hooks";
+import { waterWithDate } from "@/lib/format";
 
 /** Up to this zoom, clicking a group zooms in to separate it; a group that needs more is at one spot. */
 const SEPARATES_BY = 17;
@@ -82,7 +83,7 @@ export function BorewellPins({ borewells, selectedId, onSelect, faint }: Props) 
           >
             <Tooltip direction="top" offset={[0, -6]}>
               <b>{bw.borewellId}</b> · {bw.area || bw.city}
-              {bw.waterLevel != null && <> · water {bw.waterLevel} ft{!recent && bw.waterLevelOn && ` in ${bw.waterLevelOn.slice(0, 4)}`}</>}
+              {bw.waterLevel != null && <> · water {waterWithDate(bw.waterLevel, bw.waterLevelOn)}</>}
             </Tooltip>
           </CircleMarker>
         );

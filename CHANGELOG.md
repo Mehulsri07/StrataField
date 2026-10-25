@@ -21,6 +21,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
   spellings the map uses (Haiderabad / Hyderabad, Chinhut / Chinhat, Dewa / Deva), then by its
   colony or road alone. Matches from somewhere else (another city, or a road with a similar name)
   are no longer offered. What is stored is never changed.
+- **The Map says when each water level was measured.** The list beside the map shows the month
+  and year ("54 ft, Sep 2019"), and a borewell's card and the label over its pin show the date,
+  so an old reading is not taken for today's.
 
 ### Changed
 - **Adding a later water reading no longer loses the water level recorded with the borewell.**

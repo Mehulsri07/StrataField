@@ -14,6 +14,14 @@ export function formatDate(value: string): string {
   return d ? dateFmt.format(d) : value;
 }
 
+const monthFmt = new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" });
+
+/** A water level with when it was measured, e.g. "54 ft, Sep 2019": a level alone reads as today's. */
+export function waterWithDate(feet: number, on: string | null | undefined): string {
+  const d = on ? parse(on) : null;
+  return d ? `${feet} ft, ${monthFmt.format(d)}` : `${feet} ft`;
+}
+
 export function formatWhen(value: string, now = new Date()): string {
   const d = parse(value);
   if (!d) return value;
