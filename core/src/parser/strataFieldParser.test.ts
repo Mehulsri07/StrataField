@@ -520,6 +520,12 @@ describe('a field log drawn to scale, in metres', () => {
     expect(r.metadata).toMatchObject({ ownerName: 'Example Mall', address: 'Ring Road', city: 'Lucknow', boreDia: 15, pipeDia: 8, date: '2025-09-16', totalDepth: ft(40), waterLevel: ft(12) });
     expect(r.anomalies.map(a => a.code)).toEqual([]);
   });
+
+  it('keeps a detail written in feet as feet', () => {
+    // Real logs drawn in metres still give the water level in feet ("Water Level = 30 ft").
+    const inFeet = rows.map(row => row[0] === 'Water Level =  12 mt' ? ['Water Level =  30 ft', ...row.slice(1)] : row);
+    expect(parseStrataRows(inFeet).metadata).toMatchObject({ waterLevel: 30, totalDepth: ft(40), detectedUnit: 'm' });
+  });
 });
 
 describe('the site block', () => {

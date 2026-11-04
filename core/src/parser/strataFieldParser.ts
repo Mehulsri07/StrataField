@@ -199,7 +199,8 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
 
   // 4. Extract metadata. The details are written in the first column, mostly beside the layer rows.
   //    The hole and pipe sizes are also written under the two headings, for logs without detail lines.
-  const metadata = extractMetadata(rows, endIdx);
+  const writtenUnit: WrittenUnits = { totalDepth: null, waterLevel: null };
+  const metadata = extractMetadata(rows, endIdx, writtenUnit);
   if (!mapping) {
     const under = rows[headerRowIdx + 1] || [];
     if (metadata.boreDia === null && S >= 0) metadata.boreDia = inches(under[S]);
@@ -339,10 +340,10 @@ export function parseStrataRows(rows: any[][], mapping?: ColumnMapping): ExcelPa
     }
   }
 
-  // The details are written in the log's own unit; the app keeps everything in feet.
-  if (detectedUnit === 'm') {
-    if (metadata.totalDepth !== null) metadata.totalDepth = round1(metadata.totalDepth * METRES_TO_FEET);
-    if (metadata.waterLevel !== null) metadata.waterLevel = round1(metadata.waterLevel * METRES_TO_FEET);
+  // The app keeps everything in feet. A detail is in the unit written next to it, else in the log's own
+  // unit: logs drawn in metres often still give the water level in feet.
+  for (const key of ['totalDepth', 'waterLevel'] as const) {
+    if (metadata[key] !== null && (writtenUnit[key] ?? detectedUnit) === 'm') metadata[key] = round1(metadata[key]! * METRES_TO_FEET);
   }
 
   // 7. Logs are written in fixed steps, so a thick layer repeats its soil on every row
@@ -407,7 +408,10 @@ function mergeRuns<T extends { startDepth: number; endDepth: number }>(items: T[
 
 // ─── Metadata Extraction ────────────────────────────────────────────────────
 
-function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata {
+/** The unit written next to a detail's value ("Water Level = 30 ft"), or null when only a number is given. */
+type WrittenUnits = { totalDepth: DepthUnit | null; waterLevel: DepthUnit | null };
+
+function extractMetadata(rows: any[][], endIdx: number, writtenUnit: WrittenUnits): ParsedBoreholeMetadata {
   const meta: ParsedBoreholeMetadata = {
     siteName: null,
     ownerName: null,
@@ -450,9 +454,10 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
     const bdMatch = col0.match(/bore\s*(?:dia|diameter)\s*[:=]\s*([0-9.]+)/i);
     if (bdMatch) {
       meta.boreDia = parseFloat(bdMatch[1]);
-      const tdMatch = col0.match(/\/[-/\s]*([0-9.]+)\s*(?:ft|feet|m|met)/i);
+      const tdMatch = col0.match(/\/[-/\s]*([0-9.]+)\s*(ft|feet|m|met)/i);
       if (tdMatch) {
         meta.totalDepth = parseFloat(tdMatch[1]);
+        writtenUnit.totalDepth = /^f/i.test(tdMatch[2]) ? 'ft' : 'm';
       }
     }
 
@@ -463,9 +468,10 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
     }
 
     // Water level
-    const wlMatch = col0.match(/(?:water\s*level|swl)\s*(?:depth)?\s*[:=]\s*([0-9.]+)/i);
+    const wlMatch = col0.match(/(?:water\s*level|swl)\s*(?:depth)?\s*[:=]\s*([0-9.]+)\s*(ft|feet|foot|m|mt|mtr|met\w*)?\b/i);
     if (wlMatch) {
       meta.waterLevel = parseFloat(wlMatch[1]);
+      writtenUnit.waterLevel = wlMatch[2] ? (/^f/i.test(wlMatch[2]) ? 'ft' : 'm') : null;
     }
 
     // Pump: "Pump Lowering = 250 ft" and "Pump = KSB 12C/17 , 5 HP". A label without "=" has its
@@ -501,8 +507,9 @@ function extractMetadata(rows: any[][], endIdx: number): ParsedBoreholeMetadata 
 // ─── Unit Detection ─────────────────────────────────────────────────────────
 
 function detectUnit(rows: any[][], headerRowIdx: number, dataStartIdx: number, dataEndIdx: number, anomalies: ParseAnomaly[], cols = [1, 0, 7]): DepthUnit {
-  // 0. A unit written beside a depth ("16 mt", "Bore Dia = 12" / 370 ft") settles it.
-  const beside = rows.slice(0, dataEndIdx).flatMap(r => cols.map(c => String((r || [])[c] ?? ''))).join(' | ');
+  // 0. A unit written beside a depth ("16 mt", "Bore Dia = 12" / 370 ft") settles it. The water level is
+  //    left out: logs drawn in metres often still give it in feet ("Water Level = 30 ft").
+  const beside = rows.slice(0, dataEndIdx).flatMap(r => cols.map(c => String((r || [])[c] ?? ''))).filter(s => !/water\s*level|swl/i.test(s)).join(' | ');
   const metres = /\d\s*(?:m|mt|mtr|mtrs|met(?:er|re)s?)\b/i.test(beside), feet = /\d\s*(?:ft|feet|foot)\b/i.test(beside);
   if (metres !== feet) return metres ? 'm' : 'ft';
 

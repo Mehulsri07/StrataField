@@ -46,6 +46,9 @@ for a version is copied into its GitHub release notes, so write it for the peopl
 - **A layer could not be removed in a small window.** On a new borewell's Layers & pipes step, in
   a window narrower than about 1280 pixels, the drawing covered the layers' remove buttons. The
   drawing now goes below the layers until there is room for both.
+- **A water level in feet on a log drawn in metres.** Logs drawn in metres often still say
+  "Water Level = 30 ft". Import treated that as 30 metres and showed 98.4 ft. A water level or
+  depth with its unit written next to it is now read in that unit.
 
 ## [1.0.15] - 2026-10-08
 
