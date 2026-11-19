@@ -291,6 +291,41 @@ $env:STRATA_DATA_DIR = "$env:TEMP\strata-dev"; npm run dev
 
 ## Testing, CI and releases
 
+Every change goes through the same path, from pull request to the copy installed in the field. No
+step is done by hand except publishing the release:
+
+```mermaid
+flowchart LR
+  pr["Pull request"] --> fast
+  subgraph fast["CI on every pull request"]
+    direction TB
+    c1["Typecheck, lint, unit tests,<br>frontend build (Linux)"]
+    c2["Rust format, clippy, tests (Windows)"]
+    c3["End-to-end test of the real app<br>+ performance with 5,000 borewells"]
+    c4["npm audit + cargo audit"]
+  end
+  fast -- "packaging or start-up changed" --> slow
+  subgraph slow["Installer checks"]
+    direction TB
+    s1["Build the optimised installer"]
+    s2["Clean-machine test: install, start,<br>upgrade, uninstall; data survives"]
+    s3["Automatic-update test: old build<br>updates itself to a newer one"]
+  end
+  fast -- "required checks pass" --> main["Auto-merge into main"]
+  slow --> main
+  main -- "version tag" --> rel["Release workflow: build, sign,<br>clean-machine test, draft release"]
+  rel -- "published by hand" --> field["Installed copies update<br>themselves (signed)"]
+  bot["Dependabot (weekly)"] --> pr
+  map["Monthly job: rebuild the<br>offline Lucknow map"] --> assets["Map-data release"]
+```
+
+- **Branch protection:** `main` only takes changes through pull requests whose required checks
+  pass; they then merge by themselves (GitHub auto-merge).
+- **Fast where it can be:** jobs on the same branch cancel older runs, Rust builds share a cache
+  refreshed from `main`, documentation-only changes skip CI, and the slow installer and update tests
+  run on a pull request only when it touches packaging, start-up or updating (`dorny/paths-filter`).
+- **Secrets:** the update-signing key exists only as repository secrets and is used only by the
+  Release workflow. The update test signs with a throwaway key it makes on the spot.
 - **Unit tests** (`core`, Vitest): validation, numbers, layer facts, the water map and yearly trend,
   cross-section geometry, ground heights, the Excel reader and the Excel export. The Excel reader's
   tests use made-up logs in each layout found in real field logs.
