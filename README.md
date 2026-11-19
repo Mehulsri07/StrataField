@@ -98,7 +98,7 @@ and **User manual** at the bottom of the app's menu). It can also be read
 StrataField is a [Tauri 2](https://tauri.app) application. It has two halves that talk to each other:
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Window["App window (WebView2, built into Windows)"]
         UI["Screens<br/>React + TypeScript<br/><code>app/src</code>"]
         Core["Shared logic<br/>TypeScript<br/><code>core/src</code>"]
@@ -295,10 +295,10 @@ Every change goes through the same path, from pull request to the copy installed
 step is done by hand except publishing the release:
 
 ```mermaid
-flowchart LR
+flowchart TD
   pr["Pull request"] --> fast
   subgraph fast["CI on every pull request"]
-    direction TB
+    direction LR
     c1["Typecheck, lint, unit tests,<br>frontend build (Linux)"]
     c2["Rust format, clippy, tests (Windows)"]
     c3["End-to-end test of the real app<br>+ performance with 5,000 borewells"]
@@ -306,7 +306,7 @@ flowchart LR
   end
   fast -- "packaging or start-up changed" --> slow
   subgraph slow["Installer checks"]
-    direction TB
+    direction LR
     s1["Build the optimised installer"]
     s2["Clean-machine test: install, start,<br>upgrade, uninstall; data survives"]
     s3["Automatic-update test: old build<br>updates itself to a newer one"]
